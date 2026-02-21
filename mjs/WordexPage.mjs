@@ -17,7 +17,6 @@ import Toolbar from "./WordexToolbar.mjs"
 export default class Page {
     /** @type {"INS"|"OVR"} */
 
-    /** @type {HTMLStyleElement} */ #style
     /** @type {HTMLDivElement} */ #main
     /** @type {HTMLDivElement} */ #header
     /** @type {HTMLDivElement} */ #body
@@ -34,19 +33,17 @@ export default class Page {
                 Edit.handleOverwriteInput(e)
         })
 
-        this.#style = document.createElement("style")
-        this.#style.textContent = Config.Script
-        this.#main.appendChild(this.#style)
-
-
         this.#header = this.#makeSection("header", "Cabeçalho: clique para editar")
         this.#header.id = "header"
+        this.#main.appendChild(this.#header)
 
         this.#body = this.#makeSection("body", "Corpo do documento: clique para editar")
         this.#body.id = "body"
+        this.#main.appendChild(this.#body)
 
         this.#footer = this.#makeSection("footer", "Rodapé: clique para editar")
         this.#footer.id = "footer"
+        this.#main.appendChild(this.#footer)
         
         this.#toolbar = new Toolbar(this)
         document.body.append(this.#toolbar.element, this.#main)
@@ -287,7 +284,6 @@ export default class Page {
 
         return false
     }
-
     /** @param {string} hex */
     setColor(hex) {
         if (!hex)
