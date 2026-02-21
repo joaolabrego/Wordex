@@ -90,7 +90,7 @@ export default class Page {
         return mode
     }
 
-    /** @param {HTMLElement} scope */
+    /** @param {HTMLDivElement} scope */
     static attach(scope) {
         Page.#scope = scope
 
