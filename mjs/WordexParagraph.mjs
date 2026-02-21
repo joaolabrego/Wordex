@@ -7,6 +7,30 @@ export default class Paragraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
+    /**
+     * @param {HTMLDivElement} root
+     * @returns {HTMLDivElement}
+     */
+    static ensureFirstParagraph(root = Config.root) {
+        /** @type {HTMLDivElement|null} */
+        let paragraph = root.querySelector("div")
+        if (paragraph) 
+            return paragraph
+
+        const txt = root.textContent ?? ""
+        while (root.firstChild) 
+            root.removeChild(root.firstChild)
+
+        paragraph = document.createElement("div")
+        if (txt.trim()) 
+            paragraph.textContent = txt
+        else 
+            paragraph.appendChild(document.createElement("br"))
+        root.prepend(paragraph)
+        paragraph.focus({ preventScroll: true })
+        return paragraph
+    }
+
     /** @param {HTMLDivElement} p */
     static #applySelectionRing(p) {
         // não encosta em border do parágrafo (é estilo do usuário)

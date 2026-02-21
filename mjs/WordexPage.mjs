@@ -12,118 +12,66 @@ import TableRow from "./WordexTableRow.mjs"
 import TableCol from "./WordexTableCol.mjs"
 import Text from "./WordexText.mjs"
 import Layout from "./WordexLayout.mjs"
+import Toolbar from "./WordexToolbar.mjs"
 
 export default class Page {
-    /** @type {HTMLElement|null} */
-    static #scope = null
-
     /** @type {"INS"|"OVR"} */
-    static #editMode = "INS"
 
-  // refs do “mundo”
-  /** @type {HTMLDivElement|null} */ static #divPage = null
-  /** @type {HTMLDivElement|null} */ static #header = null
-  /** @type {HTMLDivElement|null} */ static #body = null
-  /** @type {HTMLDivElement|null} */ static #footer = null
+    /** @type {HTMLStyleElement} */ #style
+    /** @type {HTMLDivElement} */ #main
+    /** @type {HTMLDivElement} */ #header
+    /** @type {HTMLDivElement} */ #body
+    /** @type {HTMLDivElement} */ #footer
 
-    // =========================================================
-    // Bootstrap / Mundo (DOM)
-    // =========================================================
+    /** @type {Toolbar} */ #toolbar
 
-    /**
-     * Cria a estrutura page/header/body/footer e já conecta tudo.
-     * Use no Template: const { divPage } = Page.create()
-     */
-    static create() {
-        const divPage = document.createElement("div")
-        divPage.classList.add("page")
-        divPage.style.caretColor = "#0B6E4F"
-
-        const header = Page.#makeSection("header", "Cabeçalho: clique para editar")
-        header.id = "header"
-
-        const body = Page.#makeSection("body", "Corpo do documento: clique para editar")
-        body.id = "body"
-
-        const footer = Page.#makeSection("footer", "Rodapé: clique para editar")
-        footer.id = "footer"
-
-        divPage.append(header, body, footer)
-
-        Page.#divPage = divPage
-        Page.#header = header
-        Page.#body = body
-        Page.#footer = footer
-
-        // conecta subsistemas globais
-        Page.attach(divPage)
-
-        // modo OVR/INS (comportamento do editor, não do template)
-        Page.#wireBeforeInput(divPage)
-
-        // seleção global -> Config.range
-        document.addEventListener("selectionchange", () => Config.saveSelection())
-
-        // default root/foco
-        Config.root = body
-        const p = Config.ensureFirstParagraph(body)
-
-        return { divPage, header, body, footer }
-    }
-
-    /** @param {"INS"|"OVR"} mode */
-    static setEditMode(mode) {
-        Page.#editMode = mode
-        if (Page.#divPage) {
-            Page.#divPage.style.caretColor = mode === "OVR" ? "#8B0000" : "#006400"
-        }
-    }
-
-    /** @returns {"INS"|"OVR"} */
-    static getEditMode() {
-        return Page.#editMode
-    }
-
-    static toggleEditMode() {
-        const mode = Page.getEditMode() === "INS" ? "OVR" : "INS"
-        Page.setEditMode(mode)
-        return mode
-    }
-
-    /** @param {HTMLDivElement} scope */
-    static attach(scope) {
-        Page.#scope = scope
-
-        Image.attach(scope)
-        Paragraph.attach(scope)
-        Table.attach(scope)
-        TableCell.attach(scope)
-        TableRow.attach(scope)
-        TableCol.attach(scope)
-    }
-
-    /** @param {HTMLDivElement} divPage */
-    static #wireBeforeInput(divPage) {
-        divPage.addEventListener("beforeinput", (e) => {
-            if (Page.#editMode === "OVR") Edit.handleOverwriteInput(e)
+    constructor() {
+        this.#main = document.createElement("div")
+        this.#main.classList.add("page")
+        this.#main.style.caretColor = "#0B6E4F"
+        this.#main.addEventListener("beforeinput", (e) => {
+            if (this.#toolbar.isOverwriteMode)
+                Edit.handleOverwriteInput(e)
         })
-    }
 
+        this.#style = document.createElement("style")
+        this.#style.textContent = Config.Script
+        this.#main.appendChild(this.#style)
+
+
+        this.#header = this.#makeSection("header", "Cabeçalho: clique para editar")
+        this.#header.id = "header"
+
+        this.#body = this.#makeSection("body", "Corpo do documento: clique para editar")
+        this.#body.id = "body"
+
+        this.#footer = this.#makeSection("footer", "Rodapé: clique para editar")
+        this.#footer.id = "footer"
+        
+        this.#toolbar = new Toolbar(this)
+        document.body.append(this.#toolbar.element, this.#main)
+        document.body.appendChild(this.#main)
+
+        Config.root = this.#body
+        document.addEventListener("selectionchange", () => Config.saveSelection())
+    }
+    get element() {
+        return this.#main
+    }
     /**
      * @param {string} cls
      * @param {string} text
      * @returns {HTMLDivElement}
      */
-    static #makeSection(cls, text) {
+    #makeSection(cls, text) {
         const div = document.createElement("div")
         div.classList.add("editable", "workspace", cls)
         div.textContent = text
         div.contentEditable = "true"
 
         div.addEventListener("keydown", (e) => Edit.onKeyDown(e))
-        div.addEventListener("focus", () => {
-            Config.root = div
-        })
+        div.addEventListener("focus", () => Config.root = div)
+        Paragraph.ensureFirstParagraph(div)
 
         return div
     }
@@ -181,6 +129,8 @@ export default class Page {
 
         if (Image.hasFocus()) return { kind: "image", obj: Image }
 
+        if (Table.hasFocus()) return { kind: "table", obj: Table }
+
         if (Page.#callIfExists(Text, "hasSelection")) return { kind: "text", obj: Text }
 
         return { kind: "paragraph", obj: Paragraph }
@@ -194,29 +144,23 @@ export default class Page {
     static align(value) {
         const t = Page.selectedTarget()
 
-        // 1) objeto (img/table)
-        if (t instanceof HTMLImageElement) {
+        // 1) imagem: usa alvo focado
+        if (t.kind === "image") {
             const mode = Layout.normalizeJustify(value)
-            if (mode === "left")
-                Image.alignLeft(t)
-            else if (mode === "right")
-                Image.alignRight(t)
-            else
-                Image.alignCenter(t)
+            Image.align(mode)
             return true
         }
 
-        if (t instanceof HTMLTableElement) {
+        // 2) tabela (célula/linha/col/tabela inteira)
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") {
             const mode = Layout.normalizeJustify(value)
-            if (mode === "left")
-                Table.alignLeft(t)
-            else if (mode === "right")
-                Table.alignRight(t)
-            else
-                Table.alignCenter(t)
+            if (mode === "left") Table.alignLeft()
+            else if (mode === "right") Table.alignRight()
+            else Table.alignCenter()
             return true
         }
 
+        // 3) parágrafo/texto: execCommand
         if (value === "justifyLeft") Config.exec("justifyLeft")
         if (value === "justifyCenter") Config.exec("justifyCenter")
         if (value === "justifyRight") Config.exec("justifyRight")
@@ -251,125 +195,155 @@ export default class Page {
         p.style.borderRadius = radiusPx
         return true
     }
-    
+
     static increase() {
         const t = Page.selectedTarget()
-
-        if (t instanceof HTMLImageElement) { Image.increase(t); return true }
-        if (t instanceof HTMLTableElement) { Table.increase(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.increase(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.increase(table); return true }
         return !Page.#callIfExists(Paragraph, "increase")
     }
 
     static decrease() {
         const t = Page.selectedTarget()
-        if (t instanceof HTMLImageElement) { Image.decrease(t); return true }
-        if (t instanceof HTMLTableElement) { Table.decrease(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.decrease(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.decrease(table); return true }
         return !Page.#callIfExists(Paragraph, "decrease")
     }
 
     static left() {
         const t = Page.selectedTarget()
-        if (t instanceof HTMLImageElement) { Image.moveLeftWord(t); return true }
-        if (t instanceof HTMLTableElement) { Table.moveLeftWord(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveLeftWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveLeftWord(table); return true }
         return !Page.#callIfExists(Paragraph, "left")
     }
 
     static right() {
         const t = Page.selectedTarget()
-        if (t instanceof HTMLImageElement) { Image.moveRightWord(t); return true }
-        if (t instanceof HTMLTableElement) { Table.moveRightWord(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveRightWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveRightWord(table); return true }
         return !Page.#callIfExists(Paragraph, "right")
     }
 
     static up() {
         const t = Page.selectedTarget()
-        if (t instanceof HTMLImageElement) { Image.moveUp(t); return true }
-        if (t instanceof HTMLTableElement) { Table.moveUp(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveUp(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveUp(table); return true }
         return !Page.#callIfExists(Paragraph, "up")
     }
 
     static down() {
         const t = Page.selectedTarget()
-        if (t instanceof HTMLImageElement) { Image.moveDown(t); return true }
-        if (t instanceof HTMLTableElement) { Table.moveDown(t); return true }
+        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveDown(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveDown(table); return true }
         return !Page.#callIfExists(Paragraph, "down")
     }
 
-    // =========================================================
-    // Formatação (por enquanto via Format)
-    // =========================================================
-
     /** @param {string} name */
-    static fontFamily(name) {
-        if (!name) return false
+    setFontFamily(name) {
+        if (!name)
+            return false
         Config.restoreRange(Config.range)
 
-        const sel = window.getSelection()
-        const hasSelection = !!sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed
+        const selection = window.getSelection()
+        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
 
-        // seleção primeiro
-        if (hasSelection) {
-            if (Format.setFontFamily(name)) return true
-            return false
-        }
+        if (hasSelection)
+            return Format.setFontFamily(name)
 
-        // sem seleção: parágrafo/root
-        const p = Page.#getParagraphTarget()
-        if (p) { p.style.fontFamily = name; return true }
+        const paragraph = Page.#getParagraphTarget()
+        if (paragraph) { paragraph.style.fontFamily = name; return true }
         if (Config.root) { Config.root.style.fontFamily = name; return true }
         return false
     }
 
-    /** @param {string} value @param {string} cssText */
-    static fontSize(value, cssText = value) {
-        if (!value) return false
+    /** 
+     * @param {string} value 
+     * @param {string} cssText 
+     */
+    setFontSize(value, cssText = value) {
+        if (!value)
+            return false
         Config.restoreRange(Config.range)
 
-        const sel = window.getSelection()
-        const hasSelection = !!sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed
+        const selection = window.getSelection()
+        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
 
-        // seleção primeiro
         if (hasSelection) {
-            if (/^[1-7]$/.test(value)) return !!Format.setFontSize(value)
+            if (/^[1-7]$/.test(value))
+                return !!Format.setFontSize(value)
             return false
         }
 
         // sem seleção: parágrafo/root
-        const p = Page.#getParagraphTarget()
-        if (p) { p.style.fontSize = cssText; return true }
-        if (Config.root) { Config.root.style.fontSize = cssText; return true }
+        const paragraph = Page.#getParagraphTarget()
+        if (paragraph) {
+            paragraph.style.fontSize = cssText
+            return true
+        }
+        if (Config.root) {
+            Config.root.style.fontSize = cssText
+            return true
+        }
+
         return false
     }
 
     /** @param {string} hex */
-    static color(hex) {
-        if (!hex) return false
+    setColor(hex) {
+        if (!hex)
+            return false
         Config.restoreRange(Config.range)
 
-        const sel = window.getSelection()
-        const hasSelection = !!sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed
-
-        // seleção primeiro
+        const selection = window.getSelection()
+        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
         if (hasSelection) {
-            if (Format.setFontColor(hex)) return true
-            return false
+            return Format.setFontColor(hex)
         }
 
-        // sem seleção: parágrafo/root
-        const p = Page.#getParagraphTarget()
-        if (p) { p.style.color = hex; return true }
-        if (Config.root) { Config.root.style.color = hex; return true }
+        const paragraph = Page.#getParagraphTarget()
+        if (paragraph) {
+            paragraph.style.color = hex
+            return true
+        }
+        
+        if (Config.root) {
+            Config.root.style.color = hex
+            return true
+        }
+
         return false
     }
+    /** @param {"portrait"|"landscape"} value */
+    setOrientation(value) {
+        const paper = Config.paperFormatList.find((p) => p.selected)
+        if (!paper)
+            return false
+        if (value === "landscape") 
+            this.#main.style.width = paper.height ?? ""
+        else 
+            this.#main.style.width = paper.width ?? ""
 
-    // =========================================================
-    // Inserções
-    // =========================================================
+        return true
+    }
+    /** @param {string} value */
+    setPaperFormat(value) {
+        const orient = Config.pageOrientationList.find((p) => p.selected)
+        if (!orient)
+            return false
+        const paper = Config.paperFormatList.find((p) => p.value === value)
+        if (!paper)
+            return false
+        if (orient.value === "landscape")
+            this.#main.style.width = paper.height ?? ""
+        else
+            this.#main.style.width = paper.width ?? ""
+
+        return true
+    }
     /** @param {File|null} file */
     static async insertImageFromFile(file) {
         await Image.createFromFile(file)
     }
-
     /** @param {number} rows @param {number} cols */
     static async insertTable(rows = 2, cols = 2) {
         if (!Table || typeof Table.insertAtSelection !== "function") return false

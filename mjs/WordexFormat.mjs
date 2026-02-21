@@ -18,10 +18,8 @@ export default class Format {
   static alignRight() { return Config.exec('justifyRight') }
   static justify() { return Config.exec('justifyFull') }
 
-  /** @param {string} name */
-  static setFontFamily(name) { return name ? Config.exec('fontName', name) : false }
-  /** @param {string} size */
-  static setFontSize(size) { return size ? Config.exec('fontSize', size) : false }
-  /** @param {string} hex */
-  static setFontColor(hex) { return hex ? Config.exec('foreColor', hex) : false }
+  
+  /** @param {string} name */ static setFontFamily(name) { return name ? Config.exec('fontName', name) : false }
+  /** @param {string} size */ static setFontSize(size) { return size ? Config.exec('fontSize', size) : false }
+  /** @param {string} hex */ static setFontColor(hex) { return hex ? Config.exec('foreColor', hex) : false }
 }

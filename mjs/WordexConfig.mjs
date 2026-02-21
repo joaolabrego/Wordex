@@ -15,7 +15,9 @@ export default class Config {
 
   /** @type {HTMLDivElement} */ static root
   /** @type {Range|null} */ static range = null
-  /** @readonly @type {string} */ static K_OK = "✔ "
+  /** @readonly @type {"✔ "} */ static K_OK = "✔ "
+  /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
+  /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
 
   // ✅ Não precisa instanciar Config. Só setar o root.
   /**
@@ -27,12 +29,61 @@ export default class Config {
 
   /** @type {Readonly<Item[]>} */
   static paperFormatList = Object.freeze([
+    // Genérico
     { value: "", text: "Folha" },
+
+    // ISO 216 — Série A
+    { value: "A0", text: "A0", width: "841mm", height: "1189mm" },
+    { value: "A1", text: "A1", width: "594mm", height: "841mm" },
+    { value: "A2", text: "A2", width: "420mm", height: "594mm" },
     { value: "A3", text: "A3", width: "297mm", height: "420mm" },
     { value: "A4", text: "A4", width: "210mm", height: "297mm", selected: true },
-    { value: "Letter", text: "Carta", width: "215.9mm", height: "279.4mm" },
+    { value: "A5", text: "A5", width: "148mm", height: "210mm" },
+    { value: "A6", text: "A6", width: "105mm", height: "148mm" },
+    { value: "A7", text: "A7", width: "74mm", height: "105mm" },
+    { value: "A8", text: "A8", width: "52mm", height: "74mm" },
+    { value: "A9", text: "A9", width: "37mm", height: "52mm" },
+    { value: "A10", text: "A10", width: "26mm", height: "37mm" },
+
+    // ISO 216 — Série B
+    { value: "B0", text: "B0", width: "1000mm", height: "1414mm" },
+    { value: "B1", text: "B1", width: "707mm", height: "1000mm" },
+    { value: "B2", text: "B2", width: "500mm", height: "707mm" },
+    { value: "B3", text: "B3", width: "353mm", height: "500mm" },
+    { value: "B4", text: "B4", width: "250mm", height: "353mm" },
+    { value: "B5", text: "B5", width: "176mm", height: "250mm" },
+    { value: "B6", text: "B6", width: "125mm", height: "176mm" },
+    { value: "B7", text: "B7", width: "88mm", height: "125mm" },
+    { value: "B8", text: "B8", width: "62mm", height: "88mm" },
+    { value: "B9", text: "B9", width: "44mm", height: "62mm" },
+    { value: "B10", text: "B10", width: "31mm", height: "44mm" },
+
+    // ISO 269 — Série C (envelopes)
+    { value: "C0", text: "C0", width: "917mm", height: "1297mm" },
+    { value: "C1", text: "C1", width: "648mm", height: "917mm" },
+    { value: "C2", text: "C2", width: "458mm", height: "648mm" },
+    { value: "C3", text: "C3", width: "324mm", height: "458mm" },
+    { value: "C4", text: "C4", width: "229mm", height: "324mm" },
+    { value: "C5", text: "C5", width: "162mm", height: "229mm" },
+    { value: "C6", text: "C6", width: "114mm", height: "162mm" },
+    { value: "C7", text: "C7", width: "81mm", height: "114mm" },
+    { value: "C8", text: "C8", width: "57mm", height: "81mm" },
+    { value: "C9", text: "C9", width: "40mm", height: "57mm" },
+    { value: "C10", text: "C10", width: "28mm", height: "40mm" },
+
+    // Padrões norte-americanos
+    { value: "Letter", text: "Carta (Letter)", width: "215.9mm", height: "279.4mm" },
     { value: "Legal", text: "Legal", width: "215.9mm", height: "355.6mm" },
     { value: "Executive", text: "Executivo", width: "184.15mm", height: "266.7mm" },
+    { value: "Tabloid", text: "Tabloide", width: "279.4mm", height: "431.8mm" },
+    { value: "Ledger", text: "Ledger", width: "431.8mm", height: "279.4mm" },
+
+    // ANSI
+    { value: "ANSI_A", text: "ANSI A", width: "215.9mm", height: "279.4mm" },
+    { value: "ANSI_B", text: "ANSI B", width: "279.4mm", height: "431.8mm" },
+    { value: "ANSI_C", text: "ANSI C", width: "431.8mm", height: "558.8mm" },
+    { value: "ANSI_D", text: "ANSI D", width: "558.8mm", height: "863.6mm" },
+    { value: "ANSI_E", text: "ANSI E", width: "863.6mm", height: "1117.6mm" }
   ])
 
   static fontFamilyList = Object.freeze([
@@ -107,7 +158,9 @@ export default class Config {
   ])
 
   static saveSelection() {
-    if (!Config.root) return
+    console.log(Config.root)
+    if (!Config.root)
+      return
     const sel = window.getSelection()
     if (!sel || sel.rangeCount === 0) return
 
@@ -146,37 +199,12 @@ export default class Config {
     return sel.getRangeAt(0)
   }
 
-  /**
-   * Mantém pelo menos um <div> dentro do root (teu “parágrafo”).
-   * @param {HTMLDivElement|null} root
-   * @returns {HTMLDivElement|null}
-   */
-  static ensureFirstParagraph(root) {
-    if (!root) return null
-
-    // ✅ agora os parágrafos são <div> normais
-    /** @type {HTMLDivElement|null} */
-    let p = root.querySelector("div")
-    if (p) return p
-
-    const txt = root.textContent ?? ""
-    while (root.firstChild) root.removeChild(root.firstChild)
-
-    p = document.createElement("div")
-    if (txt.trim()) p.textContent = txt
-    else p.appendChild(document.createElement("br"))
-
-    root.prepend(p)
-    p.focus({ preventScroll: true })
-    return p
-  }
-
   /** @readonly */
   static Script = `
       :root { --margin: 20mm; }
 
       html, body { margin: 0; padding: 0; }
-      body { background-color: black; }
+      body { background-color: #555; }
 
       .page {
         margin: var(--margin);
@@ -192,7 +220,7 @@ export default class Config {
 
       .toolbar {
         top: 0;
-        pading: 0;
+        padding: 0;
         z-index: 1000;
         background: gray;
         border-bottom: 1px solid #d0d0d0;
@@ -296,7 +324,7 @@ export default class Config {
 
     select.addEventListener("change", () => {
       if (eventChange) eventChange()
-      Config.toogleSelectOption(select, templateList, isOnlyOnce)
+      Config.toggleSelectOption(select, templateList, isOnlyOnce)
     })
 
     return select
@@ -304,14 +332,14 @@ export default class Config {
 
   /**
    * @param {HTMLSelectElement} selectElement
-   * @param {ReadonlyArray<Item>} selecctList
+   * @param {ReadonlyArray<Item>} selectList
    * @param {string} [value]
    * @returns {HTMLSelectElement}
    */
-  static mountSelect(selectElement, selecctList, value = "") {
+  static mountSelect(selectElement, selectList, value = "") {
     selectElement.options.length = 0
 
-    selecctList?.forEach((item) => {
+    selectList?.forEach((item) => {
       const option = document.createElement("option")
       option.style.fontSize = "10px"
       option.style.fontWeight = "bold"
@@ -327,7 +355,7 @@ export default class Config {
    * @param {ReadonlyArray<Item>} templateList
    * @param {boolean} isOnlyOnce
    */
-  static toogleSelectOption(selectElement, templateList, isOnlyOnce = true) {
+  static toggleSelectOption(selectElement, templateList, isOnlyOnce = true) {
     const value = selectElement.options[selectElement.selectedIndex].value
     if (!value) return
 
@@ -414,7 +442,6 @@ export default class Config {
    */
   static askInteger = (msg, def, min = 1, max = 99) => {
     const s = prompt(msg, String(def))
-    console.log("joao")
     if (s === null)
       return null
     const n = parseInt(s.trim(), 10)
