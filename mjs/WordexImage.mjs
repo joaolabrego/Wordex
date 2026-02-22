@@ -67,7 +67,7 @@ export default class Image {
         if (!file) return
         const src = await Image.#fileToDataUrl(file)
         Config.restoreRange(Config.range)
-        Image.#insertAtSelection(src)
+        Image.insertAtSelection(src)
     }
     /**
      * @param {string} url
@@ -77,15 +77,19 @@ export default class Image {
         Config.restoreRange(Config.range)
 
         if (url.startsWith("data:")) {
-            Image.#insertAtSelection(url)
+            Image.insertAtSelection(url)
             return
         }
 
         const dataUrl = await Image.#urlToDataUrl(url)
-        Image.#insertAtSelection(dataUrl)
+        Image.insertAtSelection(dataUrl)
     }
+    /** @param {File|null} file */
+    static async insertImageFromFile(file) {
+        await Image.createFromFile(file)
+    }    
     /** @param {string} src */
-    static #insertAtSelection(src) {
+    static insertAtSelection(src) {
         const r = Config.getSelRange?.() ?? Config.range
         if (!r) return
 
@@ -148,27 +152,27 @@ export default class Image {
         })
     }
     // garante que Page.left()/right() não quebra
-    /** @param {HTMLImageElement} element */
-    static moveLeftWord(element) { return Movement.leftWord(element) }
-    /** @param {HTMLImageElement} element */
-    static moveRightWord(element) { return Movement.rightWord(element) }
-    /** @param {HTMLImageElement} element */
-    static moveParagraphUp(element) { return Movement.upParagraph(element) }
-    /** @param {HTMLImageElement} element */
-    static moveParagraphDown(element) { return Movement.downParagraph(element) }
+    /** @param {HTMLImageElement} instance */
+    static moveLeftWord(instance) { return Movement.leftWord(instance) }
+    /** @param {HTMLImageElement} instance */
+    static moveRightWord(instance) { return Movement.rightWord(instance) }
+    /** @param {HTMLImageElement} instance */
+    static moveParagraphUp(instance) { return Movement.upParagraph(instance) }
+    /** @param {HTMLImageElement} instance */
+    static moveParagraphDown(instance) { return Movement.downParagraph(instance) }
 
     // alinha com wrap (left/right) ou inline (center)
 
-    /** @param {HTMLImageElement} element */
-    static alignLeft(element) { return Layout.alignObject(element, "left") }
-    /** @param {HTMLImageElement} element */
-    static alignRight(element) { return Layout.alignObject(element, "right") }
-    /** @param {HTMLImageElement} element */
-    static alignCenter(element) { return Layout.alignObject(element, "center") }
+    /** @param {HTMLImageElement} instance */
+    static alignLeft(instance) { return Layout.alignObject(instance, "left") }
+    /** @param {HTMLImageElement} instance */
+    static alignRight(instance) { return Layout.alignObject(instance, "right") }
+    /** @param {HTMLImageElement} instance */
+    static alignCenter(instance) { return Layout.alignObject(instance, "center") }
 
     // resize unificado
-    /** @param {HTMLImageElement} element */
-    static increase(element) { return Layout.increase(element) }
-    /** @param {HTMLImageElement} element */
-    static decrease(element) { return Layout.decrease(element) }
+    /** @param {HTMLImageElement} instance */
+    static increase(instance) { return Layout.increase(instance) }
+    /** @param {HTMLImageElement} instance */
+    static decrease(instance) { return Layout.decrease(instance) }
 }

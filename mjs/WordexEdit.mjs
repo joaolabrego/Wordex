@@ -237,8 +237,8 @@ export default class Edit {
     if (!sel || !sel.rangeCount) return null
     const r = sel.getRangeAt(0)
 
-    const root = Config.root
-    if (!root) return null
+    const rootSection = Config.rootSection
+    if (!rootSection) return null
 
     const anchor =
       r.startContainer instanceof Element ? r.startContainer : r.startContainer.parentElement
@@ -249,7 +249,7 @@ export default class Edit {
 
     const p = anchor.closest("div")
     if (!(p instanceof HTMLDivElement)) return null
-    if (p.parentElement !== root) return null
+    if (p.parentElement !== rootSection) return null
     return p
   }
 
@@ -300,9 +300,9 @@ export default class Edit {
     p.insertAdjacentElement("afterend", newP)
 
     // troca seleção visual (se houver)
-    const root = Config.root
-    if (root) {
-      const oldSel = root.querySelector(".p-selected")
+    const rootSection = Config.rootSection
+    if (rootSection) {
+      const oldSel = rootSection.querySelector(".p-selected")
       if (oldSel) oldSel.classList.remove("p-selected")
       newP.classList.add("p-selected")
     }

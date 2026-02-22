@@ -230,7 +230,7 @@ export default class TableCell {
         if (!cell.firstChild) cell.appendChild(document.createElement("br"))
 
         // joga o caret pra dentro (coerente com seu modelo Config.range)
-        Config.root?.focus({ preventScroll: true })
+        Config.rootSection?.focus({ preventScroll: true })
         const r = document.createRange()
         r.selectNodeContents(cell)
         r.collapse(true)

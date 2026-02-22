@@ -1,35 +1,32 @@
 // @ts-check
 "use strict"
 
+import { createElement } from "react"
 import Config from "./WordexConfig.mjs"
 
 export default class Paragraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
-    /**
-     * @param {HTMLDivElement} root
-     * @returns {HTMLDivElement}
-     */
-    static ensureFirstParagraph(root = Config.root) {
-        /** @type {HTMLDivElement|null} */
-        let paragraph = root.querySelector("div")
-        if (paragraph) 
-            return paragraph
+    /** @type {HTMLDivElement} */ #owner
+    /** @type {HTMLDivElement} */ #paragraph
 
-        const txt = root.textContent ?? ""
-        while (root.firstChild) 
-            root.removeChild(root.firstChild)
+    /** @param {HTMLDivElement} owner */
+    constructor(owner) {
+        this.#owner = owner
+        this.#paragraph = document.createElement("div")
+        this.#paragraph.classList.add("paragraph")
+        this.#paragraph.append(document.createElement("br"))
 
-        paragraph = document.createElement("div")
-        if (txt.trim()) 
-            paragraph.textContent = txt
-        else 
-            paragraph.appendChild(document.createElement("br"))
-        root.prepend(paragraph)
-        paragraph.focus({ preventScroll: true })
-        return paragraph
+
+        
+
     }
+
+    get instance() {
+        return this.#paragraph
+    }
+
 
     /** @param {HTMLDivElement} p */
     static #applySelectionRing(p) {
@@ -47,17 +44,17 @@ export default class Paragraph {
 
     /**
      * Liga seleção de parágrafo ao container do editor.
-     * Parágrafo = filho direto do Config.root.
+     * Parágrafo = filho direto do Config.rootSection.
      * @param {HTMLElement} scope
      */
     static attach(scope) {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
-            const root = Config.root
-            if (!root) return
+            const rootSection = Config.rootSection
+            if (!rootSection) return
 
             const p = t.closest("div")
-            if (!(p instanceof HTMLDivElement) || p.parentElement !== root) {
+            if (!(p instanceof HTMLDivElement) || p.parentElement !== rootSection) {
                 Paragraph.#clear()
                 return
             }
@@ -160,32 +157,32 @@ export default class Paragraph {
     // reposicionamento
     // =========================================================
 
-    /** Move parágrafo selecionado 1 posição para cima (entre irmãos do root). */
+    /** Move parágrafo selecionado 1 posição para cima (entre irmãos do rootSection). */
     static moveUp() {
-        const root = Config.root
+        const rootSection = Config.rootSection
         const p = Paragraph.#selected
-        if (!root || !p) return false
+        if (!rootSection || !p) return false
 
         const prev = p.previousElementSibling
         if (!(prev instanceof HTMLDivElement)) return false
 
-        root.insertBefore(p, prev)
+        rootSection.insertBefore(p, prev)
 
         Paragraph.activate(p, "start")
         Paragraph.#focus(p)
         return true
     }
 
-    /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do root). */
+    /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do rootSection). */
     static moveDown() {
-        const root = Config.root
+        const rootSection = Config.rootSection
         const p = Paragraph.#selected
-        if (!root || !p) return false
+        if (!rootSection || !p) return false
 
         const next = p.nextElementSibling
         if (!(next instanceof HTMLDivElement)) return false
 
-        root.insertBefore(next, p) // troca
+        rootSection.insertBefore(next, p) // troca
 
         Paragraph.activate(p, "start")
         Paragraph.#focus(p)

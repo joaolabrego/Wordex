@@ -9,34 +9,35 @@ export default class Layout {
     // =========================================================
 
     /**
-     * @param {HTMLImageElement|HTMLTableElement} el
+     * @param {HTMLImageElement|HTMLTableElement} instance
      * @param {"left"|"center"|"right"} mode
      */
-    static alignObject(el, mode) {
-        if (!el) return false
+    static alignObject(instance, mode) {
+        if (!instance)
+            return false
 
         // limpa
-        el.style.float = ""
-        el.style.display = ""
-        el.style.margin = ""
-        el.style.verticalAlign = ""
+        instance.style.float = ""
+        instance.style.display = ""
+        instance.style.margin = ""
+        instance.style.verticalAlign = ""
 
         // wrap (ao redor) => float
         if (mode === "left") {
-            el.style.float = "left"
-            el.style.margin = "4px 10px 6px 0"
+            instance.style.float = "left"
+            instance.style.margin = "4px 10px 6px 0"
             return true
         }
 
         if (mode === "right") {
-            el.style.float = "right"
-            el.style.margin = "4px 0 6px 10px"
+            instance.style.float = "right"
+            instance.style.margin = "4px 0 6px 10px"
             return true
         }
 
-        el.style.display = "inline-block"
-        el.style.verticalAlign = "baseline"
-        el.style.margin = "0"
+        instance.style.display = "inline-block"
+        instance.style.verticalAlign = "baseline"
+        instance.style.margin = "0"
         return true
     }
 
@@ -63,12 +64,6 @@ export default class Layout {
         p.style.marginRight = "auto"
         return true
     }
-    /** @param {HTMLImageElement|HTMLTableElement} el */
-    static increase(el) { return Layout.#resize(el, 1.1) }
-
-    /** @param {HTMLImageElement|HTMLTableElement} el */
-    static decrease(el) { return Layout.#resize(el, 0.9) }
-
     /**
      * @param {HTMLImageElement|HTMLTableElement} el 
      * @param {number} factor
@@ -86,7 +81,13 @@ export default class Layout {
 
         Config.saveSelection()
         return true
-    }
+    }    
+    /** @param {HTMLImageElement|HTMLTableElement} el */
+    static increase(el) { return Layout.#resize(el, 1.1) }
+
+    /** @param {HTMLImageElement|HTMLTableElement} el */
+    static decrease(el) { return Layout.#resize(el, 0.9) }
+
 
     /**
      * @param {string} justifyCmd

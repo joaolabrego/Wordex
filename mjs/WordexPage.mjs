@@ -13,18 +13,23 @@ import TableCol from "./WordexTableCol.mjs"
 import Text from "./WordexText.mjs"
 import Layout from "./WordexLayout.mjs"
 import Toolbar from "./WordexToolbar.mjs"
+import Template from "./WordexTemplate.mjs"
+import Section from "./WordexSection.mjs"
 
 export default class Page {
     /** @type {"INS"|"OVR"} */
 
+    /** @type {Template} */ #template
     /** @type {HTMLDivElement} */ #main
-    /** @type {HTMLDivElement} */ #header
-    /** @type {HTMLDivElement} */ #body
-    /** @type {HTMLDivElement} */ #footer
-
+    /** @type {Section} */ #header
+    /** @type {Section} */ #body
+    /** @type {Section} */ #footer
     /** @type {Toolbar} */ #toolbar
 
-    constructor() {
+    /** @param {Template} template */
+    constructor(template) {
+        this.#template = template
+        this.#toolbar = template.toolbar
         this.#main = document.createElement("div")
         this.#main.classList.add("page")
         this.#main.style.caretColor = "#0B6E4F"
@@ -33,45 +38,59 @@ export default class Page {
                 Edit.handleOverwriteInput(e)
         })
 
-        this.#header = this.#makeSection("header", "Cabeçalho: clique para editar")
-        this.#header.id = "header"
-        this.#main.appendChild(this.#header)
+        this.#header = new Section(this, "header", "Cabeçalho: clique para editar")
+        this.#main.appendChild(this.#header.instance)
 
-        this.#body = this.#makeSection("body", "Corpo do documento: clique para editar")
-        this.#body.id = "body"
-        this.#main.appendChild(this.#body)
+        this.#body = new Section(this, "body", "Corpo do documento: clique para editar")
+        this.#main.appendChild(this.#body.instance)
 
-        this.#footer = this.#makeSection("footer", "Rodapé: clique para editar")
-        this.#footer.id = "footer"
-        this.#main.appendChild(this.#footer)
+        this.#footer = new Section(this, "footer", "Rodapé: clique para editar")
+        this.#main.appendChild(this.#footer.instance)
         
-        this.#toolbar = new Toolbar(this)
-        document.body.append(this.#toolbar.element, this.#main)
-        document.body.appendChild(this.#main)
+        Config.rootSection = this.#body.instance;
 
-        Config.root = this.#body
         document.addEventListener("selectionchange", () => Config.saveSelection())
     }
-    get element() {
+    get instance() {
         return this.#main
     }
-    /**
-     * @param {string} cls
-     * @param {string} text
-     * @returns {HTMLDivElement}
-     */
-    #makeSection(cls, text) {
-        const div = document.createElement("div")
-        div.classList.add("editable", "workspace", cls)
-        div.textContent = text
-        div.contentEditable = "true"
-
-        div.addEventListener("keydown", (e) => Edit.onKeyDown(e))
-        div.addEventListener("focus", () => Config.root = div)
-        Paragraph.ensureFirstParagraph(div)
-
-        return div
+    get body() {
+        return this.#body
     }
+    /** @param {string} hex */
+    setColor(hex) {
+        if (!hex)
+            return false
+        Config.restoreRange(Config.range)
+
+        const selection = window.getSelection()
+        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
+        if (hasSelection) {
+            return Format.setFontColor(hex)
+        }
+
+        const paragraph = Page.getParagraphTarget()
+        if (paragraph) {
+            paragraph.style.color = hex
+            return true
+        }
+        if (Config.rootSection) {
+            Config.rootSection.style.color = hex
+            return true
+        }
+
+        return false
+    }
+
+    /** 
+     * @param {number} rows 
+     * @param {number} cols
+     */
+    static async insertTable(rows = 2, cols = 2) {
+        if (!Table || typeof Table.insertAtSelection !== "function")
+            return false
+        return !!Table.insertAtSelection(rows, cols)
+    }    
 
     // =========================================================
     // Helpers
@@ -103,12 +122,43 @@ export default class Page {
     }
 
     /** @returns {HTMLDivElement|null} */
-    static #getParagraphTarget() {
+    static getParagraphTarget() {
         const fp = Page.#callIfExists(Paragraph, "getFocused")
         if (fp) return fp
         Config.restoreRange(Config.range)
         return Config.getActiveParagraph()
     }
+
+    /** @param {"left"|"center"|"right"} dir */
+    static align(dir) {
+        const target = Page.selectedTarget()
+
+        // 1) imagem: usa alvo focado
+        if (target.kind === "image") {
+            Image.align(dir)
+            return true
+        }
+
+        // 2) tabela (célula/linha/col/tabela inteira)
+        if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
+            if (dir === "left")
+                Table.alignLeft()
+            else if (dir === "right")
+                Table.alignRight()
+            else
+                Table.alignCenter()
+
+            return true
+        }
+
+        // 3) parágrafo/texto: execCommand
+        if (dir === "left") Config.exec("justifyLeft")
+        if (dir === "center") Config.exec("justifyCenter")
+        if (dir === "right") Config.exec("justifyRight")
+        //if (dir === "full") Config.exec("justifyFull")
+        return true
+    }
+
 
     // =========================================================
     // Resolver (Cell -> Row -> Col -> Image -> Text -> Paragraph)
@@ -137,33 +187,6 @@ export default class Page {
     // Toolbar verbs
     // =========================================================
 
-    /** @param {string} value */
-    static align(value) {
-        const t = Page.selectedTarget()
-
-        // 1) imagem: usa alvo focado
-        if (t.kind === "image") {
-            const mode = Layout.normalizeJustify(value)
-            Image.align(mode)
-            return true
-        }
-
-        // 2) tabela (célula/linha/col/tabela inteira)
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") {
-            const mode = Layout.normalizeJustify(value)
-            if (mode === "left") Table.alignLeft()
-            else if (mode === "right") Table.alignRight()
-            else Table.alignCenter()
-            return true
-        }
-
-        // 3) parágrafo/texto: execCommand
-        if (value === "justifyLeft") Config.exec("justifyLeft")
-        if (value === "justifyCenter") Config.exec("justifyCenter")
-        if (value === "justifyRight") Config.exec("justifyRight")
-        if (value === "justifyFull") Config.exec("justifyFull")
-        return true
-    }
 
     /** @param {string} widthPx @param {string} color */
     static border(widthPx, color) {
@@ -172,7 +195,7 @@ export default class Page {
         if (Table.applyBorder(widthPx, color)) return true
         if (Image.applyBorder(widthPx, color)) return true
 
-        const p = Page.#getParagraphTarget()
+        const p = Page.getParagraphTarget()
         if (!p) return false
         p.style.borderStyle = widthPx === "0px" ? "none" : "solid"
         p.style.borderWidth = widthPx
@@ -187,7 +210,7 @@ export default class Page {
         if (Table.applyBorderRadius(radiusPx)) return true
         if (Image.applyBorderRadius(radiusPx)) return true
 
-        const p = Page.#getParagraphTarget()
+        const p = Page.getParagraphTarget()
         if (!p) return false
         p.style.borderRadius = radiusPx
         return true
@@ -233,116 +256,5 @@ export default class Page {
         if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveDown(img); return true }
         if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveDown(table); return true }
         return !Page.#callIfExists(Paragraph, "down")
-    }
-
-    /** @param {string} name */
-    setFontFamily(name) {
-        if (!name)
-            return false
-        Config.restoreRange(Config.range)
-
-        const selection = window.getSelection()
-        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
-
-        if (hasSelection)
-            return Format.setFontFamily(name)
-
-        const paragraph = Page.#getParagraphTarget()
-        if (paragraph) { paragraph.style.fontFamily = name; return true }
-        if (Config.root) { Config.root.style.fontFamily = name; return true }
-        return false
-    }
-
-    /** 
-     * @param {string} value 
-     * @param {string} cssText 
-     */
-    setFontSize(value, cssText = value) {
-        if (!value)
-            return false
-        Config.restoreRange(Config.range)
-
-        const selection = window.getSelection()
-        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
-
-        if (hasSelection) {
-            if (/^[1-7]$/.test(value))
-                return !!Format.setFontSize(value)
-            return false
-        }
-
-        // sem seleção: parágrafo/root
-        const paragraph = Page.#getParagraphTarget()
-        if (paragraph) {
-            paragraph.style.fontSize = cssText
-            return true
-        }
-        if (Config.root) {
-            Config.root.style.fontSize = cssText
-            return true
-        }
-
-        return false
-    }
-    /** @param {string} hex */
-    setColor(hex) {
-        if (!hex)
-            return false
-        Config.restoreRange(Config.range)
-
-        const selection = window.getSelection()
-        const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
-        if (hasSelection) {
-            return Format.setFontColor(hex)
-        }
-
-        const paragraph = Page.#getParagraphTarget()
-        if (paragraph) {
-            paragraph.style.color = hex
-            return true
-        }
-        
-        if (Config.root) {
-            Config.root.style.color = hex
-            return true
-        }
-
-        return false
-    }
-    /** @param {"portrait"|"landscape"} value */
-    setOrientation(value) {
-        const paper = Config.paperFormatList.find((p) => p.selected)
-        if (!paper)
-            return false
-        if (value === "landscape") 
-            this.#main.style.width = paper.height ?? ""
-        else 
-            this.#main.style.width = paper.width ?? ""
-
-        return true
-    }
-    /** @param {string} value */
-    setPaperFormat(value) {
-        const orient = Config.pageOrientationList.find((p) => p.selected)
-        if (!orient)
-            return false
-        const paper = Config.paperFormatList.find((p) => p.value === value)
-        if (!paper)
-            return false
-        if (orient.value === "landscape")
-            this.#main.style.width = paper.height ?? ""
-        else
-            this.#main.style.width = paper.width ?? ""
-
-        return true
-    }
-    /** @param {File|null} file */
-    static async insertImageFromFile(file) {
-        await Image.createFromFile(file)
-    }
-    /** @param {number} rows @param {number} cols */
-    static async insertTable(rows = 2, cols = 2) {
-        if (!Table || typeof Table.insertAtSelection !== "function") return false
-        return !!Table.insertAtSelection(rows, cols)
     }
 }

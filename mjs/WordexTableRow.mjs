@@ -158,7 +158,7 @@ export default class TableRow {
         const cell = tr.cells?.[0]
         if (cell) {
             // garante que o range fique dentro do escopo atual
-            Config.root?.focus({ preventScroll: true })
+            Config.rootSection?.focus({ preventScroll: true })
 
             const r = document.createRange()
             r.selectNodeContents(cell)

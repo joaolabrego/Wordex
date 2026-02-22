@@ -44,7 +44,6 @@ export default class Alignment {
         el.style.margin = "6px auto"
         el.style.clear = "both"
     }
-
     /**
      * Alinha a "caixa" do parágrafo (quando ele foi redimensionado e ficou menor que a página).
      * Opcionalmente também alinha o conteúdo (textAlign).

@@ -36,10 +36,10 @@ export default class Movement {
     static #moveByWord(el, dir) {
         if (!el) return false
 
-        const root = Config.root
-        if (!root) return false
+        const rootSection = Config.rootSection
+        if (!rootSection) return false
 
-        const p = Movement.#getParagraph(el, root)
+        const p = Movement.#getParagraph(el, rootSection)
         if (!p) return false
 
         const segs = Movement.#getTextSegments(p)
@@ -66,17 +66,17 @@ export default class Movement {
     // =========================================================
 
     /**
-     * Move o elemento entre parágrafos (filhos diretos do root).
+     * Move o elemento entre parágrafos (filhos diretos do rootSection).
      * @param {Element|null} el
      * @param {number} dir -1 acima, +1 abaixo
      */
     static #moveParagraph(el, dir) {
         if (!el) return false
 
-        const root = Config.root
-        if (!root) return false
+        const rootSection = Config.rootSection
+        if (!rootSection) return false
 
-        const p = Movement.#getParagraph(el, root)
+        const p = Movement.#getParagraph(el, rootSection)
         if (!p) return false
 
         const target = dir < 0 ? p.previousElementSibling : p.nextElementSibling
@@ -94,17 +94,17 @@ export default class Movement {
     // =========================================================
 
     /**
-     * Acha o “parágrafo” como filho direto do root editável.
+     * Acha o “parágrafo” como filho direto do rootSection editável.
      * @param {Element} el
-     * @param {HTMLElement} root
+     * @param {HTMLElement} rootSection
      * @returns {HTMLDivElement|null}
      */
-    static #getParagraph(el, root) {
+    static #getParagraph(el, rootSection) {
         /** @type {HTMLElement|null} */
         let cur = /** @type {HTMLElement} */ (el)
-        while (cur && cur !== root) {
+        while (cur && cur !== rootSection) {
             const parent = /** @type {HTMLElement} */ (cur.parentElement)
-            if (parent === root) return /** @type {HTMLDivElement} */ (cur)
+            if (parent === rootSection) return /** @type {HTMLDivElement} */ (cur)
             cur = parent
         }
         return null
@@ -221,28 +221,28 @@ export default class Movement {
         sel?.addRange(r)
     }
 
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static moveLeftWord(element) { return Movement.leftWord(element) }
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static moveRightWord(element) { return Movement.rightWord(element) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static moveLeftWord(instance) { return Movement.leftWord(instance) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static moveRightWord(instance) { return Movement.rightWord(instance) }
 
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static moveParagraphUp(element) { return Movement.upParagraph(element) }
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static moveParagraphDown(element) { return Movement.downParagraph(element) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static moveParagraphUp(instance) { return Movement.upParagraph(instance) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static moveParagraphDown(instance) { return Movement.downParagraph(instance) }
 
     // alinhamento com wrap e sem “buraco” por margem
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static alignLeft(element) { return Layout.alignObject(element, "left") }
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static alignRight(element) { return Layout.alignObject(element, "right") }
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static alignCenter(element) { return Layout.alignObject(element, "center") }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static alignLeft(instance) { return Layout.alignObject(instance, "left") }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static alignRight(instance) { return Layout.alignObject(instance, "right") }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static alignCenter(instance) { return Layout.alignObject(instance, "center") }
 
     // resize unificado
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static increase(element) { return Layout.increase(element) }
-    /** @param {HTMLImageElement|HTMLTableElement} element */
-    static decrease(element) { return Layout.decrease(element) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static increase(instance) { return Layout.increase(instance) }
+    /** @param {HTMLImageElement|HTMLTableElement} instance */
+    static decrease(instance) { return Layout.decrease(instance) }
 
 }

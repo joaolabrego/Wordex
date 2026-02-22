@@ -78,7 +78,7 @@ export default class TableCol {
         return (TableCol.#selected.get(table)?.size ?? 0) > 0
     }
 
-    /** limpa seleção de uma tabela (não mexe na ativa) */
+    /** @param {HTMLTableElement} table */
     static clearSelection(table) {
         const set = TableCol.#selected.get(table)
         if (!set) return
@@ -170,7 +170,7 @@ export default class TableCol {
         // Opcional: ao ativar coluna, joga caret na 1ª célula “existente”
         const firstCell = TableCol.#findFirstCellInColumn(table, idx)
         if (firstCell) {
-            Config.root?.focus({ preventScroll: true })
+            Config.rootSection?.focus({ preventScroll: true })
             const r = document.createRange()
             r.selectNodeContents(firstCell)
             r.collapse(true)

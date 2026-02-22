@@ -5,18 +5,28 @@ import Config from "./WordexConfig.mjs"
 import Movement from "./WordexMovement.mjs"
 import Layout from "./WordexLayout.mjs"
 import Alignment from "./WordexAlignment.mjs"
+import Page from "./WordexPage.mjs"
 
 export default class Table {
-  /** @type {HTMLTableCellElement|null} */ static #activeCell = null
-  /** @type {HTMLTableElement|null} */ static #selectedTable = null
+    /** @type {Page} */ #page
+    /** @type {HTMLTableCellElement|null} */ #activeCell = null
+    /** @type {HTMLTableElement|null} */ #selectedTable = null
 
     // 0 = table, 1 = row, 2 = col
     static #cycleMode = 0
-  /** @type {HTMLTableRowElement|null} */ static #selectedRow = null
-  /** @type {{table:HTMLTableElement, index:number}|null} */ static #selectedCol = null
+    
+    /** @type {HTMLTableRowElement|null} */ static #selectedRow = null
+    /** @type {{table:HTMLTableElement, index:number}|null} */ static #selectedCol = null
 
     static #SEL_W = 2
-    static #SEL_COLOR = "#0aec0a"
+    static #SEL_COLOR = "#0AEC0A"
+
+
+    /** @param {Page} page */
+    constructor(page) {
+        this.#page = page
+        
+    }
 
     // =========================================================
     // Attach (mouse)
@@ -150,21 +160,24 @@ export default class Table {
     static insertAtSelection(rows = 2, cols = 2) {
         Config.restoreRange(Config.range)
 
-        const sel = window.getSelection()
-        if (!sel || !sel.rangeCount) return false
-        const r = sel.getRangeAt(0)
+        const selection = window.getSelection()
+        if (!selection || !selection.rangeCount)
+            return false
+        const range = selection.getRangeAt(0)
 
-        const sc = r.startContainer
+        const sc = range.startContainer
         const anchor = sc instanceof Element ? sc : sc.parentElement
-        if (anchor?.closest("td, th")) return false
+        if (anchor?.closest("td, th"))
+            return false
 
-        if (!r.collapsed) r.deleteContents()
+        if (!range.collapsed)
+            range.deleteContents()
 
         const table = Table.create(rows, cols)
 
         // se estiver no meio de TextNode, split é automático, mas vamos evitar “surpresas”:
         // insere e garante que não cria nós de espaço.
-        r.insertNode(table)
+        range.insertNode(table)
 
         // nasce selecionada
         Table.#focusTable(table)
@@ -180,29 +193,78 @@ export default class Table {
             return true
         }
 
-        r.setStartAfter(table)
-        r.collapse(true)
-        sel.removeAllRanges()
-        sel.addRange(r)
+        range.setStartAfter(table)
+        range.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(range)
         Config.saveSelection()
         return true
     }
 
-    // =========================================================
-    // Alignment / Resize / Move (delegação)
-    // =========================================================
     /** @param {"left"|"center"|"right"} dir */
     static align(dir) {
         const t = Table.#selectedTable
-        if (!t) return false
-        Alignment.floatable(t, dir)
+        if (!t)
+            return false
+        // limpa estado anterior
+        t.style.float = ""
+        t.style.clear = ""
+        t.style.display = ""
+        t.style.marginLeft = ""
+        t.style.marginRight = ""
+        t.style.marginTop = ""
+        t.style.marginBottom = ""
+
+        // evita “espaço” artificial ao inserir no meio: margem lateral default = 0
+        // e só adiciona margem quando float (pra dar respiro do texto)
+        if (dir === "left") {
+            t.style.float = "left"
+            t.style.display = "table"
+            t.style.margin = "4px 10px 6px 0"
+            return
+        }
+        if (dir === "right") {
+            t.style.float = "right"
+            t.style.display = "table"
+            t.style.margin = "4px 0 6px 10px"
+            return
+        }
+        // center
+        t.style.float = "none"
+        t.style.display = "table"
+        t.style.margin = "6px auto"
+        t.style.clear = "both"
+
         return true
     }
 
-    /** @param {HTMLTableElement} t */
-    static increase(t) {
-        if (!t) return
-        Layout.increase(t)
+    /**
+     * @param {HTMLTableElement} instance 
+     * @param {number} factor
+     */
+    static #resize(instance, factor) {
+        if (!instance)
+            return false
+
+        const width = instance.getBoundingClientRect().width
+        if (!width)
+            return false
+
+        const newWidth = Math.max(20, Math.round(width * factor))
+        instance.style.width = newWidth + "px"
+
+        if (instance instanceof HTMLImageElement)
+            instance.style.height = "auto"
+
+        Config.saveSelection()
+        return true
+    }
+
+    /** @param {HTMLTableElement} table */
+    static increase(table) {
+        if (!table)
+            return
+        Table.#resize(table, 1.1)
     }
     
     /** @param {HTMLTableElement} t */

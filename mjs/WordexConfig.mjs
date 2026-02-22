@@ -13,18 +13,20 @@ export default class Config {
    * }} Item
    */
 
-  /** @type {HTMLDivElement} */ static root
+  /** @type {HTMLDivElement} */ static rootSection
   /** @type {Range|null} */ static range = null
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
   /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
+  /** @readonly @type {"landscape"} */ static K_LANDSCAPE = "landscape"
+  /** @readonly @type {"portrait"} */ static K_PORTRAIT = "portrait"
 
-  // ✅ Não precisa instanciar Config. Só setar o root.
+  // ✅ Não precisa instanciar Config. Só setar o rootSection.
   /**
    * @param {HTMLDivElement} rootEditable
    */
   static setRoot(rootEditable) {
-    Config.root = rootEditable
+    Config.rootSection = rootEditable
   }
 
   /** @type {Readonly<Item[]>} */
@@ -135,20 +137,33 @@ export default class Config {
 
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
-    { value: "portrait", text: "Retrato", selected: true },
-    { value: "landscape", text: "Paisagem" },
+    { value: Config.K_PORTRAIT, text: "Retrato", selected: true },
+    { value: Config.K_LANDSCAPE, text: "Paisagem" },
   ])
 
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilos" },
+
+    // Ênfase básica
     { value: "bold", text: "Negrito", tag: "b" },
     { value: "italic", text: "Itálico", tag: "i" },
     { value: "underline", text: "Sublinhado", tag: "u" },
     { value: "strikethrough", text: "Tachado", tag: "s" },
+
+    // Tipografia
     { value: "superscript", text: "Sobrescrito", tag: "sup" },
     { value: "subscript", text: "Subscrito", tag: "sub" },
-  ])
+    { value: "small", text: "Texto menor", tag: "small" },
 
+    // Destaque semântico / visual
+    { value: "mark", text: "Marca-texto", tag: "mark" },
+    { value: "code", text: "Código", tag: "code" },
+
+    // Alternativas semânticas (opcionais)
+    { value: "strong", text: "Forte", tag: "strong" },
+    { value: "emphasis", text: "Ênfase", tag: "em" },
+  ])
+  
   static alignmentList = Object.freeze([
     { value: "", text: "Alinhamento" },
     { value: "justifyLeft", text: "Esquerda", selected: true },
@@ -158,8 +173,8 @@ export default class Config {
   ])
 
   static saveSelection() {
-    console.log(Config.root)
-    if (!Config.root)
+    console.log(Config.rootSection)
+    if (!Config.rootSection)
       return
     const sel = window.getSelection()
     if (!sel || sel.rangeCount === 0) return
@@ -170,7 +185,7 @@ export default class Config {
     let el = r.commonAncestorContainer
     if (el.nodeType === Node.TEXT_NODE) el = el.parentElement
     if (!(el instanceof Element)) return
-    if (!Config.root.contains(el)) return
+    if (!Config.rootSection.contains(el)) return
 
     Config.range = r.cloneRange()
   }
@@ -201,7 +216,7 @@ export default class Config {
 
   /** @readonly */
   static Script = `
-      :root { --margin: 20mm; }
+      :rootSection { --margin: 20mm; }
 
       html, body { margin: 0; padding: 0; }
       body { background-color: #555; }
@@ -387,6 +402,9 @@ export default class Config {
    * @param {HTMLSelectElement} select
    */
   static getHTMLSelectElementValue(select) {
+    if (!select.selectedIndex)
+      return ""
+
     return select.options[select.selectedIndex].value
   }
 
@@ -423,7 +441,7 @@ export default class Config {
     sel.removeAllRanges()
     sel.addRange(Config.range)
 
-    Config.root?.focus({ preventScroll: true })
+    Config.rootSection?.focus({ preventScroll: true })
 
     if (value !== null && value !== undefined) document.execCommand(cmd, false, value)
     else document.execCommand(cmd, false)
