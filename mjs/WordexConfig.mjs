@@ -182,15 +182,7 @@ export default class WordexConfig {
       }
 
       .control { margin: 5px; }
-
-      .toolbar {
-        top: 0;
-        padding: 0;
-        z-index: 1000;
-        background: gray;
-        border-bottom: 1px solid #d0d0d0;
-      }
-
+     
       .workspace { background: #CCC; padding: 10px; }
       .editable { outline: none; min-height: 24px; }
 
@@ -220,16 +212,42 @@ export default class WordexConfig {
 
       .insert-mode { padding: 0px 5px; }
 
+      .toolbar {
+        top: 0;
+        padding: 0;
+        z-index: 1000;
+        background: gray;
+        border-bottom: 1px solid #d0d0d0;
+        display: flex;
+        align-items: center;   /* <-- aqui */
+        gap: 3px;
+      }
+
       .toolbar select,
       .toolbar button,
       .toolbar input[type="color"] {
+        height: 20px;          /* escolha um valor */
+        line-height: 20px;
+        box-sizing: border-box;
+        vertical-align: middle;
         background: #888;
         color: #EAEAEA;
         border: 1px solid #444;
         border-radius: 6px;
-        padding: 5px;
-        height: 26px;
+        padding: 2px;
         outline: none;
+        height: 25px;
+      }
+
+      .toolbar button,
+      .toolbar input[type="color"]{
+        display: inline-flex;         /* ou flex */
+        align-items: center;          /* vertical */
+        justify-content: center;      /* horizontal */
+        padding: 0 5px;              /* sem padding vertical */
+        line-height: 1px;            /* evita empurrão do baseline */
+        min-width: 30px;
+        max-width: 40px;
       }
 
       img.img-selected {
@@ -239,11 +257,6 @@ export default class WordexConfig {
 
       img.img-left { float: left;  margin: 4px 8px 4px 0; }
       img.img-right { float: right; margin: 4px 0 4px 8px; }
-
-      button {
-        width: 40px;
-        min-height: 20px;
-      }
 
       img.img-inline {
         float: none;
@@ -269,95 +282,6 @@ export default class WordexConfig {
     const index = array.indexOf(value)
     if (index !== -1) array.splice(index, 1)
   }
-
-  /**
-   * @param {Document} document
-   * @param {ReadonlyArray<Item>} templateList
-   * @param {string} title
-   * @param {boolean} [isOnlyOnce]
-   * @param {(() => void)|undefined} [eventChange]
-   * @returns {HTMLSelectElement}
-   */
-  static createSelect(document, templateList, title, isOnlyOnce = true, eventChange = undefined) {
-    const select = document.createElement("select")
-    select.classList.add("control")
-    select.title = title
-    select.style.fontSize = "10px"
-    select.style.fontWeight = "bold"
-
-    WordexConfig.mountSelect(select, templateList)
-
-    select.addEventListener("change", () => {
-      if (eventChange) eventChange()
-      WordexConfig.toggleSelectOption(select, templateList, isOnlyOnce)
-    })
-
-    return select
-  }
-
-  /**
-   * @param {HTMLSelectElement} selectElement
-   * @param {ReadonlyArray<Item>} selectList
-   * @param {string} [value]
-   * @returns {HTMLSelectElement}
-   */
-  static mountSelect(selectElement, selectList, value = "") {
-    selectElement.options.length = 0
-
-    selectList?.forEach((item) => {
-      const option = document.createElement("option")
-      option.style.fontSize = "10px"
-      option.style.fontWeight = "bold"
-      option.value = item.value
-      option.textContent = (item.selected ? WordexConfig.K_OK : "") + item.text
-      selectElement.appendChild(option)
-    })
-    return selectElement
-  }
-
-  /**
-   * @param {HTMLSelectElement} selectElement
-   * @param {ReadonlyArray<Item>} templateList
-   * @param {boolean} isOnlyOnce
-   */
-  static toggleSelectOption(selectElement, templateList, isOnlyOnce = true) {
-    const value = selectElement.options[selectElement.selectedIndex].value
-    if (!value) return
-
-    if (isOnlyOnce) templateList.forEach((item) => (item.selected = item.value === value))
-    else {
-      const item = templateList.find((item) => item.value === value)
-      if (item) item.selected = !item.selected
-    }
-
-    WordexConfig.mountSelect(selectElement, templateList, value)
-  }
-
-  /**
-   * @param {string} textContent
-   * @param {string} title
-   * @param {(ev: MouseEvent) => void} functionClick
-   * @returns {HTMLButtonElement}
-   */
-  static createButton(textContent, title, functionClick) {
-    const button = document.createElement("button")
-    button.textContent = textContent
-    button.title = title
-    button.classList.add("control")
-    button.addEventListener("click", functionClick)
-    return button
-  }
-
-  /**
-   * @param {HTMLSelectElement} select
-   */
-  static getHTMLSelectElementValue(select) {
-    if (select.selectedIndex < 0)
-      return ""
-
-    return select.options[select.selectedIndex].value
-  }
-
   /**
    * @returns {HTMLDivElement|null}
    */
@@ -398,23 +322,5 @@ export default class WordexConfig {
 
     WordexRange.saveSelection()
     return true
-  }
-
-  /**
-   * 
-   * @param {string} msg 
-   * @param {number} def 
-   * @param {number} min 
-   * @param {number} max 
-   * @returns 
-   */
-  static askInteger = (msg, def, min = 1, max = 99) => {
-    const s = prompt(msg, String(def))
-    if (s === null)
-      return null
-    const n = parseInt(s.trim(), 10)
-    if (!Number.isFinite(n))
-      return def
-    return Math.min(max, Math.max(min, n))
   }
 }
