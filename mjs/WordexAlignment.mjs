@@ -2,11 +2,11 @@
 "use strict"
 
 /**
- * Alignment: aplica alinhamento em:
+ * WordexAlignment: aplica alinhamento em:
  * - elementos flutuáveis (img, table): left/right => float (wrap), center => block centralizado
  * - parágrafo (div): move a "caixa" (margin auto) + textAlign (opcional)
  */
-export default class Alignment {
+export default class WordexAlignment {
     /**
      * Alinha elemento "flutuável": left/right => wrap (float), center => centralizado (block).
      * @param {HTMLElement} el

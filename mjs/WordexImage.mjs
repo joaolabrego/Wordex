@@ -1,12 +1,12 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Movement from "./WordexMovement.mjs"
-import Layout from "./WordexLayout.mjs"
-import Alignment from "./WordexAlignment.mjs"
+import WordexConfig from "./WordexConfig.mjs"
+import WordexMovement from "./WordexMovement.mjs"
+import WordexLayout from "./WordexLayout.mjs"
+import WordexAlignment from "./WordexAlignment.mjs"
 
-export default class Image {
+export default class WordexImage {
   /** @type {HTMLImageElement|null} */ static #selectedImage = null
     static #SEL_W = 2
     static #SELECTED_COLOR = "#0aec0a"
@@ -16,20 +16,20 @@ export default class Image {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
             if (t instanceof HTMLImageElement)
-                Image.#focus(t)
+                WordexImage.#focus(t)
             else
-                Image.#clearFocus()
+                WordexImage.#clearFocus()
         })
     }
 
-    static hasFocus() { return !!Image.#selectedImage }
+    static hasFocus() { return !!WordexImage.#selectedImage }
     /** @returns {HTMLImageElement|null} */
-    static getFocused() { return Image.#selectedImage }
+    static getFocused() { return WordexImage.#selectedImage }
     /**
      * @param {string} borderWidthPx 
      * @param {string} color */
     static applyBorder(borderWidthPx, color) {
-        const img = Image.#selectedImage
+        const img = WordexImage.#selectedImage
         if (!img) return false
         img.style.borderStyle = borderWidthPx === "0px" ? "none" : "solid"
         img.style.borderWidth = borderWidthPx
@@ -38,59 +38,59 @@ export default class Image {
     }
     /** @param {string} radiusPx */
     static applyBorderRadius(radiusPx) {
-        const img = Image.#selectedImage
+        const img = WordexImage.#selectedImage
         if (!img) return false
         img.style.borderRadius = radiusPx
         return true
     }
     /** @param {"left"|"center"|"right"} dir */
     static align(dir) {
-        const img = Image.#selectedImage
+        const img = WordexImage.#selectedImage
         if (!img) return false
-        Alignment.floatable(img, dir)
+        WordexAlignment.floatable(img, dir)
         return true
     }
     /**  @param {HTMLImageElement} img */
     static moveUp(img) {
         if (!img) return
-        Movement.moveParagraphUp(img)
+        WordexMovement.moveParagraphUp(img)
     }
     /**  @param {HTMLImageElement} img */
     static moveDown(img) {
         if (!img) return
-        Movement.moveParagraphDown(img)
+        WordexMovement.moveParagraphDown(img)
     }
     /**
      * @param {File|null} file
      */
     static async createFromFile(file) {
         if (!file) return
-        const src = await Image.#fileToDataUrl(file)
-        Config.restoreRange(Config.range)
-        Image.insertAtSelection(src)
+        const src = await WordexImage.#fileToDataUrl(file)
+        WordexConfig.restoreRange(WordexConfig.range)
+        WordexImage.insertAtSelection(src)
     }
     /**
      * @param {string} url
      */
     static async createFromUrl(url) {
         if (!url) return
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
         if (url.startsWith("data:")) {
-            Image.insertAtSelection(url)
+            WordexImage.insertAtSelection(url)
             return
         }
 
-        const dataUrl = await Image.#urlToDataUrl(url)
-        Image.insertAtSelection(dataUrl)
+        const dataUrl = await WordexImage.#urlToDataUrl(url)
+        WordexImage.insertAtSelection(dataUrl)
     }
     /** @param {File|null} file */
     static async insertImageFromFile(file) {
-        await Image.createFromFile(file)
+        await WordexImage.createFromFile(file)
     }    
     /** @param {string} src */
     static insertAtSelection(src) {
-        const r = Config.getSelRange?.() ?? Config.range
+        const r = WordexConfig.getSelRange?.() ?? WordexConfig.range
         if (!r) return
 
         const img = document.createElement("img")
@@ -109,25 +109,25 @@ export default class Image {
         const sel = window.getSelection()
         sel?.removeAllRanges()
         sel?.addRange(r)
-        Config.saveSelection()
+        WordexConfig.saveSelection()
 
-        Image.#focus(img)
+        WordexImage.#focus(img)
     }
     /** @param {HTMLImageElement} img */
     static #focus(img) {
-        Image.#clearFocus()
-        Image.#selectedImage = img
+        WordexImage.#clearFocus()
+        WordexImage.#selectedImage = img
         img.classList.add("img-selected")
 
         // seleção verde padrão
-        img.style.boxShadow = `inset 0 0 0 ${Image.#SEL_W}px ${Image.#SELECTED_COLOR}`
+        img.style.boxShadow = `inset 0 0 0 ${WordexImage.#SEL_W}px ${WordexImage.#SELECTED_COLOR}`
     }
     static #clearFocus() {
-        if (Image.#selectedImage) {
-            Image.#selectedImage.classList.remove("img-selected")
-            Image.#selectedImage.style.boxShadow = ""
+        if (WordexImage.#selectedImage) {
+            WordexImage.#selectedImage.classList.remove("img-selected")
+            WordexImage.#selectedImage.style.boxShadow = ""
         }
-        Image.#selectedImage = null
+        WordexImage.#selectedImage = null
     }
     /** @param {File} file */
     static #fileToDataUrl(file) {
@@ -151,28 +151,28 @@ export default class Image {
             r.readAsDataURL(blob)
         })
     }
-    // garante que Page.left()/right() não quebra
+    // garante que WordexPage.left()/right() não quebra
     /** @param {HTMLImageElement} instance */
-    static moveLeftWord(instance) { return Movement.leftWord(instance) }
+    static moveLeftWord(instance) { return WordexMovement.leftWord(instance) }
     /** @param {HTMLImageElement} instance */
-    static moveRightWord(instance) { return Movement.rightWord(instance) }
+    static moveRightWord(instance) { return WordexMovement.rightWord(instance) }
     /** @param {HTMLImageElement} instance */
-    static moveParagraphUp(instance) { return Movement.upParagraph(instance) }
+    static moveParagraphUp(instance) { return WordexMovement.upParagraph(instance) }
     /** @param {HTMLImageElement} instance */
-    static moveParagraphDown(instance) { return Movement.downParagraph(instance) }
+    static moveParagraphDown(instance) { return WordexMovement.downParagraph(instance) }
 
     // alinha com wrap (left/right) ou inline (center)
 
     /** @param {HTMLImageElement} instance */
-    static alignLeft(instance) { return Layout.alignObject(instance, "left") }
+    static alignLeft(instance) { return WordexLayout.alignObject(instance, "left") }
     /** @param {HTMLImageElement} instance */
-    static alignRight(instance) { return Layout.alignObject(instance, "right") }
+    static alignRight(instance) { return WordexLayout.alignObject(instance, "right") }
     /** @param {HTMLImageElement} instance */
-    static alignCenter(instance) { return Layout.alignObject(instance, "center") }
+    static alignCenter(instance) { return WordexLayout.alignObject(instance, "center") }
 
     // resize unificado
     /** @param {HTMLImageElement} instance */
-    static increase(instance) { return Layout.increase(instance) }
+    static increase(instance) { return WordexLayout.increase(instance) }
     /** @param {HTMLImageElement} instance */
-    static decrease(instance) { return Layout.decrease(instance) }
+    static decrease(instance) { return WordexLayout.decrease(instance) }
 }

@@ -1,19 +1,19 @@
 // @ts-check
 'use strict'
 
-import Config from './WordexConfig.mjs'
-import Edit from './WordexEdit.mjs'
-import Page from './WordexPage.mjs'
-import Paragraph from './WordexParagraph.mjs'
+import WordexConfig from './WordexConfig.mjs'
+import WordexEdit from './WordexEdit.mjs'
+import WordexPage from './WordexPage.mjs'
+import WordexParagraph from './WordexParagraph.mjs'
 
-export default class Section {
+export default class WordexSection {
 
-    /** @type {Page} */ #page
+    /** @type {WordexPage} */ #page
     /** @type {HTMLDivElement} */ #section
-    /** @type {Paragraph} */ #firstParagraph
+    /** @type {WordexParagraph} */ #firstParagraph
     
     /** 
-     * @param {Page} page 
+     * @param {WordexPage} page 
      * @param {string} id
      * @param {string} textContent
      */
@@ -25,10 +25,10 @@ export default class Section {
         this.#section.classList.add("editable", "workspace", id)
         this.#section.contentEditable = "true"
 
-        this.#section.addEventListener("keydown", (e) => Edit.onKeyDown(e))
-        this.#section.addEventListener("focus", () => Config.rootSection = this.#section)
+        this.#section.addEventListener("keydown", (e) => WordexEdit.onKeyDown(e))
+        this.#section.addEventListener("focus", () => WordexConfig.rootSection = this.#section)
 
-        this.#firstParagraph = new Paragraph(this.#section)
+        this.#firstParagraph = new WordexParagraph(this.#section)
         if (textContent.trim())
             this.#firstParagraph.instance.textContent = textContent
         else

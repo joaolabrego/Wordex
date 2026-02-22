@@ -1,26 +1,26 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Layout from "./WordexLayout.mjs"
-import Table from "./WordexTable.mjs"
+import WordexConfig from "./WordexConfig.mjs"
+import WordexLayout from "./WordexLayout.mjs"
+import WordexTable from "./WordexTable.mjs"
 
-export default class Movement {
+export default class WordexMovement {
     // =========================================================
     // Public API
     // =========================================================
 
     /** @param {Element|null} el */
-    static leftWord(el) { return Movement.#moveByWord(el, -1) }
+    static leftWord(el) { return WordexMovement.#moveByWord(el, -1) }
 
     /** @param {Element|null} el */
-    static rightWord(el) { return Movement.#moveByWord(el, +1) }
+    static rightWord(el) { return WordexMovement.#moveByWord(el, +1) }
 
     /** @param {Element|null} el */
-    static upParagraph(el) { return Movement.#moveParagraph(el, -1) }
+    static upParagraph(el) { return WordexMovement.#moveParagraph(el, -1) }
 
     /** @param {Element|null} el */
-    static downParagraph(el) { return Movement.#moveParagraph(el, +1) }
+    static downParagraph(el) { return WordexMovement.#moveParagraph(el, +1) }
 
     // =========================================================
     // Core: move by word
@@ -36,28 +36,28 @@ export default class Movement {
     static #moveByWord(el, dir) {
         if (!el) return false
 
-        const rootSection = Config.rootSection
+        const rootSection = WordexConfig.rootSection
         if (!rootSection) return false
 
-        const p = Movement.#getParagraph(el, rootSection)
+        const p = WordexMovement.#getParagraph(el, rootSection)
         if (!p) return false
 
-        const segs = Movement.#getTextSegments(p)
+        const segs = WordexMovement.#getTextSegments(p)
         const fullText = segs.map(s => s.node.nodeValue ?? "").join("")
         if (!fullText.length) return false
 
-        const pos = Movement.#getGlobalOffsetBeforeElement(segs, el)
+        const pos = WordexMovement.#getGlobalOffsetBeforeElement(segs, el)
 
         const target = dir < 0
-            ? Movement.#findPrevWordStart(fullText, pos)
-            : Movement.#findNextWordEnd(fullText, pos)
+            ? WordexMovement.#findPrevWordStart(fullText, pos)
+            : WordexMovement.#findNextWordEnd(fullText, pos)
 
         if (target === pos) return false
 
-        if (!Movement.#insertNodeAtGlobalOffset(p, segs, target, el)) return false
+        if (!WordexMovement.#insertNodeAtGlobalOffset(p, segs, target, el)) return false
 
-        Movement.#placeCaretAfter(el)
-        Config.saveSelection()
+        WordexMovement.#placeCaretAfter(el)
+        WordexConfig.saveSelection()
         return true
     }
 
@@ -73,10 +73,10 @@ export default class Movement {
     static #moveParagraph(el, dir) {
         if (!el) return false
 
-        const rootSection = Config.rootSection
+        const rootSection = WordexConfig.rootSection
         if (!rootSection) return false
 
-        const p = Movement.#getParagraph(el, rootSection)
+        const p = WordexMovement.#getParagraph(el, rootSection)
         if (!p) return false
 
         const target = dir < 0 ? p.previousElementSibling : p.nextElementSibling
@@ -84,8 +84,8 @@ export default class Movement {
 
         target.appendChild(el)
 
-        Movement.#placeCaretAfter(el)
-        Config.saveSelection()
+        WordexMovement.#placeCaretAfter(el)
+        WordexConfig.saveSelection()
         return true
     }
 
@@ -149,18 +149,18 @@ export default class Movement {
     /** @param {string} text @param {number} pos */
     static #findPrevWordStart(text, pos) {
         let i = Math.min(pos - 1, text.length - 1)
-        while (i >= 0 && !Movement.#isWordChar(text[i])) i--
+        while (i >= 0 && !WordexMovement.#isWordChar(text[i])) i--
         if (i < 0) return 0
-        while (i >= 0 && Movement.#isWordChar(text[i])) i--
+        while (i >= 0 && WordexMovement.#isWordChar(text[i])) i--
         return i + 1
     }
 
     /** @param {string} text @param {number} pos */
     static #findNextWordEnd(text, pos) {
         let i = Math.max(0, pos)
-        while (i < text.length && !Movement.#isWordChar(text[i])) i++
+        while (i < text.length && !WordexMovement.#isWordChar(text[i])) i++
         if (i >= text.length) return text.length
-        while (i < text.length && Movement.#isWordChar(text[i])) i++
+        while (i < text.length && WordexMovement.#isWordChar(text[i])) i++
         return i
     }
 
@@ -222,27 +222,27 @@ export default class Movement {
     }
 
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveLeftWord(instance) { return Movement.leftWord(instance) }
+    static moveLeftWord(instance) { return WordexMovement.leftWord(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveRightWord(instance) { return Movement.rightWord(instance) }
+    static moveRightWord(instance) { return WordexMovement.rightWord(instance) }
 
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveParagraphUp(instance) { return Movement.upParagraph(instance) }
+    static moveParagraphUp(instance) { return WordexMovement.upParagraph(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveParagraphDown(instance) { return Movement.downParagraph(instance) }
+    static moveParagraphDown(instance) { return WordexMovement.downParagraph(instance) }
 
     // alinhamento com wrap e sem “buraco” por margem
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignLeft(instance) { return Layout.alignObject(instance, "left") }
+    static alignLeft(instance) { return WordexLayout.alignObject(instance, "left") }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignRight(instance) { return Layout.alignObject(instance, "right") }
+    static alignRight(instance) { return WordexLayout.alignObject(instance, "right") }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignCenter(instance) { return Layout.alignObject(instance, "center") }
+    static alignCenter(instance) { return WordexLayout.alignObject(instance, "center") }
 
     // resize unificado
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static increase(instance) { return Layout.increase(instance) }
+    static increase(instance) { return WordexLayout.increase(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static decrease(instance) { return Layout.decrease(instance) }
+    static decrease(instance) { return WordexLayout.decrease(instance) }
 
 }

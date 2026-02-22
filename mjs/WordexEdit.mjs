@@ -1,9 +1,9 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
+import WordexConfig from "./WordexConfig.mjs"
 
-export default class Edit {
+export default class WordexEdit {
   static #TAB_LENGTH = 4
 
   // =========================================================
@@ -16,7 +16,7 @@ export default class Edit {
   static handleOverwriteInput(e) {
     if (e.inputType !== "insertText" || !e.data) return
 
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return
@@ -33,7 +33,7 @@ export default class Edit {
       const del = r.cloneRange()
       del.setEnd(sc, so + 1)
       del.deleteContents()
-      Config.saveSelection()
+      WordexConfig.saveSelection()
       return
     }
 
@@ -45,7 +45,7 @@ export default class Edit {
       del.setStartBefore(node)
       del.setEndAfter(node)
       del.deleteContents()
-      Config.saveSelection()
+      WordexConfig.saveSelection()
     }
   }
 
@@ -78,7 +78,7 @@ export default class Edit {
    * @returns {boolean}
    */
   static selectObjectIfAdjacent(isBackspace, host = null) {
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return false
@@ -113,7 +113,7 @@ export default class Edit {
       if (!isBackspace && so === sc.data.length) node = sc.nextSibling
     }
 
-    const delEl = Edit.#getDeletableElement(node)
+    const delEl = WordexEdit.#getDeletableElement(node)
     if (!delEl) return false
 
     // ✅ Só seleciona (não remove, não execCommand)
@@ -122,7 +122,7 @@ export default class Edit {
     sel.removeAllRanges()
     sel.addRange(rr)
 
-    Config.saveSelection()
+    WordexConfig.saveSelection()
     return true
   }
 
@@ -135,7 +135,7 @@ export default class Edit {
    * @returns {boolean}
    */
   static deleteTabIfAdjacent(isBackspace, host = null) {
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return false
@@ -160,7 +160,7 @@ export default class Edit {
       const node = sc.childNodes[idx]
       if (node instanceof Element && node.classList.contains("wx-tab")) {
         node.remove()
-        Config.saveSelection()
+        WordexConfig.saveSelection()
         return true
       }
       return false
@@ -171,7 +171,7 @@ export default class Edit {
         const prev = sc.previousSibling
         if (prev instanceof Element && prev.classList.contains("wx-tab")) {
           prev.remove()
-          Config.saveSelection()
+          WordexConfig.saveSelection()
           return true
         }
       }
@@ -179,7 +179,7 @@ export default class Edit {
         const next = sc.nextSibling
         if (next instanceof Element && next.classList.contains("wx-tab")) {
           next.remove()
-          Config.saveSelection()
+          WordexConfig.saveSelection()
           return true
         }
       }
@@ -192,7 +192,7 @@ export default class Edit {
    * @param {number} tabSize
    * @returns {HTMLSpanElement}
    */
-  static makeTabSpan(tabSize = Edit.#TAB_LENGTH) {
+  static makeTabSpan(tabSize = WordexEdit.#TAB_LENGTH) {
     const sp = document.createElement("span")
     sp.className = "wx-tab"
     sp.contentEditable = "false"
@@ -204,8 +204,8 @@ export default class Edit {
    * @param {number} tabSize
    * @returns {boolean}
    */
-  static insertTab(tabSize = Edit.#TAB_LENGTH) {
-    Config.restoreRange(Config.range)
+  static insertTab(tabSize = WordexEdit.#TAB_LENGTH) {
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return false
@@ -213,7 +213,7 @@ export default class Edit {
     const r = sel.getRangeAt(0)
     if (!r.collapsed) r.deleteContents()
 
-    const tab = Edit.makeTabSpan(tabSize)
+    const tab = WordexEdit.makeTabSpan(tabSize)
     r.insertNode(tab)
 
     r.setStartAfter(tab)
@@ -221,7 +221,7 @@ export default class Edit {
     sel.removeAllRanges()
     sel.addRange(r)
 
-    Config.saveSelection()
+    WordexConfig.saveSelection()
     return true
   }
 
@@ -231,13 +231,13 @@ export default class Edit {
 
   /** @returns {HTMLDivElement|null} */
   static #getCurrentParagraphDirectChild() {
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return null
     const r = sel.getRangeAt(0)
 
-    const rootSection = Config.rootSection
+    const rootSection = WordexConfig.rootSection
     if (!rootSection) return null
 
     const anchor =
@@ -255,7 +255,7 @@ export default class Edit {
 
   /** @returns {boolean} */
   static #insertSoftBreak() {
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return false
@@ -271,19 +271,19 @@ export default class Edit {
     sel.removeAllRanges()
     sel.addRange(r)
 
-    Config.saveSelection()
+    WordexConfig.saveSelection()
     return true
   }
 
   /** @returns {boolean} */
   static #splitParagraph() {
-    Config.restoreRange(Config.range)
+    WordexConfig.restoreRange(WordexConfig.range)
 
     const sel = window.getSelection()
     if (!sel || !sel.rangeCount) return false
     const r = sel.getRangeAt(0)
 
-    const p = Edit.#getCurrentParagraphDirectChild()
+    const p = WordexEdit.#getCurrentParagraphDirectChild()
     if (!p) return false
 
     if (!r.collapsed) r.deleteContents()
@@ -300,7 +300,7 @@ export default class Edit {
     p.insertAdjacentElement("afterend", newP)
 
     // troca seleção visual (se houver)
-    const rootSection = Config.rootSection
+    const rootSection = WordexConfig.rootSection
     if (rootSection) {
       const oldSel = rootSection.querySelector(".p-selected")
       if (oldSel) oldSel.classList.remove("p-selected")
@@ -314,7 +314,7 @@ export default class Edit {
     sel.removeAllRanges()
     sel.addRange(nr)
 
-    Config.saveSelection()
+    WordexConfig.saveSelection()
     return true
   }
 
@@ -332,13 +332,13 @@ export default class Edit {
     // SHIFT+ENTER (soft break)
     if (e.key === "Enter" && e.shiftKey) {
       e.preventDefault()
-      Edit.#insertSoftBreak()
+      WordexEdit.#insertSoftBreak()
       return
     }
 
     // ENTER (split p)
     if (e.key === "Enter" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-      const ok = Edit.#splitParagraph()
+      const ok = WordexEdit.#splitParagraph()
       if (ok) e.preventDefault()
       return
     }
@@ -350,24 +350,24 @@ export default class Edit {
     // TAB
     if (e.key === "Tab") {
       e.preventDefault()
-      Edit.insertTab(Edit.#TAB_LENGTH)
+      WordexEdit.insertTab(WordexEdit.#TAB_LENGTH)
       return
     }
 
     // DELETE
     if (e.key === "Delete") {
       // 1) se houver table/img adjacente, só seleciona e DEIXA o browser apagar
-      if (Edit.selectObjectIfAdjacent(false, host)) return
+      if (WordexEdit.selectObjectIfAdjacent(false, host)) return
 
       // 2) tab
-      if (Edit.deleteTabIfAdjacent(false, host)) e.preventDefault()
+      if (WordexEdit.deleteTabIfAdjacent(false, host)) e.preventDefault()
       return
     }
 
     // BACKSPACE
     if (e.key === "Backspace") {
-      if (Edit.selectObjectIfAdjacent(true, host)) return
-      if (Edit.deleteTabIfAdjacent(true, host)) e.preventDefault()
+      if (WordexEdit.selectObjectIfAdjacent(true, host)) return
+      if (WordexEdit.deleteTabIfAdjacent(true, host)) e.preventDefault()
       return
     }
   }

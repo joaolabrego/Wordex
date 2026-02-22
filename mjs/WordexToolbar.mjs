@@ -2,11 +2,11 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Format from "./WordexFormat.mjs"
-import Page from "./WordexPage.mjs"
-import Text from "./WordexText.mjs"
-import Image from "./WordexImage.mjs"
+import WordexConfig from "./WordexConfig.mjs"
+import WordexFormat from "./WordexFormat.mjs"
+import WordexPage from "./WordexPage.mjs"
+import WordexRange from "./WordexRange.mjs"
+import WordexImage from "./WordexImage.mjs"
 
 /**
  * @typedef {{
@@ -19,7 +19,7 @@ import Image from "./WordexImage.mjs"
  * }} Item
  */
 
-export default class Toolbar {
+export default class WordexToolbar {
     /** @type {HTMLDivElement} */ #toolbar
     /** @type {HTMLSelectElement} */ #selectFontStyles
     /** @type {HTMLSelectElement} */ #selectAlignments
@@ -40,19 +40,19 @@ export default class Toolbar {
     /** @type {HTMLButtonElement} */ #buttonEditMode
     /** @type {HTMLInputElement} */ #inputColor
     /** @type {HTMLInputElement} */ #inputFile
-    /** @type {Page} */ #owner
+    /** @type {WordexPage} */ #owner
 
-    /** @param {Page} owner */
+    /** @param {WordexPage} owner */
     constructor(owner) {
         this.#owner = owner
         this.#toolbar = document.createElement("div")
         this.#toolbar.classList.add("toolbar")
 
-        // estilos (b/i/u etc) — por enquanto via execCommand/Config
+        // estilos (b/i/u etc) — por enquanto via execCommand/WordexConfig
         this.#toolbar.appendChild(
-            (this.#selectFontStyles = Config.createSelect(
+            (this.#selectFontStyles = WordexConfig.createSelect(
                 document,
-                Config.fontStyleList,
+                WordexConfig.fontStyleList,
                 "Formatar texto/parágrafo selecionado",
                 false,
                 () => this.#setFontStyle()
@@ -60,27 +60,27 @@ export default class Toolbar {
         )
 
         this.#toolbar.appendChild(
-            this.#selectFontFamily = Config.createSelect(
+            this.#selectFontFamily = WordexConfig.createSelect(
                 document,
-                Config.fontFamilyList,
+                WordexConfig.fontFamilyList,
                 "Fonte",
                 true,
                 () => this.#setFontFamily()
             )
         )
 
-        // tamanho -> Page decide (seleção ou fallback)
+        // tamanho -> WordexPage decide (seleção ou fallback)
         this.#toolbar.appendChild(
-            this.#selectFontSize = Config.createSelect(
+            this.#selectFontSize = WordexConfig.createSelect(
                 document,
-                Config.fontSizeList,
+                WordexConfig.fontSizeList,
                 "Tamanho da fonte",
                 true,
                 () => this.#setFontSize()
             )
         )
 
-        // cor -> Page decide
+        // cor -> WordexPage decide
         this.#inputColor = document.createElement("input")
         this.#inputColor.type = "color"
         this.#inputColor.value = "#000000"
@@ -91,9 +91,9 @@ export default class Toolbar {
 
         // orientação / formato (mexem na largura da página)
         this.#toolbar.appendChild(
-            this.#selectOrientations = Config.createSelect(
+            this.#selectOrientations = WordexConfig.createSelect(
                 document,
-                Config.pageOrientationList,
+                WordexConfig.pageOrientationList,
                 "Orientação da página",
                 true,
                 () => this.#setOrientation()
@@ -101,33 +101,31 @@ export default class Toolbar {
         )
 
         this.#toolbar.appendChild(
-            this.#selectFormatSizes = Config.createSelect(
+            this.#selectFormatSizes = WordexConfig.createSelect(
                 document,
-                Config.paperFormatList,
+                WordexConfig.paperFormatList,
                 "Formato da folha",
                 true,
                 () => this.#setPaperFormat()
             )
         )
 
-        // alinhamento -> Page decide alvo
+        // alinhamento -> WordexPage decide alvo
         this.#toolbar.appendChild(
-            (this.#selectAlignments = Config.createSelect(
+            (this.#selectAlignments = WordexConfig.createSelect(
                 document,
-                Config.alignmentList,
+                WordexConfig.alignmentList,
                 "Alinhamento",
                 true,
                 () => {
-                    const value = /** @type {"left"|"center"|"right"} */(Config.getHTMLSelectElementValue(this.#selectAlignments))
-                    if (value) Page.align(value)
+                    const value = /** @type {"left"|"center"|"right"} */(WordexConfig.getHTMLSelectElementValue(this.#selectAlignments))
+                    if (value) WordexPage.align(value)
                 }
             ))
         )
 
         // inserir imagem
-        this.#toolbar.appendChild(
-            (this.#buttonInsertImage = Config.createButton("🖼️+", "Inserir imagem", () => this.#inputFile.click()))
-        )
+        this.#toolbar.appendChild(this.#buttonInsertImage = WordexConfig.createButton("🖼️+", "Inserir imagem", () => this.#inputFile.click()))
 
         this.#inputFile = document.createElement("input")
         this.#inputFile.type = "file"
@@ -135,59 +133,59 @@ export default class Toolbar {
         this.#inputFile.style.display = "none"
         this.#inputFile.addEventListener("change", async () => {
             const file = this.#inputFile.files?.[0] ?? null
-            await Image.insertImageFromFile(file)
+            await WordexImage.insertImageFromFile(file)
             this.#inputFile.value = ""
         })
         this.#toolbar.appendChild(this.#inputFile)
 
-        // resize / move genéricos -> Page decide alvo
-        this.#toolbar.appendChild((this.#buttonIncrease = Config.createButton("+", "Aumentar", () => Page.increase())))
-        this.#toolbar.appendChild((this.#buttonDecrease = Config.createButton("-", "Diminuir", () => Page.decrease())))
+        // resize / move genéricos -> WordexPage decide alvo
+        this.#toolbar.appendChild((this.#buttonIncrease = WordexConfig.createButton("+", "Aumentar", () => WordexPage.increase())))
+        this.#toolbar.appendChild((this.#buttonDecrease = WordexConfig.createButton("-", "Diminuir", () => WordexPage.decrease())))
         this.#toolbar.appendChild(this.#buttonInsertTable =
-            Config.createButton("▦+", "Inserir tabela", async () => {
-                const rows = Config.askInteger("Quantidade de linhas:", 3, 1, 50)
+            WordexConfig.createButton("▦+", "Inserir tabela", async () => {
+                const rows = WordexConfig.askInteger("Quantidade de linhas:", 3, 1, 50)
                 if (rows === null)
                     return
-                const cols = Config.askInteger("Quantidade de colunas:", 3, 1, 20)
+                const cols = WordexConfig.askInteger("Quantidade de colunas:", 3, 1, 20)
                 if (cols === null)
                     return
-                await Page.insertTable(rows, cols)
+                await WordexPage.insertTable(rows, cols)
             })
         )
-        this.#toolbar.appendChild((this.#buttonMoveLeft = Config.createButton("⬅", "Mover esquerda", () => Page.left())))
-        this.#toolbar.appendChild((this.#buttonMoveRight = Config.createButton("➡", "Mover direita", () => Page.right())))
-        this.#toolbar.appendChild((this.#buttonMoveUp = Config.createButton("⬆", "Mover cima", () => Page.up())))
-        this.#toolbar.appendChild((this.#buttonMoveDown = Config.createButton("⬇", "Mover baixo", () => Page.down())))
+        this.#toolbar.appendChild((this.#buttonMoveLeft = WordexConfig.createButton("⬅", "Mover esquerda", () => WordexPage.left())))
+        this.#toolbar.appendChild((this.#buttonMoveRight = WordexConfig.createButton("➡", "Mover direita", () => WordexPage.right())))
+        this.#toolbar.appendChild((this.#buttonMoveUp = WordexConfig.createButton("⬆", "Mover cima", () => WordexPage.up())))
+        this.#toolbar.appendChild((this.#buttonMoveDown = WordexConfig.createButton("⬇", "Mover baixo", () => WordexPage.down())))
 
-        // borda -> Page decide alvo (e recebe cor)
+        // borda -> WordexPage decide alvo (e recebe cor)
         this.#toolbar.appendChild(
-            this.#selectBorders = Config.createSelect(
+            this.#selectBorders = WordexConfig.createSelect(
                 document,
-                Config.borderList,
+                WordexConfig.borderList,
                 "Borda",
                 true,
                 () => {
-                    const value = Config.getHTMLSelectElementValue(this.#selectBorders)
-                    Page.border(value, this.#inputColor.value)
+                    const value = WordexConfig.getHTMLSelectElementValue(this.#selectBorders)
+                    WordexPage.border(value, this.#inputColor.value)
                 }
             )
         )
 
-        // radius -> Page decide alvo
+        // radius -> WordexPage decide alvo
         this.#toolbar.appendChild(
-            this.#selectBorderRadius = Config.createSelect(
+            this.#selectBorderRadius = WordexConfig.createSelect(
                 document,
-                Config.borderRadiusList,
+                WordexConfig.borderRadiusList,
                 "Raio da borda",
                 true,
                 () => {
-                    const value = Config.getHTMLSelectElementValue(this.#selectBorderRadius)
-                    Page.borderRadius(value)
+                    const value = WordexConfig.getHTMLSelectElementValue(this.#selectBorderRadius)
+                    WordexPage.borderRadius(value)
                 }
             )
         )
 
-        this.#toolbar.appendChild(this.#buttonEditMode = Config.createButton(Config.K_INSERT_MODE, "Modo inserção/sobrescrita",
+        this.#toolbar.appendChild(this.#buttonEditMode = WordexConfig.createButton(WordexConfig.K_INSERT_MODE, "Modo inserção/sobrescrita",
             () => this.#toggleEditMode()))
         
         this.#initializeDefaults()
@@ -199,22 +197,15 @@ export default class Toolbar {
     }
 
     #setFontStyle() {
-        const value = Config.getHTMLSelectElementValue(this.#selectFontStyles)
+        const value = WordexConfig.getHTMLSelectElementValue(this.#selectFontStyles)
         if (!value)
             return
 
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
         // 1) Se há seleção de texto → WordexText manda
-        if (Text.hasSelection()) {
-            switch (value) {
-                case "bold": Text.bold(); break
-                case "italic": Text.italic(); break
-                case "underline": Text.underline(); break
-                case "strikeThrough": Text.strike(); break
-                case "superscript": Text.superscript(); break
-                case "subscript": Text.subscript(); break
-            }
+        if (WordexRange.hasSelection()) {
+            WordexRange.applyFontStyle(value)
             return
         }
 
@@ -224,23 +215,23 @@ export default class Toolbar {
         // - ou aplicar no parágrafo inteiro
     }
     #setFontFamily() {
-        const value = Config.getHTMLSelectElementValue(this.#selectFontFamily)
+        const value = WordexConfig.getHTMLSelectElementValue(this.#selectFontFamily)
         if (!value)
             return false
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
         const selection = window.getSelection()
         if (!!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed)
-            return Text.setFontFamily(value)
+            return WordexRange.setFontFamily(value)
 
-        const paragraph = Page.getParagraphTarget()
+        const paragraph = WordexPage.getParagraphTarget()
         if (paragraph)
         {
             paragraph.style.fontFamily = value
             return true
         }
-        if (Config.rootSection) {
-            Config.rootSection.style.fontFamily = value
+        if (WordexConfig.rootSection) {
+            WordexConfig.rootSection.style.fontFamily = value
             return true
         }
 
@@ -248,31 +239,31 @@ export default class Toolbar {
     }    
 
     #setFontSize() {
-        const value = Config.getHTMLSelectElementValue(this.#selectFontSize)
+        const value = WordexConfig.getHTMLSelectElementValue(this.#selectFontSize)
         if (!value)
             return
-        const size = Config.fontSizeList.find((p) => p.value === value)
+        const size = WordexConfig.fontSizeList.find((p) => p.value === value)
         if (!size)
             return
 
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
 
         if (hasSelection) {
             if (/^[1-7]$/.test(value))
-                return !!Format.setFontSize(value)
+                return !!WordexFormat.setFontSize(value)
             return false
         }
 
-        const paragraph = Page.getParagraphTarget()
+        const paragraph = WordexPage.getParagraphTarget()
         if (paragraph) {
             paragraph.style.fontSize = size.value
             return true
         }
-        if (Config.rootSection) {
-            Config.rootSection.style.fontSize = size.value
+        if (WordexConfig.rootSection) {
+            WordexConfig.rootSection.style.fontSize = size.value
             return true
         }
 
@@ -280,13 +271,13 @@ export default class Toolbar {
     }
 
     #setOrientation() {
-        const value = Config.getHTMLSelectElementValue(this.#selectOrientations)
+        const value = WordexConfig.getHTMLSelectElementValue(this.#selectOrientations)
         if (!value)
             return
-        const paper = Config.paperFormatList.find((p) => p.selected)
+        const paper = WordexConfig.paperFormatList.find((p) => p.selected)
         if (!paper)
             return
-        if (value === Config.K_LANDSCAPE)
+        if (value === WordexConfig.K_LANDSCAPE)
             this.#owner.instance.style.width = paper.height ?? ""
         else
             this.#owner.instance.style.width = paper.width ?? ""
@@ -295,23 +286,23 @@ export default class Toolbar {
     }
 
     #setPaperFormat() {
-        const value = Config.getHTMLSelectElementValue(this.#selectFormatSizes)
+        const value = WordexConfig.getHTMLSelectElementValue(this.#selectFormatSizes)
         if (!value)
             return false
 
-        const orient = Config.pageOrientationList.find(p => p.selected)
+        const orient = WordexConfig.pageOrientationList.find(p => p.selected)
         if (!orient)
             return false
 
-        const paper = Config.paperFormatList.find(p => p.value === value)
+        const paper = WordexConfig.paperFormatList.find(p => p.value === value)
         if (!paper)
             return false
-        this.#owner.instance.style.width = (orient.value === Config.K_LANDSCAPE ? paper.height : paper.width) ?? ""
+        this.#owner.instance.style.width = (orient.value === WordexConfig.K_LANDSCAPE ? paper.height : paper.width) ?? ""
 
         return true
     }
 
-    /** aplica os defaults marcados no Config (selected:true) */
+    /** aplica os defaults marcados no WordexConfig (selected:true) */
     #initializeDefaults() {
         /**
          * @param {readonly Item[]} list
@@ -325,35 +316,35 @@ export default class Toolbar {
             }
         }
 
-        dispatchSelected(Config.fontStyleList, this.#selectFontStyles)
-        dispatchSelected(Config.alignmentList, this.#selectAlignments)
-        dispatchSelected(Config.fontFamilyList, this.#selectFontFamily)
-        dispatchSelected(Config.fontSizeList, this.#selectFontSize)
-        dispatchSelected(Config.paperFormatList, this.#selectFormatSizes)
-        dispatchSelected(Config.pageOrientationList, this.#selectOrientations)
-        dispatchSelected(Config.borderList, this.#selectBorders)
-        dispatchSelected(Config.borderRadiusList, this.#selectBorderRadius)
-        this.editMode = Config.K_INSERT_MODE
+        dispatchSelected(WordexConfig.fontStyleList, this.#selectFontStyles)
+        dispatchSelected(WordexConfig.alignmentList, this.#selectAlignments)
+        dispatchSelected(WordexConfig.fontFamilyList, this.#selectFontFamily)
+        dispatchSelected(WordexConfig.fontSizeList, this.#selectFontSize)
+        dispatchSelected(WordexConfig.paperFormatList, this.#selectFormatSizes)
+        dispatchSelected(WordexConfig.pageOrientationList, this.#selectOrientations)
+        dispatchSelected(WordexConfig.borderList, this.#selectBorders)
+        dispatchSelected(WordexConfig.borderRadiusList, this.#selectBorderRadius)
+        this.editMode = WordexConfig.K_INSERT_MODE
     }
     
     #toggleEditMode() {
-        this.editMode = this.isInsertMode ? Config.K_OVERWRITE_MODE : Config.K_INSERT_MODE
+        this.editMode = this.isInsertMode ? WordexConfig.K_OVERWRITE_MODE : WordexConfig.K_INSERT_MODE
     }
     get isInsertMode() {
-        return this.#buttonEditMode.textContent === Config.K_INSERT_MODE
+        return this.#buttonEditMode.textContent === WordexConfig.K_INSERT_MODE
     }
     get isOverwriteMode() {
-        return this.#buttonEditMode.textContent === Config.K_OVERWRITE_MODE
+        return this.#buttonEditMode.textContent === WordexConfig.K_OVERWRITE_MODE
     }
-    /** @returns {`${typeof Config.K_INSERT_MODE}|${typeof Config.K_OVERWRITE_MODE}`} */
+    /** @returns {`${typeof WordexConfig.K_INSERT_MODE}|${typeof WordexConfig.K_OVERWRITE_MODE}`} */
     get editMode() {
-        return /** @type {`${typeof Config.K_INSERT_MODE}|${typeof Config.K_OVERWRITE_MODE}`} */ (this.#buttonEditMode.textContent);
+        return /** @type {`${typeof WordexConfig.K_INSERT_MODE}|${typeof WordexConfig.K_OVERWRITE_MODE}`} */ (this.#buttonEditMode.textContent);
     }
 
     /** @param {string} mode */
     set editMode(mode) {
         this.#buttonEditMode.textContent = mode
-        const color = mode === Config.K_OVERWRITE_MODE ? "#8B0000" : "#006400"
+        const color = mode === WordexConfig.K_OVERWRITE_MODE ? "#8B0000" : "#006400"
         this.#buttonEditMode.style.background = color
         this.instance.style.caretColor = color
     }

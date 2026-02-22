@@ -1,9 +1,9 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
+import WordexConfig from "./WordexConfig.mjs"
 
-export default class Paragraph {
+export default class WordexParagraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
@@ -39,43 +39,43 @@ export default class Paragraph {
 
     /**
      * Liga seleção de parágrafo ao container do editor.
-     * Parágrafo = filho direto do Config.rootSection.
+     * Parágrafo = filho direto do WordexConfig.rootSection.
      * @param {HTMLElement} scope
      */
     static attach(scope) {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
-            const rootSection = Config.rootSection
+            const rootSection = WordexConfig.rootSection
             if (!rootSection) return
 
             const p = t.closest("div")
             if (!(p instanceof HTMLDivElement) || p.parentElement !== rootSection) {
-                Paragraph.#clear()
+                WordexParagraph.#clear()
                 return
             }
 
-            Paragraph.#focus(p)
+            WordexParagraph.#focus(p)
         })
     }
 
-    static hasFocus() { return !!Paragraph.#selected }
+    static hasFocus() { return !!WordexParagraph.#selected }
     /** @returns {HTMLDivElement|null} */
-    static getFocused() { return Paragraph.#selected }
+    static getFocused() { return WordexParagraph.#selected }
 
     /** @param {HTMLDivElement} p */
     static #focus(p) {
-        Paragraph.#clear()
-        Paragraph.#selected = p
+        WordexParagraph.#clear()
+        WordexParagraph.#selected = p
         p.classList.add("p-selected")
-        Paragraph.#applySelectionRing(p)
+        WordexParagraph.#applySelectionRing(p)
     }
 
     static #clear() {
-        if (Paragraph.#selected) {
-            Paragraph.#selected.classList.remove("p-selected")
-            Paragraph.#removeSelectionRing(Paragraph.#selected)
+        if (WordexParagraph.#selected) {
+            WordexParagraph.#selected.classList.remove("p-selected")
+            WordexParagraph.#removeSelectionRing(WordexParagraph.#selected)
         }
-        Paragraph.#selected = null
+        WordexParagraph.#selected = null
     }
     /**
      * @param {HTMLElement} p
@@ -94,24 +94,24 @@ export default class Paragraph {
         if (!sel) return false
         sel.removeAllRanges()
         sel.addRange(r)
-        Config.saveSelection()
+        WordexConfig.saveSelection()
         return true
     }
 
     /** garante que o execCommand vai atuar no lugar certo */
     static #restore() {
-        return Config.restoreRange(Config.range)
+        return WordexConfig.restoreRange(WordexConfig.range)
     }
 
-    static alignLeft() { Paragraph.#restore(); return Config.exec("justifyLeft") }
-    static alignCenter() { Paragraph.#restore(); return Config.exec("justifyCenter") }
-    static alignRight() { Paragraph.#restore(); return Config.exec("justifyRight") }
-    static justify() { Paragraph.#restore(); return Config.exec("justifyFull") }
+    static alignLeft() { WordexParagraph.#restore(); return WordexConfig.exec("justifyLeft") }
+    static alignCenter() { WordexParagraph.#restore(); return WordexConfig.exec("justifyCenter") }
+    static alignRight() { WordexParagraph.#restore(); return WordexConfig.exec("justifyRight") }
+    static justify() { WordexParagraph.#restore(); return WordexConfig.exec("justifyFull") }
 
     /** @returns {HTMLDivElement|null} */
     static getActive() {
-        Paragraph.#restore()
-        const p = Config.getActiveParagraph()
+        WordexParagraph.#restore()
+        const p = WordexConfig.getActiveParagraph()
         return /** @type {HTMLDivElement|null} */ (p)
     }
 
@@ -124,7 +124,7 @@ export default class Paragraph {
      * @param {number} stepPx
      */
     static increaseWidth(stepPx = 30) {
-        const p = Paragraph.#selected ?? Paragraph.getActive()
+        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
         if (!p) return false
 
         const w = Math.round(p.getBoundingClientRect().width) || 0
@@ -139,7 +139,7 @@ export default class Paragraph {
      * @param {number} minPx
      */
     static decreaseWidth(stepPx = 30, minPx = 80) {
-        const p = Paragraph.#selected ?? Paragraph.getActive()
+        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
         if (!p) return false
 
         const w = Math.round(p.getBoundingClientRect().width) || 0
@@ -154,8 +154,8 @@ export default class Paragraph {
 
     /** Move parágrafo selecionado 1 posição para cima (entre irmãos do rootSection). */
     static moveUp() {
-        const rootSection = Config.rootSection
-        const p = Paragraph.#selected
+        const rootSection = WordexConfig.rootSection
+        const p = WordexParagraph.#selected
         if (!rootSection || !p) return false
 
         const prev = p.previousElementSibling
@@ -163,15 +163,15 @@ export default class Paragraph {
 
         rootSection.insertBefore(p, prev)
 
-        Paragraph.activate(p, "start")
-        Paragraph.#focus(p)
+        WordexParagraph.activate(p, "start")
+        WordexParagraph.#focus(p)
         return true
     }
 
     /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do rootSection). */
     static moveDown() {
-        const rootSection = Config.rootSection
-        const p = Paragraph.#selected
+        const rootSection = WordexConfig.rootSection
+        const p = WordexParagraph.#selected
         if (!rootSection || !p) return false
 
         const next = p.nextElementSibling
@@ -179,14 +179,14 @@ export default class Paragraph {
 
         rootSection.insertBefore(next, p) // troca
 
-        Paragraph.activate(p, "start")
-        Paragraph.#focus(p)
+        WordexParagraph.activate(p, "start")
+        WordexParagraph.#focus(p)
         return true
     }
 
     /** “Mover para a direita” = indent (margin-left). */
     static indent(stepPx = 20) {
-        const p = Paragraph.#selected ?? Paragraph.getActive()
+        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
         if (!p) return false
 
         const cur = parseInt(p.style.marginLeft || "0", 10) || 0
@@ -196,7 +196,7 @@ export default class Paragraph {
 
     /** “Mover para a esquerda” = outdent (margin-left). */
     static outdent(stepPx = 20) {
-        const p = Paragraph.#selected ?? Paragraph.getActive()
+        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
         if (!p) return false
 
         const cur = parseInt(p.style.marginLeft || "0", 10) || 0
@@ -205,36 +205,36 @@ export default class Paragraph {
     }
 
     // =========================================================
-    // aliases padronizados (mesmos nomes de Image/Table)
+    // aliases padronizados (mesmos nomes de WordexImage/WordexTable)
     // =========================================================
 
     /** + (toolbar) */
     static increase(stepPx = 30) {
-        return Paragraph.increaseWidth(stepPx)
+        return WordexParagraph.increaseWidth(stepPx)
     }
 
     /** - (toolbar) */
     static decrease(stepPx = 30, minPx = 80) {
-        return Paragraph.decreaseWidth(stepPx, minPx)
+        return WordexParagraph.decreaseWidth(stepPx, minPx)
     }
 
     /** ⬅ (toolbar) */
     static left(stepPx = 20) {
-        return Paragraph.outdent(stepPx)
+        return WordexParagraph.outdent(stepPx)
     }
 
     /** ➡ (toolbar) */
     static right(stepPx = 20) {
-        return Paragraph.indent(stepPx)
+        return WordexParagraph.indent(stepPx)
     }
 
     /** ⬆ (toolbar) */
     static up() {
-        return Paragraph.moveUp()
+        return WordexParagraph.moveUp()
     }
 
     /** ⬇ (toolbar) */
     static down() {
-        return Paragraph.moveDown()
+        return WordexParagraph.moveDown()
     }
 }

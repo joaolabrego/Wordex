@@ -1,16 +1,16 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Table from "./WordexTable.mjs"
+import WordexConfig from "./WordexConfig.mjs"
+import WordexTable from "./WordexTable.mjs"
 
 /**
- * TableRow
+ * WordexTableRow
  * - mantém estado de “linha ativa” e “linhas selecionadas”
- * - não decide política (Page decidirá depois)
+ * - não decide política (WordexPage decidirá depois)
  * - opera em HTMLTableRowElement (TR)
  */
-export default class TableRow {
+export default class WordexTableRow {
     /** @type {HTMLTableRowElement|null} */
     static #activeRow = null
 
@@ -34,17 +34,17 @@ export default class TableRow {
             const tr = cell.closest("tr")
             if (!(tr instanceof HTMLTableRowElement)) return
 
-            // mantém o foco de célula do Table (se você já estiver usando)
+            // mantém o foco de célula do WordexTable (se você já estiver usando)
             // (não é obrigatório, mas ajuda a coerência)
-            // Table já faz isso no attach dele, mas não atrapalha:
+            // WordexTable já faz isso no attach dele, mas não atrapalha:
             // (deixe comentado se preferir)
-            // if (Table.getActiveCell?.()) {}
+            // if (WordexTable.getActiveCell?.()) {}
 
-            TableRow.#setActive(tr)
+            WordexTableRow.#setActive(tr)
 
             if (e.altKey) {
                 // toggle seleção de linha
-                TableRow.toggleSelect(tr)
+                WordexTableRow.toggleSelect(tr)
                 e.preventDefault()
             }
         })
@@ -52,28 +52,28 @@ export default class TableRow {
 
     /** @returns {boolean} */
     static hasActive() {
-        return !!TableRow.#activeRow
+        return !!WordexTableRow.#activeRow
     }
 
     /** @returns {HTMLTableRowElement|null} */
     static getActive() {
-        return TableRow.#activeRow
+        return WordexTableRow.#activeRow
     }
 
     /** @returns {ReadonlyArray<HTMLTableRowElement>} */
     static getSelected() {
-        return Array.from(TableRow.#selectedRows)
+        return Array.from(WordexTableRow.#selectedRows)
     }
 
     /** @returns {boolean} */
     static hasSelection() {
-        return TableRow.#selectedRows.size > 0
+        return WordexTableRow.#selectedRows.size > 0
     }
 
     /** limpa seleção (não mexe na ativa) */
     static clearSelection() {
-        for (const tr of TableRow.#selectedRows) tr.classList.remove("row-selected")
-        TableRow.#selectedRows.clear()
+        for (const tr of WordexTableRow.#selectedRows) tr.classList.remove("row-selected")
+        WordexTableRow.#selectedRows.clear()
     }
 
     /**
@@ -81,22 +81,22 @@ export default class TableRow {
      * @param {HTMLTableRowElement} tr
      */
     static toggleSelect(tr) {
-        if (TableRow.#selectedRows.has(tr)) {
-            TableRow.#selectedRows.delete(tr)
+        if (WordexTableRow.#selectedRows.has(tr)) {
+            WordexTableRow.#selectedRows.delete(tr)
             tr.classList.remove("row-selected")
             return false
         }
-        TableRow.#selectedRows.add(tr)
+        WordexTableRow.#selectedRows.add(tr)
         tr.classList.add("row-selected")
         return true
     }
 
     /**
-     * Se existir célula ativa (Table), retorna a linha dela.
+     * Se existir célula ativa (WordexTable), retorna a linha dela.
      * @returns {HTMLTableRowElement|null}
      */
     static getFromActiveCell() {
-        const cell = Table.getActiveCell?.()
+        const cell = WordexTable.getActiveCell?.()
         if (!cell) return null
         const tr = cell.closest("tr")
         return tr instanceof HTMLTableRowElement ? tr : null
@@ -109,7 +109,7 @@ export default class TableRow {
      * @param {HTMLTableRowElement|null} [tr] se omitido, usa ativa
      */
     static align(cmd, tr = null) {
-        tr = tr ?? TableRow.#activeRow
+        tr = tr ?? WordexTableRow.#activeRow
         if (!tr) return false
 
         const val =
@@ -131,7 +131,7 @@ export default class TableRow {
      * @param {HTMLTableRowElement|null} [tr]
      */
     static applyBorder(widthPx, color, tr = null) {
-        tr = tr ?? TableRow.#activeRow
+        tr = tr ?? WordexTableRow.#activeRow
         if (!tr) return false
 
         const style = widthPx === "0px" ? "none" : "solid"
@@ -144,21 +144,21 @@ export default class TableRow {
     }
 
     /**
-     * Ativa uma linha e sincroniza caret com Config.range (na 1ª célula, se possível).
+     * Ativa uma linha e sincroniza caret com WordexConfig.range (na 1ª célula, se possível).
      * @param {HTMLTableRowElement} tr
      */
     static #setActive(tr) {
-        if (TableRow.#activeRow === tr) return
+        if (WordexTableRow.#activeRow === tr) return
 
-        if (TableRow.#activeRow) TableRow.#activeRow.classList.remove("row-active")
-        TableRow.#activeRow = tr
+        if (WordexTableRow.#activeRow) WordexTableRow.#activeRow.classList.remove("row-active")
+        WordexTableRow.#activeRow = tr
         tr.classList.add("row-active")
 
         // Opcional: se você quiser que ativar linha mova caret para 1ª célula
         const cell = tr.cells?.[0]
         if (cell) {
             // garante que o range fique dentro do escopo atual
-            Config.rootSection?.focus({ preventScroll: true })
+            WordexConfig.rootSection?.focus({ preventScroll: true })
 
             const r = document.createRange()
             r.selectNodeContents(cell)
@@ -167,7 +167,7 @@ export default class TableRow {
             const sel = window.getSelection()
             sel?.removeAllRanges()
             sel?.addRange(r)
-            Config.saveSelection()
+            WordexConfig.saveSelection()
         }
     }
 }

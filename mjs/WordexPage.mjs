@@ -1,31 +1,29 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Edit from "./WordexEdit.mjs"
-import Image from "./WordexImage.mjs"
-import Paragraph from "./WordexParagraph.mjs"
-import Format from "./WordexFormat.mjs"
-import Table from "./WordexTable.mjs"
-import TableCell from "./WordexTableCell.mjs"
-import TableRow from "./WordexTableRow.mjs"
-import TableCol from "./WordexTableCol.mjs"
-import Text from "./WordexText.mjs"
-import Layout from "./WordexLayout.mjs"
-import Toolbar from "./WordexToolbar.mjs"
-import Template from "./WordexTemplate.mjs"
-import Section from "./WordexSection.mjs"
-export default class Page {
+import WordexConfig from "./WordexConfig.mjs"
+import WordexEdit from "./WordexEdit.mjs"
+import WordexImage from "./WordexImage.mjs"
+import WordexParagraph from "./WordexParagraph.mjs"
+import WordexFormat from "./WordexFormat.mjs"
+import WordexTable from "./WordexTable.mjs"
+import WordexTableCell from "./WordexTableCell.mjs"
+import WordexTableRow from "./WordexTableRow.mjs"
+import WordexTableCol from "./WordexTableCol.mjs"
+import WordexToolbar from "./WordexToolbar.mjs"
+import WordexTemplate from "./WordexTemplate.mjs"
+import WordexSection from "./WordexSection.mjs"
+export default class WordexPage {
     /** @type {"INS"|"OVR"} */
 
-    /** @type {Template} */ #template
+    /** @type {WordexTemplate} */ #template
     /** @type {HTMLDivElement} */ #main
-    /** @type {Section} */ #header
-    /** @type {Section} */ #body
-    /** @type {Section} */ #footer
-    /** @type {Toolbar} */ #toolbar
+    /** @type {WordexSection} */ #header
+    /** @type {WordexSection} */ #body
+    /** @type {WordexSection} */ #footer
+    /** @type {WordexToolbar} */ #toolbar
 
-    /** @param {Template} template */
+    /** @param {WordexTemplate} template */
     constructor(template) {
         this.#template = template
         this.#toolbar = template.toolbar
@@ -34,28 +32,28 @@ export default class Page {
         this.#main.style.caretColor = "#0B6E4F"
         this.#main.addEventListener("beforeinput", (e) => {
             if (this.#toolbar.isOverwriteMode)
-                Edit.handleOverwriteInput(e)
+                WordexEdit.handleOverwriteInput(e)
         })
 
-        this.#header = new Section(this, "header", "Cabeçalho: clique para editar")
+        this.#header = new WordexSection(this, "header", "Cabeçalho: clique para editar")
         this.#main.appendChild(this.#header.instance)
 
-        this.#body = new Section(this, "body", "Corpo do documento: clique para editar")
+        this.#body = new WordexSection(this, "body", "Corpo do documento: clique para editar")
         this.#main.appendChild(this.#body.instance)
 
-        this.#footer = new Section(this, "footer", "Rodapé: clique para editar")
+        this.#footer = new WordexSection(this, "footer", "Rodapé: clique para editar")
         this.#main.appendChild(this.#footer.instance)
         
-        Config.rootSection = this.#body.instance
+        WordexConfig.rootSection = this.#body.instance
 
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
-            Paragraph.attach(section.instance)
-            Table.attach(section.instance)
-            Image.attach(section.instance)
+            WordexParagraph.attach(section.instance)
+            WordexTable.attach(section.instance)
+            WordexImage.attach(section.instance)
         }
 
-        document.addEventListener("selectionchange", () => Config.saveSelection())
+        document.addEventListener("selectionchange", () => WordexConfig.saveSelection())
     }
     get instance() {
         return this.#main
@@ -67,21 +65,21 @@ export default class Page {
     setColor(hex) {
         if (!hex)
             return false
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
         if (hasSelection) {
-            return Format.setFontColor(hex)
+            return WordexFormat.setFontColor(hex)
         }
 
-        const paragraph = Page.getParagraphTarget()
+        const paragraph = WordexPage.getParagraphTarget()
         if (paragraph) {
             paragraph.style.color = hex
             return true
         }
-        if (Config.rootSection) {
-            Config.rootSection.style.color = hex
+        if (WordexConfig.rootSection) {
+            WordexConfig.rootSection.style.color = hex
             return true
         }
 
@@ -93,9 +91,9 @@ export default class Page {
      * @param {number} cols
      */
     static async insertTable(rows = 2, cols = 2) {
-        if (!Table || typeof Table.insertAtSelection !== "function")
+        if (!WordexTable || typeof WordexTable.insertAtSelection !== "function")
             return false
-        return !!Table.insertAtSelection(rows, cols)
+        return !!WordexTable.insertAtSelection(rows, cols)
     }    
 
     // =========================================================
@@ -115,13 +113,13 @@ export default class Page {
 
     /** @returns {HTMLTableElement|null} */
     static #getActiveTable() {
-        const cell = Page.#callIfExists(TableCell, "getActive")
+        const cell = WordexPage.#callIfExists(WordexTableCell, "getActive")
         if (cell) return /** @type {HTMLTableElement|null} */ (cell.closest("table"))
 
-        const tr = Page.#callIfExists(TableRow, "getActive")
+        const tr = WordexPage.#callIfExists(WordexTableRow, "getActive")
         if (tr) return /** @type {HTMLTableElement|null} */ (tr.closest("table"))
 
-        const col = Page.#callIfExists(TableCol, "getActive")
+        const col = WordexPage.#callIfExists(WordexTableCol, "getActive")
         if (col?.table) return col.table
 
         return null
@@ -129,79 +127,79 @@ export default class Page {
 
     /** @returns {HTMLDivElement|null} */
     static getParagraphTarget() {
-        const fp = Page.#callIfExists(Paragraph, "getFocused")
+        const fp = WordexPage.#callIfExists(WordexParagraph, "getFocused")
         if (fp) return fp
-        Config.restoreRange(Config.range)
-        return Config.getActiveParagraph()
+        WordexConfig.restoreRange(WordexConfig.range)
+        return WordexConfig.getActiveParagraph()
     }
 
     /** @param {"left"|"center"|"right"} dir */
     static align(dir) {
-        const target = Page.selectedTarget()
+        const target = WordexPage.selectedTarget()
 
         // 1) imagem: usa alvo focado
         if (target.kind === "image") {
-            Image.align(dir)
+            WordexImage.align(dir)
             return true
         }
 
         // 2) tabela (célula/linha/col/tabela inteira)
         if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
             if (dir === "left")
-                Table.alignLeft()
+                WordexTable.alignLeft()
             else if (dir === "right")
-                Table.alignRight()
+                WordexTable.alignRight()
             else
-                Table.alignCenter()
+                WordexTable.alignCenter()
 
             return true
         }
 
         // 3) parágrafo/texto: execCommand
-        if (dir === "left") Config.exec("justifyLeft")
-        if (dir === "center") Config.exec("justifyCenter")
-        if (dir === "right") Config.exec("justifyRight")
-        //if (dir === "full") Config.exec("justifyFull")
+        if (dir === "left") WordexConfig.exec("justifyLeft")
+        if (dir === "center") WordexConfig.exec("justifyCenter")
+        if (dir === "right") WordexConfig.exec("justifyRight")
+        //if (dir === "full") WordexConfig.exec("justifyFull")
         return true
     }
 
 
     // =========================================================
-    // Resolver (Cell -> Row -> Col -> Image -> Text -> Paragraph)
+    // Resolver (Cell -> Row -> Col -> WordexImage -> Text -> WordexParagraph)
     // =========================================================
     static selectedTarget() {
-        if (Page.#callIfExists(TableCell, "hasSelection") || Page.#callIfExists(TableCell, "hasActive"))
-            return { kind: "cell", obj: TableCell }
+        if (WordexPage.#callIfExists(WordexTableCell, "hasSelection") || WordexPage.#callIfExists(WordexTableCell, "hasActive"))
+            return { kind: "cell", obj: WordexTableCell }
 
-        if (Page.#callIfExists(TableRow, "hasSelection") || Page.#callIfExists(TableRow, "hasActive"))
-            return { kind: "row", obj: TableRow }
+        if (WordexPage.#callIfExists(WordexTableRow, "hasSelection") || WordexPage.#callIfExists(WordexTableRow, "hasActive"))
+            return { kind: "row", obj: WordexTableRow }
 
-        const table = Page.#getActiveTable()
-        if ((table && Page.#callIfExists(TableCol, "hasSelection", table)) || Page.#callIfExists(TableCol, "hasActive"))
-            return { kind: "col", obj: TableCol }
+        const table = WordexPage.#getActiveTable()
+        if ((table && WordexPage.#callIfExists(WordexTableCol, "hasSelection", table)) || WordexPage.#callIfExists(WordexTableCol, "hasActive"))
+            return { kind: "col", obj: WordexTableCol }
 
-        if (Image.hasFocus()) return { kind: "image", obj: Image }
+        if (WordexImage.hasFocus()) return { kind: "image", obj: WordexImage }
 
-        if (Table.hasFocus()) return { kind: "table", obj: Table }
+        if (WordexTable.hasFocus()) return { kind: "table", obj: WordexTable }
 
-        if (Page.#callIfExists(Text, "hasSelection")) return { kind: "text", obj: Text }
+        if (WordexPage.#callIfExists(Text, "hasSelection")) return { kind: "text", obj: Text }
 
-        return { kind: "paragraph", obj: Paragraph }
+        return { kind: "paragraph", obj: WordexParagraph }
     }
 
     // =========================================================
-    // Toolbar verbs
+    // WordexToolbar verbs
     // =========================================================
 
 
     /** @param {string} widthPx @param {string} color */
     static border(widthPx, color) {
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
-        if (Table.applyBorder(widthPx, color)) return true
-        if (Image.applyBorder(widthPx, color)) return true
+        if (WordexTable.applyBorder(widthPx, color)) return true
+        if (WordexImage.applyBorder(widthPx, color)) return true
 
-        const p = Page.getParagraphTarget()
+        const p = WordexPage.getParagraphTarget()
         if (!p) return false
         p.style.borderStyle = widthPx === "0px" ? "none" : "solid"
         p.style.borderWidth = widthPx
@@ -211,56 +209,56 @@ export default class Page {
     }
     /** @param {string} radiusPx */
     static borderRadius(radiusPx) {
-        Config.restoreRange(Config.range)
+        WordexConfig.restoreRange(WordexConfig.range)
 
-        if (Table.applyBorderRadius(radiusPx)) return true
-        if (Image.applyBorderRadius(radiusPx)) return true
+        if (WordexTable.applyBorderRadius(radiusPx)) return true
+        if (WordexImage.applyBorderRadius(radiusPx)) return true
 
-        const p = Page.getParagraphTarget()
+        const p = WordexPage.getParagraphTarget()
         if (!p) return false
         p.style.borderRadius = radiusPx
         return true
     }
 
     static increase() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.increase(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.increase(table); return true }
-        return !Page.#callIfExists(Paragraph, "increase")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.increase(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.increase(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "increase")
     }
 
     static decrease() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.decrease(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.decrease(table); return true }
-        return !Page.#callIfExists(Paragraph, "decrease")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.decrease(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.decrease(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "decrease")
     }
 
     static left() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveLeftWord(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveLeftWord(table); return true }
-        return !Page.#callIfExists(Paragraph, "left")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.moveLeftWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.moveLeftWord(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "left")
     }
 
     static right() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveRightWord(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveRightWord(table); return true }
-        return !Page.#callIfExists(Paragraph, "right")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.moveRightWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.moveRightWord(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "right")
     }
 
     static up() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveUp(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveUp(table); return true }
-        return !Page.#callIfExists(Paragraph, "up")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.moveUp(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.moveUp(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "up")
     }
 
     static down() {
-        const t = Page.selectedTarget()
-        if (t.kind === "image") { const img = Image.getFocused(); if (img) Image.moveDown(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = Table.getFocused(); if (table) Table.moveDown(table); return true }
-        return !Page.#callIfExists(Paragraph, "down")
+        const t = WordexPage.selectedTarget()
+        if (t.kind === "image") { const img = WordexImage.getFocused(); if (img) WordexImage.moveDown(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = WordexTable.getFocused(); if (table) WordexTable.moveDown(table); return true }
+        return !WordexPage.#callIfExists(WordexParagraph, "down")
     }
 }

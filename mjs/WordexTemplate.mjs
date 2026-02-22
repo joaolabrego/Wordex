@@ -2,21 +2,21 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
-import Page from "./WordexPage.mjs"
-import Toolbar from "./WordexToolbar.mjs"
+import WordexConfig from "./WordexConfig.mjs"
+import WordexPage from "./WordexPage.mjs"
+import WordexToolbar from "./WordexToolbar.mjs"
 
-export default class Template {
+export default class WordexTemplate {
   /** @type {HTMLStyleElement|null} */ #style = null
-  /** @type {Page} */ #page
-  /** @type {Toolbar} */ #toolbar
+  /** @type {WordexPage} */ #page
+  /** @type {WordexToolbar} */ #toolbar
   constructor() {
     this.#style?.remove()
     this.#style = document.createElement("style")
-    this.#style.textContent = Config.Script
+    this.#style.textContent = WordexConfig.Script
     document.head.appendChild(this.#style)
 
-    this.#toolbar = new Toolbar(this.#page = new Page(this))
+    this.#toolbar = new WordexToolbar(this.#page = new WordexPage(this))
     
     document.body.replaceChildren(this.#toolbar.instance, this.#page.instance)
     

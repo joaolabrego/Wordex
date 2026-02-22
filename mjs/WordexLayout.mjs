@@ -1,11 +1,11 @@
 // @ts-check
 "use strict"
 
-import Config from "./WordexConfig.mjs"
+import WordexConfig from "./WordexConfig.mjs"
 
-export default class Layout {
+export default class WordexLayout {
     // =========================================================
-    // Alignment
+    // WordexAlignment
     // =========================================================
 
     /**
@@ -79,14 +79,14 @@ export default class Layout {
 
         if (el instanceof HTMLImageElement) el.style.height = "auto"
 
-        Config.saveSelection()
+        WordexConfig.saveSelection()
         return true
     }    
     /** @param {HTMLImageElement|HTMLTableElement} el */
-    static increase(el) { return Layout.#resize(el, 1.1) }
+    static increase(el) { return WordexLayout.#resize(el, 1.1) }
 
     /** @param {HTMLImageElement|HTMLTableElement} el */
-    static decrease(el) { return Layout.#resize(el, 0.9) }
+    static decrease(el) { return WordexLayout.#resize(el, 0.9) }
 
 
     /**

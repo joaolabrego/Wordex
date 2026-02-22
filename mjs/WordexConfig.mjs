@@ -1,14 +1,13 @@
 // @ts-check
 "use strict"
 
-export default class Config {
+export default class WordexConfig {
   /**
    * @typedef {{
    *   value: string,
    *   text: string,
    *   width?: string,
    *   height?: string,
-   *   tag?: string,
    *   selected?: boolean
    * }} Item
    */
@@ -21,12 +20,12 @@ export default class Config {
   /** @readonly @type {"landscape"} */ static K_LANDSCAPE = "landscape"
   /** @readonly @type {"portrait"} */ static K_PORTRAIT = "portrait"
 
-  // ✅ Não precisa instanciar Config. Só setar o rootSection.
+  // ✅ Não precisa instanciar WordexConfig. Só setar o rootSection.
   /**
    * @param {HTMLDivElement} rootEditable
    */
   static setRoot(rootEditable) {
-    Config.rootSection = rootEditable
+    WordexConfig.rootSection = rootEditable
   }
 
   /** @type {Readonly<Item[]>} */
@@ -137,31 +136,31 @@ export default class Config {
 
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
-    { value: Config.K_PORTRAIT, text: "Retrato", selected: true },
-    { value: Config.K_LANDSCAPE, text: "Paisagem" },
+    { value: WordexConfig.K_PORTRAIT, text: "Retrato", selected: true },
+    { value: WordexConfig.K_LANDSCAPE, text: "Paisagem" },
   ])
 
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilos" },
-    { value: "none", text: "none", tag: "" },
+    { value: "none", text: "none" },
     // Ênfase básica
-    { value: "bold", text: "Negrito", tag: "b" },
-    { value: "italic", text: "Itálico", tag: "i" },
-    { value: "underline", text: "Sublinhado", tag: "u" },
-    { value: "strikethrough", text: "Tachado", tag: "s" },
+    { value: "b", text: "Negrito", selected: false },
+    { value: "i", text: "Itálico" },
+    { value: "u", text: "Sublinhado" },
+    { value: "s", text: "Tachado" },
 
     // Tipografia
-    { value: "superscript", text: "Sobrescrito", tag: "sup" },
-    { value: "subscript", text: "Subscrito", tag: "sub" },
-    { value: "small", text: "Texto menor", tag: "small" },
+    { value: "sup", text: "Sobrescrito" },
+    { value: "sub", text: "Subscrito" },
+    { value: "small", text: "Texto menor" },
 
     // Destaque semântico / visual
-    { value: "mark", text: "Marca-texto", tag: "mark" },
-    { value: "code", text: "Código", tag: "code" },
+    { value: "mark", text: "Marca-texto" },
+    { value: "code", text: "Código" },
 
     // Alternativas semânticas (opcionais)
-    { value: "strong", text: "Forte", tag: "strong" },
-    { value: "emphasis", text: "Ênfase", tag: "em" },
+    { value: "strong", text: "Forte" },
+    { value: "em", text: "Ênfase", tag: "em" },
   ])
   
   static alignmentList = Object.freeze([
@@ -173,7 +172,7 @@ export default class Config {
   ])
 
   static saveSelection() {
-    const root = Config.rootSection
+    const root = WordexConfig.rootSection
     if (!root)
       return
 
@@ -197,7 +196,7 @@ export default class Config {
     if (!root.contains(aEl) || !root.contains(fEl))
       return
 
-    Config.range = r.cloneRange()
+    WordexConfig.range = r.cloneRange()
   }
   /**
    * @param {Range|null} range
@@ -213,7 +212,7 @@ export default class Config {
   }
 
   static saveRange() {
-    const r = Config.getSelRange()
+    const r = WordexConfig.getSelRange()
     return r ? r.cloneRange() : null
   }
 
@@ -344,11 +343,11 @@ export default class Config {
     select.style.fontSize = "10px"
     select.style.fontWeight = "bold"
 
-    Config.mountSelect(select, templateList)
+    WordexConfig.mountSelect(select, templateList)
 
     select.addEventListener("change", () => {
       if (eventChange) eventChange()
-      Config.toggleSelectOption(select, templateList, isOnlyOnce)
+      WordexConfig.toggleSelectOption(select, templateList, isOnlyOnce)
     })
 
     return select
@@ -368,7 +367,7 @@ export default class Config {
       option.style.fontSize = "10px"
       option.style.fontWeight = "bold"
       option.value = item.value
-      option.textContent = (item.selected ? Config.K_OK : "") + item.text
+      option.textContent = (item.selected ? WordexConfig.K_OK : "") + item.text
       selectElement.appendChild(option)
     })
     return selectElement
@@ -389,7 +388,7 @@ export default class Config {
       if (item) item.selected = !item.selected
     }
 
-    Config.mountSelect(selectElement, templateList, value)
+    WordexConfig.mountSelect(selectElement, templateList, value)
   }
 
   /**
@@ -442,20 +441,20 @@ export default class Config {
    * @returns {boolean}
    */
   static exec(cmd, value = null) {
-    if (!Config.range) return false
+    if (!WordexConfig.range) return false
 
     const sel = window.getSelection()
     if (!sel) return false
 
     sel.removeAllRanges()
-    sel.addRange(Config.range)
+    sel.addRange(WordexConfig.range)
 
-    Config.rootSection?.focus({ preventScroll: true })
+    WordexConfig.rootSection?.focus({ preventScroll: true })
 
     if (value !== null && value !== undefined) document.execCommand(cmd, false, value)
     else document.execCommand(cmd, false)
 
-    Config.saveSelection()
+    WordexConfig.saveSelection()
     return true
   }
 
