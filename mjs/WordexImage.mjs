@@ -1,8 +1,8 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
 import WordexMovement from "./WordexMovement.mjs"
+import WordexRange from "./WordexRange.mjs"
 import WordexLayout from "./WordexLayout.mjs"
 import WordexAlignment from "./WordexAlignment.mjs"
 
@@ -66,7 +66,7 @@ export default class WordexImage {
     static async createFromFile(file) {
         if (!file) return
         const src = await WordexImage.#fileToDataUrl(file)
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
         WordexImage.insertAtSelection(src)
     }
     /**
@@ -74,7 +74,7 @@ export default class WordexImage {
      */
     static async createFromUrl(url) {
         if (!url) return
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         if (url.startsWith("data:")) {
             WordexImage.insertAtSelection(url)
@@ -90,7 +90,7 @@ export default class WordexImage {
     }    
     /** @param {string} src */
     static insertAtSelection(src) {
-        const r = WordexConfig.getSelRange?.() ?? WordexConfig.range
+        const r = WordexRange.getSelRange?.() ?? WordexRange.range
         if (!r) return
 
         const img = document.createElement("img")
@@ -109,7 +109,7 @@ export default class WordexImage {
         const sel = window.getSelection()
         sel?.removeAllRanges()
         sel?.addRange(r)
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
 
         WordexImage.#focus(img)
     }

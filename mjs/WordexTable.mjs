@@ -1,8 +1,8 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
 import WordexMovement from "./WordexMovement.mjs"
+import WordexRange from "./WordexRange.mjs"
 import WordexLayout from "./WordexLayout.mjs"
 import WordexPage from "./WordexPage.mjs"
 
@@ -79,7 +79,7 @@ export default class WordexTable {
             WordexTable.#cycleMode = 0
             WordexTable.#focusCell(cell)
             WordexTable.#placeCaretInCell(cell)
-            WordexConfig.saveSelection()
+            WordexRange.saveSelection()
         })
     }
 
@@ -151,13 +151,13 @@ export default class WordexTable {
     }
 
     /**
-     * Insere tabela na posição do cursor (WordexConfig.range)
+     * Insere tabela na posição do cursor (WordexRange.range)
      * @param {number} rows
      * @param {number} cols
      * @returns {boolean}
      */
     static insertAtSelection(rows = 2, cols = 2) {
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         const selection = window.getSelection()
         if (!selection || !selection.rangeCount)
@@ -188,7 +188,7 @@ export default class WordexTable {
         if (firstCell instanceof HTMLTableCellElement) {
             WordexTable.#focusCell(firstCell)
             WordexTable.#placeCaretInCell(firstCell)
-            WordexConfig.saveSelection()
+            WordexRange.saveSelection()
             return true
         }
 
@@ -196,7 +196,7 @@ export default class WordexTable {
         range.collapse(true)
         selection.removeAllRanges()
         selection.addRange(range)
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }
 
@@ -255,7 +255,7 @@ export default class WordexTable {
         if (instance instanceof HTMLImageElement)
             instance.style.height = "auto"
 
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }
 

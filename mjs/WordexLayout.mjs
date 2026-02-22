@@ -1,7 +1,7 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
+import WordexRange from "./WordexRange.mjs"
 
 export default class WordexLayout {
     // =========================================================
@@ -79,7 +79,7 @@ export default class WordexLayout {
 
         if (el instanceof HTMLImageElement) el.style.height = "auto"
 
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }    
     /** @param {HTMLImageElement|HTMLTableElement} el */

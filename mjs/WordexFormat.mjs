@@ -3,7 +3,7 @@
 
 import WordexConfig from './WordexConfig.mjs'
 
-export default class WordexFormat1 {
+export default class WordexFormat {
 
   static bold() { return WordexConfig.exec('bold') }
   static italic() { return WordexConfig.exec('italic') }

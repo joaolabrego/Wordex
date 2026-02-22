@@ -2,6 +2,8 @@
 "use strict"
 
 import WordexConfig from "./WordexConfig.mjs"
+import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 
 export default class WordexParagraph {
     /** @type {HTMLDivElement|null} */
@@ -39,13 +41,13 @@ export default class WordexParagraph {
 
     /**
      * Liga seleção de parágrafo ao container do editor.
-     * Parágrafo = filho direto do WordexConfig.rootSection.
+     * Parágrafo = filho direto do WordexSection.rootSection.
      * @param {HTMLElement} scope
      */
     static attach(scope) {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
-            const rootSection = WordexConfig.rootSection
+            const rootSection = WordexSection.rootSection
             if (!rootSection) return
 
             const p = t.closest("div")
@@ -94,13 +96,13 @@ export default class WordexParagraph {
         if (!sel) return false
         sel.removeAllRanges()
         sel.addRange(r)
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }
 
     /** garante que o execCommand vai atuar no lugar certo */
     static #restore() {
-        return WordexConfig.restoreRange(WordexConfig.range)
+        return WordexRange.restoreRange(WordexRange.range)
     }
 
     static alignLeft() { WordexParagraph.#restore(); return WordexConfig.exec("justifyLeft") }
@@ -154,7 +156,7 @@ export default class WordexParagraph {
 
     /** Move parágrafo selecionado 1 posição para cima (entre irmãos do rootSection). */
     static moveUp() {
-        const rootSection = WordexConfig.rootSection
+        const rootSection = WordexSection.rootSection
         const p = WordexParagraph.#selected
         if (!rootSection || !p) return false
 
@@ -170,7 +172,7 @@ export default class WordexParagraph {
 
     /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do rootSection). */
     static moveDown() {
-        const rootSection = WordexConfig.rootSection
+        const rootSection = WordexSection.rootSection
         const p = WordexParagraph.#selected
         if (!rootSection || !p) return false
 

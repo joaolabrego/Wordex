@@ -1,7 +1,8 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
+import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 
 /**
  * WordexTableCell
@@ -229,8 +230,8 @@ export default class WordexTableCell {
         // garante lugar pro caret
         if (!cell.firstChild) cell.appendChild(document.createElement("br"))
 
-        // joga o caret pra dentro (coerente com seu modelo WordexConfig.range)
-        WordexConfig.rootSection?.focus({ preventScroll: true })
+        // joga o caret pra dentro (coerente com seu modelo WordexRange.range)
+        WordexSection.rootSection?.focus({ preventScroll: true })
         const r = document.createRange()
         r.selectNodeContents(cell)
         r.collapse(true)
@@ -239,7 +240,7 @@ export default class WordexTableCell {
         sel?.removeAllRanges()
         sel?.addRange(r)
 
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
     }
 
     static #clearActive() {

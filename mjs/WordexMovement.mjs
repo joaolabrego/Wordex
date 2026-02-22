@@ -1,8 +1,9 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
 import WordexLayout from "./WordexLayout.mjs"
+import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 import WordexTable from "./WordexTable.mjs"
 
 export default class WordexMovement {
@@ -36,7 +37,7 @@ export default class WordexMovement {
     static #moveByWord(el, dir) {
         if (!el) return false
 
-        const rootSection = WordexConfig.rootSection
+        const rootSection = WordexSection.rootSection
         if (!rootSection) return false
 
         const p = WordexMovement.#getParagraph(el, rootSection)
@@ -57,7 +58,7 @@ export default class WordexMovement {
         if (!WordexMovement.#insertNodeAtGlobalOffset(p, segs, target, el)) return false
 
         WordexMovement.#placeCaretAfter(el)
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }
 
@@ -73,7 +74,7 @@ export default class WordexMovement {
     static #moveParagraph(el, dir) {
         if (!el) return false
 
-        const rootSection = WordexConfig.rootSection
+        const rootSection = WordexSection.rootSection
         if (!rootSection) return false
 
         const p = WordexMovement.#getParagraph(el, rootSection)
@@ -85,7 +86,7 @@ export default class WordexMovement {
         target.appendChild(el)
 
         WordexMovement.#placeCaretAfter(el)
-        WordexConfig.saveSelection()
+        WordexRange.saveSelection()
         return true
     }
 

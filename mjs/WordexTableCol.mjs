@@ -1,7 +1,8 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
+import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 import WordexTable from "./WordexTable.mjs"
 
 /**
@@ -170,14 +171,14 @@ export default class WordexTableCol {
         // Opcional: ao ativar coluna, joga caret na 1ª célula “existente”
         const firstCell = WordexTableCol.#findFirstCellInColumn(table, idx)
         if (firstCell) {
-            WordexConfig.rootSection?.focus({ preventScroll: true })
+            WordexSection.rootSection?.focus({ preventScroll: true })
             const r = document.createRange()
             r.selectNodeContents(firstCell)
             r.collapse(true)
             const sel = window.getSelection()
             sel?.removeAllRanges()
             sel?.addRange(r)
-            WordexConfig.saveSelection()
+            WordexRange.saveSelection()
         }
     }
 

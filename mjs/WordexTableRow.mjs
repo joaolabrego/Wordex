@@ -1,7 +1,8 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
+import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 import WordexTable from "./WordexTable.mjs"
 
 /**
@@ -144,7 +145,7 @@ export default class WordexTableRow {
     }
 
     /**
-     * Ativa uma linha e sincroniza caret com WordexConfig.range (na 1ª célula, se possível).
+     * Ativa uma linha e sincroniza caret com WordexRange.range (na 1ª célula, se possível).
      * @param {HTMLTableRowElement} tr
      */
     static #setActive(tr) {
@@ -158,7 +159,7 @@ export default class WordexTableRow {
         const cell = tr.cells?.[0]
         if (cell) {
             // garante que o range fique dentro do escopo atual
-            WordexConfig.rootSection?.focus({ preventScroll: true })
+            WordexSection.rootSection?.focus({ preventScroll: true })
 
             const r = document.createRange()
             r.selectNodeContents(cell)
@@ -167,7 +168,7 @@ export default class WordexTableRow {
             const sel = window.getSelection()
             sel?.removeAllRanges()
             sel?.addRange(r)
-            WordexConfig.saveSelection()
+            WordexRange.saveSelection()
         }
     }
 }

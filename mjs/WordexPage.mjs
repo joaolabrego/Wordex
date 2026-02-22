@@ -190,7 +190,7 @@ export default class WordexPage {
 
         if (WordexTable.hasFocus()) return { kind: "table", obj: WordexTable }
 
-        if (WordexPage.#callIfExists(Text, "hasSelection")) return { kind: "text", obj: Text }
+        if (WordexRange.hasSelection()) return { kind: "text", obj: WordexRange }
 
         return { kind: "paragraph", obj: WordexParagraph }
     }

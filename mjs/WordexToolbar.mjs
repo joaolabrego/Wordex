@@ -93,7 +93,7 @@ export default class WordexToolbar {
 
         // radius -> WordexPage decide alvo
         this.#toolbar.appendChild(
-            this.#selectBorderRadius = this.#createSelect(WordexConfig.borderRadiusList, "Selecinar raio da borda", () => this.#setBorderRadius())
+            this.#selectBorderRadius = this.#createSelect(WordexConfig.borderRadiusList, "Selecionar raio da borda", () => this.#setBorderRadius())
         )
 
         this.#toolbar.appendChild(this.#buttonEditMode = this.#createButton(WordexConfig.K_INSERT_MODE, "Modo inserção/sobrescrita", () => this.#toggleEditMode()))
@@ -185,7 +185,10 @@ export default class WordexToolbar {
         inputColor.value = this.#selectedColor
         inputColor.title = "Selecionar cor de texto e bordas"
         inputColor.classList.add("control")
-        inputColor.addEventListener("change", () => this.#owner.setColor(this.#selectedColor))
+        inputColor.addEventListener("change", () => {
+            this.#selectedColor = inputColor.value
+            this.#owner.setColor(this.#selectedColor)
+        })
 
         return inputColor
     }
