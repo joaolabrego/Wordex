@@ -143,7 +143,7 @@ export default class Config {
 
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilos" },
-
+    { value: "none", text: "none", tag: "" },
     // Ênfase básica
     { value: "bold", text: "Negrito", tag: "b" },
     { value: "italic", text: "Itálico", tag: "i" },

@@ -55,13 +55,7 @@ export default class Toolbar {
                 Config.fontStyleList,
                 "Formatar texto/parágrafo selecionado",
                 false,
-                () => {
-                    const value = Config.getHTMLSelectElementValue(this.#selectFontStyles)
-                    if (!value)
-                        return
-                    Config.restoreRange(Config.range)
-                    Config.exec(value)
-                }
+                () => this.#setFontStyle()
             ))
         )
 
@@ -202,6 +196,14 @@ export default class Toolbar {
     /** @returns {HTMLDivElement} */
     get instance() {
         return this.#toolbar
+    }
+
+    #setFontStyle() {
+        const value = Config.getHTMLSelectElementValue(this.#selectFontStyles)
+        if (!value)
+            return
+        Config.restoreRange(Config.range)
+        Config.exec(value)
     }
 
     #setFontFamily() {
