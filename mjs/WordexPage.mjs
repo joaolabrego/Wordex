@@ -17,7 +17,7 @@ export default class WordexPage {
     /** @type {"INS"|"OVR"} */
 
     /** @type {WordexTemplate} */ #template
-    /** @type {HTMLDivElement} */ #main
+    /** @type {HTMLDivElement} */ #page
     /** @type {WordexSection} */ #header
     /** @type {WordexSection} */ #body
     /** @type {WordexSection} */ #footer
@@ -27,22 +27,22 @@ export default class WordexPage {
     constructor(template) {
         this.#template = template
         this.#toolbar = template.toolbar
-        this.#main = document.createElement("div")
-        this.#main.classList.add("page")
-        this.#main.style.caretColor = "#0B6E4F"
-        this.#main.addEventListener("beforeinput", (e) => {
+        this.#page = document.createElement("div")
+        this.#page.classList.add("page")
+        this.#page.style.caretColor = "#0B6E4F"
+        this.#page.addEventListener("beforeinput", (e) => {
             if (this.#toolbar.isOverwriteMode)
                 WordexEdit.handleOverwriteInput(e)
         })
 
         this.#header = new WordexSection(this, "header", "Cabeçalho: clique para editar")
-        this.#main.appendChild(this.#header.instance)
+        this.#page.appendChild(this.#header.instance)
 
         this.#body = new WordexSection(this, "body", "Corpo do documento: clique para editar")
-        this.#main.appendChild(this.#body.instance)
+        this.#page.appendChild(this.#body.instance)
 
         this.#footer = new WordexSection(this, "footer", "Rodapé: clique para editar")
-        this.#main.appendChild(this.#footer.instance)
+        this.#page.appendChild(this.#footer.instance)
         
         WordexConfig.rootSection = this.#body.instance
 
@@ -56,7 +56,7 @@ export default class WordexPage {
         document.addEventListener("selectionchange", () => WordexConfig.saveSelection())
     }
     get instance() {
-        return this.#main
+        return this.#page
     }
     get body() {
         return this.#body
