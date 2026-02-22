@@ -8,6 +8,8 @@ export default class WordexConfig {
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
   /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
+  /** @readonly @type {"#006400"} */ static K_INSERT_COLOR = "#006400"
+  /** @readonly @type {"#8B0000"} */ static K_OVERWRITE_COLOR = "#8B0000"
   /** @readonly @type {"landscape"} */ static K_LANDSCAPE = "landscape"
   /** @readonly @type {"portrait"} */ static K_PORTRAIT = "portrait"
   /** @readonly @type {"#000000"} */ static K_DEFAULT_COLOR = "#000000"
@@ -145,7 +147,7 @@ export default class WordexConfig {
   ])
   /** @type {Readonly<Item[]>} */
   static fontStyleList = Object.freeze([
-    { value: "", text: "Estilos" },
+    { value: "", text: "Estilo" },
     { value: "none", text: "none" },
     // Ênfase básica
     { value: "b", text: "Negrito", selected: false },
@@ -164,7 +166,7 @@ export default class WordexConfig {
 
     // Alternativas semânticas (opcionais)
     { value: "strong", text: "Forte" },
-    { value: "em", text: "Ênfase", tag: "em" },
+    { value: "em", text: "Ênfase" },
   ])
   /** @type {Readonly<Item[]>} */
   static alignmentList = Object.freeze([

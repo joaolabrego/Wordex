@@ -1,8 +1,11 @@
 // @ts-check
 "use strict"
 
+import WordexImage from "./WordexImage.mjs"
+import WordexPage from "./WordexPage.mjs"
 import WordexRange from "./WordexRange.mjs"
 import WordexSection from "./WordexSection.mjs"
+import WordexTable from "./WordexTable.mjs"
 
 /**
  * WordexAlignment: aplica alinhamento em:
@@ -10,6 +13,43 @@ import WordexSection from "./WordexSection.mjs"
  * - parágrafo (div): move a "caixa" (margin auto) + textAlign (opcional)
  */
 export default class WordexAlignment {
+
+    /** @param {"left"|"center"|"right"|"justify"} dir */
+    static align(dir) {
+        const target = WordexPage.selectedTarget()
+
+        // 1) imagem: usa alvo focado
+        if (target.kind === "image") {
+            WordexImage.align(dir)
+            return true
+        }
+
+        // 2) tabela (célula/linha/col/tabela inteira)
+        if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
+            if (dir === "left")
+                WordexTable.alignLeft()
+            else if (dir === "right")
+                WordexTable.alignRight()
+            else
+                WordexTable.alignCenter()
+
+            return true
+        }
+
+        // 3) parágrafo/texto: execCommand
+        if (dir === "left")
+            WordexRange.alignLeft()
+        else if (dir === "right")
+            WordexRange.alignRight()
+        else if (dir === "center")
+            WordexRange.alignCenter()
+        else
+            WordexRange.justify()
+        
+        return true
+    }
+
+
     /**
      * Alinha elemento "flutuável": left/right => wrap (float), center => centralizado (block).
      * @param {HTMLElement} el

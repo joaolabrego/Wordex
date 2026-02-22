@@ -269,7 +269,7 @@ export default class WordexToolbar {
     #setAlignment() {
         const value = /** @type {"left"|"center"|"right"|"justify"} */(this.#getHTMLSelectElementValue(this.#selectAlignments))
         if (value)
-            WordexPage.align(value)
+            WordexAlignment.align(value)
     }
 
     #setBorder() {
@@ -315,7 +315,7 @@ export default class WordexToolbar {
     /** @param {string} mode */
     set editMode(mode) {
         this.#buttonEditMode.textContent = mode
-        const color = mode === WordexConfig.K_OVERWRITE_MODE ? "#8B0000" : "#006400"
+        const color = mode === WordexConfig.K_OVERWRITE_MODE ? WordexConfig.K_OVERWRITE_COLOR : WordexConfig.K_INSERT_COLOR
         this.#buttonEditMode.style.background = color
         this.instance.style.caretColor = color
     }
@@ -336,7 +336,8 @@ export default class WordexToolbar {
         this.#mountSelect(select, templateList)
 
         select.addEventListener("change", () => {
-            if (eventChange) eventChange()
+            if (eventChange)
+                eventChange()
             this.#toggleSelectOption(select, templateList)
         })
 
@@ -349,13 +350,17 @@ export default class WordexToolbar {
      * @param {string} [value]
      * @returns {HTMLSelectElement}
      */
-     #mountSelect(selectElement, selectList, value = "") {
+    #mountSelect(selectElement, selectList, value = "") {
+        let bold = true
         selectElement.options.length = 0
 
         selectList?.forEach((item) => {
             const option = document.createElement("option")
             option.style.fontSize = "10px"
-            option.style.fontWeight = "bold"
+            if (bold) {
+                option.style.fontWeight = "bold"
+                bold = false
+            }
             option.value = item.value
             option.textContent = (item.selected ? WordexConfig.K_OK : "") + item.text
             selectElement.appendChild(option)

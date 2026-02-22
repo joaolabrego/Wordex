@@ -140,35 +140,6 @@ export default class WordexPage {
         return WordexParagraph.getActive()
     }
 
-    /** @param {"left"|"center"|"right"|"justify"} dir */
-    static align(dir) {
-        const target = WordexPage.selectedTarget()
-
-        // 1) imagem: usa alvo focado
-        if (target.kind === "image") {
-            WordexImage.align(dir)
-            return true
-        }
-
-        // 2) tabela (célula/linha/col/tabela inteira)
-        if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
-            if (dir === "left")
-                WordexTable.alignLeft()
-            else if (dir === "right")
-                WordexTable.alignRight()
-            else
-                WordexTable.alignCenter()
-
-            return true
-        }
-
-        // 3) parágrafo/texto: execCommand
-        if (dir === "left") WordexConfig.exec("justifyLeft")
-        if (dir === "center") WordexConfig.exec("justifyCenter")
-        if (dir === "right") WordexConfig.exec("justifyRight")
-        if (dir === "justify") WordexConfig.exec("justifyFull")
-        return true
-    }
 
 
     // =========================================================

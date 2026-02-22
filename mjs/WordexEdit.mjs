@@ -239,7 +239,7 @@ export default class WordexEdit {
     if (!sel || !sel.rangeCount) return null
     const r = sel.getRangeAt(0)
 
-    const rootSection = WordexSection.rootSection
+    const rootSection = WordexSection.rootSection   // (ou o alias que você criou)
     if (!rootSection) return null
 
     const anchor =
@@ -249,12 +249,15 @@ export default class WordexEdit {
     // não mexe dentro de table
     if (anchor.closest("td,th")) return null
 
-    const p = anchor.closest("div")
+    // pega o parágrafo real (use a classe que você usa no Wordex)
+    const p = anchor.closest("div.paragraph") || anchor.closest("div")
     if (!(p instanceof HTMLDivElement)) return null
-    if (p.parentElement !== rootSection) return null
+
+    // em vez de exigir filho direto, só exige estar dentro do editor
+    if (!rootSection.contains(p)) return null
+
     return p
   }
-
   /** @returns {boolean} */
   static #insertSoftBreak() {
     WordexRange.restoreRange(WordexRange.range)
@@ -278,7 +281,7 @@ export default class WordexEdit {
   }
 
   /** @returns {boolean} */
-  static #splitParagraph() {
+    static #splitParagraph() {
     WordexRange.restoreRange(WordexRange.range)
 
     const sel = window.getSelection()
@@ -288,17 +291,25 @@ export default class WordexEdit {
     const p = WordexEdit.#getCurrentParagraphDirectChild()
     if (!p) return false
 
+    // se havia seleção, apaga antes de dividir
     if (!r.collapsed) r.deleteContents()
 
-    // extrai o “tail” do parágrafo atual para o novo
-    const tail = r.cloneRange()
+    // cria range explícito do caret até o fim do parágrafo
+    const tail = document.createRange()
+    tail.setStart(r.startContainer, r.startOffset)
     if (p.lastChild) tail.setEndAfter(p.lastChild)
+
     const frag = tail.extractContents()
 
+    // cria novo parágrafo
     const newP = document.createElement("div")
     newP.appendChild(frag)
-    if (!newP.firstChild) newP.appendChild(document.createElement("br"))
 
+    // garante visibilidade/caret se estiver vazio
+    if (!newP.firstChild)
+      newP.appendChild(document.createElement("br"))
+
+    // insere após o atual
     p.insertAdjacentElement("afterend", newP)
 
     // troca seleção visual (se houver)
@@ -319,7 +330,6 @@ export default class WordexEdit {
     WordexRange.saveSelection()
     return true
   }
-
   // =========================================================
   // onKeyDown
   // =========================================================

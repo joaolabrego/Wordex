@@ -2,6 +2,7 @@
 "use strict"
 
 import WordexConfig from "./WordexConfig.mjs"
+import WordexParagraph from "./WordexParagraph.mjs"
 import WordexSection from "./WordexSection.mjs"
 export default class WordexRange {
   /** @type {Range|null} */ static range = null
@@ -116,7 +117,7 @@ export default class WordexRange {
       value = fontStyle.value ?? ""
     }
 
-    return WordexRange.wrapTag(value) 
+    return WordexRange.wrapTag(value)
   }
 
   // -----------------------------
@@ -293,6 +294,72 @@ export default class WordexRange {
     }
 
     return true
-  }    
+  }
+  // WordexRange.mjs
 
+  static alignLeft() {
+    return WordexRange.#alignText("left")
+  }
+
+  static alignCenter() {
+    return WordexRange.#alignText("center")
+  }
+
+  static alignRight() {
+    return WordexRange.#alignText("right")
+  }
+
+  static justify() {
+    return WordexRange.#alignText("justify")
+  }
+
+  /**
+   * Aplica text-align na seleção ou no parágrafo ativo.
+   * @param {"left"|"center"|"right"|"justify"} dir
+   */
+  static #alignText(dir) {
+    // 1) se há seleção → aplica no(s) parágrafo(s) envolvidos
+    const range = WordexRange.getSelectedRange()
+    if (range) {
+      const blocks = WordexRange.#getParagraphsFromRange(range)
+      for (const p of blocks) p.style.textAlign = dir
+      WordexRange.saveSelection()
+      return true
+    }
+
+    // 2) sem seleção → parágrafo ativo
+    const p = WordexParagraph?.getActive?.()
+    if (p) {
+      p.style.textAlign = dir
+      return true
+    }
+
+    return false
+  }
+  /**
+   * Retorna todos os parágrafos tocados pelo range.
+   * @param {Range} range
+   * @returns {HTMLDivElement[]}
+   */
+  static #getParagraphsFromRange(range) {
+    const set = new Set()
+
+    const walker = document.createTreeWalker(
+      range.commonAncestorContainer,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode(node) {
+          if (!(node instanceof HTMLDivElement)) return NodeFilter.FILTER_SKIP
+          if (!node.classList.contains("paragraph")) return NodeFilter.FILTER_SKIP
+          return range.intersectsNode(node)
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_SKIP
+        }
+      }
+    )
+
+    let n
+    while ((n = walker.nextNode())) set.add(n)
+    return [...set]
+  }
 }

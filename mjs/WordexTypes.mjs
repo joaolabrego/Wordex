@@ -5,7 +5,6 @@
  *   text: string,
  *   width?: string,
  *   height?: string,
- *   tag?: string,
  *   selected?: boolean
  * }} Item
  */
