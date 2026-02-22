@@ -5,7 +5,7 @@
 import Config from "./WordexConfig.mjs"
 import Format from "./WordexFormat.mjs"
 import Page from "./WordexPage.mjs"
-import Table from "./WordexTable.mjs"
+import Text from "./WordexText.mjs"
 import Image from "./WordexImage.mjs"
 
 /**
@@ -202,10 +202,27 @@ export default class Toolbar {
         const value = Config.getHTMLSelectElementValue(this.#selectFontStyles)
         if (!value)
             return
-        Config.restoreRange(Config.range)
-        Config.exec(value)
-    }
 
+        Config.restoreRange(Config.range)
+
+        // 1) Se há seleção de texto → WordexText manda
+        if (Text.hasSelection()) {
+            switch (value) {
+                case "bold": Text.bold(); break
+                case "italic": Text.italic(); break
+                case "underline": Text.underline(); break
+                case "strikeThrough": Text.strike(); break
+                case "superscript": Text.superscript(); break
+                case "subscript": Text.subscript(); break
+            }
+            return
+        }
+
+        // 2) Sem seleção (por enquanto não faz nada)
+        // depois você pode decidir comportamento tipo Word:
+        // - setar estado futuro
+        // - ou aplicar no parágrafo inteiro
+    }
     #setFontFamily() {
         const value = Config.getHTMLSelectElementValue(this.#selectFontFamily)
         if (!value)
@@ -214,7 +231,7 @@ export default class Toolbar {
 
         const selection = window.getSelection()
         if (!!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed)
-            return Format.setFontFamily(value)
+            return Text.setFontFamily(value)
 
         const paragraph = Page.getParagraphTarget()
         if (paragraph)

@@ -166,29 +166,39 @@ export default class Config {
   
   static alignmentList = Object.freeze([
     { value: "", text: "Alinhamento" },
-    { value: "justifyLeft", text: "Esquerda", selected: true },
-    { value: "justifyCenter", text: "Centro" },
-    { value: "justifyRight", text: "Direita" },
-    { value: "justifyFull", text: "Justificado" },
+    { value: "left", text: "Esquerda", selected: true },
+    { value: "center", text: "Centro" },
+    { value: "right", text: "Direita" },
+    { value: "justify", text: "Justificado" },
   ])
 
   static saveSelection() {
-    if (!Config.rootSection)
+    const root = Config.rootSection
+    if (!root)
       return
+
     const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0) return
+    if (!sel || sel.rangeCount === 0)
+      return
 
     const r = sel.getRangeAt(0)
 
-    /** @type {Node|null} */
-    let el = r.commonAncestorContainer
-    if (el.nodeType === Node.TEXT_NODE) el = el.parentElement
-    if (!(el instanceof Element)) return
-    if (!Config.rootSection.contains(el)) return
+    const a = sel.anchorNode
+    const f = sel.focusNode
+    if (!a || !f)
+      return
+    if (!a.isConnected || !f.isConnected)
+      return
+
+    const aEl = a.nodeType === Node.TEXT_NODE ? a.parentElement : a
+    const fEl = f.nodeType === Node.TEXT_NODE ? f.parentElement : f
+    if (!(aEl instanceof Element) || !(fEl instanceof Element))
+      return
+    if (!root.contains(aEl) || !root.contains(fEl))
+      return
 
     Config.range = r.cloneRange()
   }
-
   /**
    * @param {Range|null} range
    * @returns {boolean}

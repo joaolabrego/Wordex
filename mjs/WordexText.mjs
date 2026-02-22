@@ -69,7 +69,8 @@ export default class Text {
 
   /** @param {string} hex ex: "#ff0000" */
   static setColor(hex) {
-    if (!hex) return false
+    if (!hex)
+      return false
     return Text.wrapSpanStyle({ color: hex })
   }
 
