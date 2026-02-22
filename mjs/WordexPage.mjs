@@ -166,7 +166,7 @@ export default class WordexPage {
         if (dir === "left") WordexConfig.exec("justifyLeft")
         if (dir === "center") WordexConfig.exec("justifyCenter")
         if (dir === "right") WordexConfig.exec("justifyRight")
-        //if (dir === "full") WordexConfig.exec("justifyFull")
+        if (dir === "justify") WordexConfig.exec("justifyFull")
         return true
     }
 

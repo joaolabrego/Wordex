@@ -33,18 +33,13 @@ export default class WordexToolbar {
     /** @type {HTMLButtonElement} */ #buttonEditMode
     /** @type {HTMLInputElement} */ #inputFile
     /** @type {WordexPage} */ #owner
-    /** @type {string} */ #selectedColor = WordexConfig. K_DEFAULT_COLOR
+    /** @type {string} */ #selectedColor = WordexConfig.K_DEFAULT_COLOR
 
     /** @param {WordexPage} owner */
     constructor(owner) {
         this.#owner = owner
         this.#toolbar = document.createElement("div")
         this.#toolbar.classList.add("toolbar")
-
-        // estilos (b/i/u etc) — por enquanto via execCommand/WordexConfig
-        this.#toolbar.appendChild(
-            this.#selectFontStyles = this.#createSelect(WordexConfig.fontStyleList, "Estilizar texto/parágrafo selecionado", () => this.#setFontStyle())
-        )
 
         this.#toolbar.appendChild(
             this.#selectFontFamily = this.#createSelect(WordexConfig.fontFamilyList,"Selecionar família da fonte", () => this.#setFontFamily())
@@ -57,6 +52,11 @@ export default class WordexToolbar {
 
         // cor -> WordexPage decide
         this.#toolbar.appendChild(this.#createInputColor())
+
+        // estilos (b/i/u etc) — por enquanto via execCommand/WordexConfig
+        this.#toolbar.appendChild(
+            this.#selectFontStyles = this.#createSelect(WordexConfig.fontStyleList, "Estilizar texto/parágrafo selecionado", () => this.#setFontStyle())
+        )
 
         // orientação / formato (mexem na largura da página)
         this.#toolbar.appendChild(
