@@ -3,23 +3,14 @@
 
 import WordexRange from "./WordexRange.mjs"
 import WordexSection from "./WordexSection.mjs"
-
+/** @typedef {import("./WordexTypes.mjs").Item} Item */
 export default class WordexConfig {
-  /**
-   * @typedef {{
-   *   value: string,
-   *   text: string,
-   *   width?: string,
-   *   height?: string,
-   *   selected?: boolean
-   * }} Item
-   */
-
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
   /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
   /** @readonly @type {"landscape"} */ static K_LANDSCAPE = "landscape"
   /** @readonly @type {"portrait"} */ static K_PORTRAIT = "portrait"
+  /** @readonly @type {"#000000"} */ static K_DEFAULT_COLOR = "#000000"
 
 
   /** @type {Readonly<Item[]>} */
@@ -80,28 +71,47 @@ export default class WordexConfig {
     { value: "ANSI_D", text: "ANSI D", width: "558.8mm", height: "863.6mm" },
     { value: "ANSI_E", text: "ANSI E", width: "863.6mm", height: "1117.6mm" }
   ])
-
+  /** @type {Readonly<Item[]>} */
   static fontFamilyList = Object.freeze([
     { value: "", text: "Fonte" },
-    { value: "Arial", text: "Arial", selected: true },
-    { value: "Calibri", text: "Calibri" },
-    { value: "Times New Roman", text: "Times New Roman" },
-    { value: "Verdana", text: "Verdana" },
-    { value: "Courier New", text: "Courier New" },
-    { value: "Georgia", text: "Georgia" },
-  ])
 
+    // Sans-serif (UI / leitura)
+    { value: '"Segoe UI", sans-serif', text: "Segoe UI", selected: true },
+    { value: "Arial, sans-serif", text: "Arial" },
+    { value: "Calibri, sans-serif", text: "Calibri" },
+    { value: "Tahoma, sans-serif", text: "Tahoma" },
+    { value: '"Trebuchet MS", sans-serif', text: "Trebuchet MS" },
+    { value: '"Verdana", sans-serif', text: "Verdana" },
+
+    // Serif (documento)
+    { value: '"Times New Roman", serif', text: "Times New Roman" },
+    { value: "Georgia, serif", text: "Georgia" },
+    { value: '"Palatino Linotype", serif', text: "Palatino Linotype" },
+    { value: "Garamond, serif", text: "Garamond" },
+    { value: "Cambria, serif", text: "Cambria" },
+    { value: "Constantia, serif", text: "Constantia" },
+
+    // Monospace (código)
+    { value: '"Consolas", monospace', text: "Consolas" },
+    { value: '"Courier New", monospace', text: "Courier New" },
+    { value: '"Lucida Console", monospace', text: "Lucida Console" },
+
+    // “Clássicas Windows”
+    { value: '"Comic Sans MS", cursive', text: "Comic Sans MS" },
+    { value: "Impact, sans-serif", text: "Impact" },
+  ])
+  /** @type {Readonly<Item[]>} */
   static fontSizeList = Object.freeze([
     { value: "", text: "Tamanho" },
-    { value: "1", text: "8pt" },
-    { value: "2", text: "10pt" },
-    { value: "3", text: "12pt", selected: true },
-    { value: "4", text: "14pt" },
-    { value: "5", text: "18pt" },
-    { value: "6", text: "24pt" },
-    { value: "7", text: "36pt" },
+    { value: "10px", text: "8pt" },
+    { value: "12px", text: "10pt" },
+    { value: "14px", text: "12pt", selected: true },
+    { value: "16px", text: "14pt" },
+    { value: "18px", text: "18pt" },
+    { value: "24px", text: "24pt" },
+    { value: "36px", text: "36pt" },
   ])
-
+  /** @type {Readonly<Item[]>} */
   static borderList = Object.freeze([
     { value: "", text: "Borda" },
     { value: "0px", text: "none", selected: true },
@@ -114,7 +124,7 @@ export default class WordexConfig {
     { value: "8px", text: "8px" },
     { value: "10px", text: "10px" },
   ])
-
+  /** @type {Readonly<Item[]>} */
   static borderRadiusList = Object.freeze([
     { value: "", text: "Arredondamento" },
     { value: "0px", text: "none", selected: true },
@@ -127,13 +137,13 @@ export default class WordexConfig {
     { value: "25px", text: "25px" },
     { value: "30px", text: "30px" },
   ])
-
+  /** @type {Readonly<Item[]>} */
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
     { value: WordexConfig.K_PORTRAIT, text: "Retrato", selected: true },
     { value: WordexConfig.K_LANDSCAPE, text: "Paisagem" },
   ])
-
+  /** @type {Readonly<Item[]>} */
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilos" },
     { value: "none", text: "none" },
@@ -156,7 +166,7 @@ export default class WordexConfig {
     { value: "strong", text: "Forte" },
     { value: "em", text: "Ênfase", tag: "em" },
   ])
-  
+  /** @type {Readonly<Item[]>} */
   static alignmentList = Object.freeze([
     { value: "", text: "Alinhamento" },
     { value: "left", text: "Esquerda", selected: true },
@@ -273,7 +283,6 @@ export default class WordexConfig {
         outline-offset: -2px;
       }
     `
-
   /**
    * @param {*} array
    * @param {*} value
@@ -282,25 +291,6 @@ export default class WordexConfig {
     const index = array.indexOf(value)
     if (index !== -1) array.splice(index, 1)
   }
-  /**
-   * @returns {HTMLDivElement|null}
-   */
-  static getActiveParagraph() {
-    const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0) return null
-    const r = sel.getRangeAt(0)
-    const n = r.startContainer
-
-    /** @type {Element|null} */
-    const el =
-      n.nodeType === Node.ELEMENT_NODE
-        ? /** @type {Element} */ (n)
-        : n.parentElement
-
-    const p = el ? el.closest("div") : null
-    return /** @type {HTMLDivElement|null} */ (p)
-  }
-
   /**
    * @param {string} cmd
    * @param {string|null} value

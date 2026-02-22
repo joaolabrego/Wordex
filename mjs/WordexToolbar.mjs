@@ -7,6 +7,7 @@ import WordexPage from "./WordexPage.mjs"
 import WordexRange from "./WordexRange.mjs"
 import WordexImage from "./WordexImage.mjs"
 import WordexSection from "./WordexSection.mjs"
+import WordexAlignment from "./WordexAlignment.mjs"
 
 /**
  * @typedef {{
@@ -32,7 +33,7 @@ export default class WordexToolbar {
     /** @type {HTMLButtonElement} */ #buttonEditMode
     /** @type {HTMLInputElement} */ #inputFile
     /** @type {WordexPage} */ #owner
-    /** @type {string} */ #selectedColor = "#000000"
+    /** @type {string} */ #selectedColor = WordexConfig. K_DEFAULT_COLOR
 
     /** @param {WordexPage} owner */
     constructor(owner) {
@@ -73,7 +74,7 @@ export default class WordexToolbar {
 
         // inserir imagem
         this.#toolbar.appendChild(this.#inputFile = this.#createInputFile())
-        this.#toolbar.appendChild(this.#createButton("🖼️+", "Inserir imagem", () => this.#inputFile.click()))
+        this.#toolbar.appendChild(this.#createButton("🖼️⬆", "Inserir imagem", () => this.#inputFile.click()))
 
         // resize / move genéricos -> WordexPage decide alvo
         this.#toolbar.appendChild(this.#createButton("+", "Aumentar", () => WordexPage.increase()))
@@ -109,7 +110,10 @@ export default class WordexToolbar {
         const value = this.#getHTMLSelectElementValue(this.#selectFontStyles)
         if (!value)
             return
-
+        if (value === "none") {
+            WordexRange.clearInlineFormatting()
+            return true
+        }
         WordexRange.restoreRange(WordexRange.range)
 
         // 1) Se há seleção de texto → WordexText manda
@@ -263,7 +267,7 @@ export default class WordexToolbar {
     }
 
     #setAlignment() {
-        const value = /** @type {"left"|"center"|"right"} */(this.#getHTMLSelectElementValue(this.#selectAlignments))
+        const value = /** @type {"left"|"center"|"right"|"justify"} */(this.#getHTMLSelectElementValue(this.#selectAlignments))
         if (value)
             WordexPage.align(value)
     }

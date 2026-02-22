@@ -1,6 +1,9 @@
 // @ts-check
 "use strict"
 
+import WordexRange from "./WordexRange.mjs"
+import WordexSection from "./WordexSection.mjs"
+
 /**
  * WordexAlignment: aplica alinhamento em:
  * - elementos flutuáveis (img, table): left/right => float (wrap), center => block centralizado
@@ -10,9 +13,9 @@ export default class WordexAlignment {
     /**
      * Alinha elemento "flutuável": left/right => wrap (float), center => centralizado (block).
      * @param {HTMLElement} el
-     * @param {"left"|"center"|"right"} dir
+     * @param {"left"|"center"|"right"|"justify"} dir
      */
-    static floatable(el, dir) {
+    static wrapAlign(el, dir) {
         // limpa estado anterior
         el.style.float = ""
         el.style.clear = ""
@@ -48,23 +51,24 @@ export default class WordexAlignment {
      * Alinha a "caixa" do parágrafo (quando ele foi redimensionado e ficou menor que a página).
      * Opcionalmente também alinha o conteúdo (textAlign).
      * @param {HTMLDivElement} p
-     * @param {"left"|"center"|"right"} dir
+     * @param {"left"|"center"|"right"|"justify"} dir
      * @param {boolean} alignTextAlso
      */
     static paragraphBox(p, dir, alignTextAlso = true) {
-        // move o bloco
+        // caixa: só faz sentido para left/center/right
         if (dir === "left") {
             p.style.marginLeft = "0"
             p.style.marginRight = "auto"
         } else if (dir === "right") {
             p.style.marginLeft = "auto"
             p.style.marginRight = "0"
-        } else {
+        } else if (dir === "center") {
             p.style.marginLeft = "auto"
             p.style.marginRight = "auto"
         }
-
-        // e (se quiser) alinha o conteúdo também
-        if (alignTextAlso) p.style.textAlign = dir
+        // texto
+        if (alignTextAlso) {
+            p.style.textAlign = (dir === "justify") ? "justify" : dir
+        }
     }
 }

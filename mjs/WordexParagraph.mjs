@@ -19,12 +19,9 @@ export default class WordexParagraph {
         this.#paragraph.classList.add("paragraph")
         this.#paragraph.append(document.createElement("br"))
     }
-
     get instance() {
         return this.#paragraph
     }
-
-
     /** @param {HTMLDivElement} p */
     static #applySelectionRing(p) {
         // não encosta em border do parágrafo (é estilo do usuário)
@@ -110,10 +107,30 @@ export default class WordexParagraph {
     static alignRight() { WordexParagraph.#restore(); return WordexConfig.exec("justifyRight") }
     static justify() { WordexParagraph.#restore(); return WordexConfig.exec("justifyFull") }
 
+    /**
+    * @returns {HTMLDivElement|null}
+    */
+    static getActiveParagraph() {
+        const sel = window.getSelection()
+        if (!sel || sel.rangeCount === 0)
+            return null
+        const r = sel.getRangeAt(0)
+        const n = r.startContainer
+
+        /** @type {Element|null} */
+        const el =
+            n.nodeType === Node.ELEMENT_NODE
+                ? /** @type {Element} */ (n)
+                : n.parentElement
+
+        const p = el ? el.closest("div") : null
+        return /** @type {HTMLDivElement|null} */ (p)
+    }
+
     /** @returns {HTMLDivElement|null} */
     static getActive() {
         WordexParagraph.#restore()
-        const p = WordexConfig.getActiveParagraph()
+        const p = WordexParagraph.getActiveParagraph()
         return /** @type {HTMLDivElement|null} */ (p)
     }
 

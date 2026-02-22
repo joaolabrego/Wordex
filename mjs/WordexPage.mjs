@@ -137,10 +137,10 @@ export default class WordexPage {
         if (fp) return fp
         WordexRange.restoreRange(WordexRange.range)
 
-        return WordexConfig.getActiveParagraph()
+        return WordexParagraph.getActive()
     }
 
-    /** @param {"left"|"center"|"right"} dir */
+    /** @param {"left"|"center"|"right"|"justify"} dir */
     static align(dir) {
         const target = WordexPage.selectedTarget()
 

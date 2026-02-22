@@ -78,9 +78,6 @@ export default class WordexRange {
 
     return range
   }
-
-  
-
   static hasSelection() {
     return !!WordexRange.getSelectedRange()
   }
@@ -116,7 +113,7 @@ export default class WordexRange {
       const fontStyle = WordexConfig.fontStyleList.find(style => style.selected)
       if (!fontStyle)
         return false
-      value = fontStyle.tag ?? ""
+      value = fontStyle.value ?? ""
     }
 
     return WordexRange.wrapTag(value) 
@@ -227,5 +224,75 @@ export default class WordexRange {
     WordexRange.saveSelection()
 
     return true
-  }  
+  }
+  /**
+   * Remove formatação inline dentro da seleção:
+   * tags (b,i,u,s,strong,em,mark,code,small,sup,sub) e estilos inline em spans.
+   * Mantém o texto e a estrutura (o que não for inline).
+   */
+  static clearInlineFormatting() {
+    const range = WordexRange.getSelectedRange()
+    if (!range || range.collapsed) return false
+
+    const frag = range.extractContents()
+    if (!frag || !frag.firstChild) return false
+
+    // tags a "desembrulhar" (remove a tag, preserva o conteúdo)
+    const UNWRAP = new Set(["b", "i", "u", "s", "strong", "em", "mark", "code", "small", "sup", "sub"])
+
+    // percorre o fragmento e faz as limpezas
+    const walker = document.createTreeWalker(frag, NodeFilter.SHOW_ELEMENT)
+    const toUnwrap = []
+
+    /** @type {Element|null} */
+    let el
+    while ((el = /** @type {HTMLElement}*/(walker.nextNode()))) {
+      const tag = el.tagName.toLowerCase()
+
+      if (UNWRAP.has(tag)) {
+        toUnwrap.push(el)
+        continue
+      }
+      if (tag === "span" && el instanceof HTMLElement) {
+        el.style.fontWeight = ""
+        el.style.fontStyle = ""
+        el.style.textDecoration = ""
+        el.style.color = ""
+        el.style.backgroundColor = ""
+        el.style.fontFamily = ""
+        el.style.fontSize = ""
+
+        const hasStyle = (el.getAttribute("style") || "").trim().length > 0
+        const hasAttrs = el.attributes.length > 0
+        if (!hasStyle && !hasAttrs) toUnwrap.push(el)
+      }
+    }
+
+    // desembrulha de baixo pra cima (pra não bagunçar o walker)
+    for (let i = toUnwrap.length - 1; i >= 0; i--) {
+      const n = toUnwrap[i]
+      const parent = n.parentNode
+      if (!parent) continue
+      while (n.firstChild) parent.insertBefore(n.firstChild, n)
+      parent.removeChild(n)
+    }
+
+    // recoloca e mantém seleção
+    const first = frag.firstChild
+    const last = frag.lastChild
+    range.insertNode(frag)
+
+    const sel = window.getSelection()
+    if (sel && first && last) {
+      const r2 = document.createRange()
+      r2.setStartBefore(first)
+      r2.setEndAfter(last)
+      sel.removeAllRanges()
+      sel.addRange(r2)
+      WordexRange.saveSelection()
+    }
+
+    return true
+  }    
+
 }

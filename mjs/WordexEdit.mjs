@@ -368,8 +368,10 @@ export default class WordexEdit {
 
     // BACKSPACE
     if (e.key === "Backspace") {
-      if (WordexEdit.selectObjectIfAdjacent(true, host)) return
-      if (WordexEdit.deleteTabIfAdjacent(true, host)) e.preventDefault()
+      if (WordexEdit.selectObjectIfAdjacent(true, host))
+        return
+      if (WordexEdit.deleteTabIfAdjacent(true, host))
+        e.preventDefault()
       return
     }
   }

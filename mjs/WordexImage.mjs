@@ -43,11 +43,11 @@ export default class WordexImage {
         img.style.borderRadius = radiusPx
         return true
     }
-    /** @param {"left"|"center"|"right"} dir */
+    /** @param {"left"|"center"|"right"|"justify"} dir */
     static align(dir) {
         const img = WordexImage.#selectedImage
         if (!img) return false
-        WordexAlignment.floatable(img, dir)
+        WordexAlignment.wrapAlign(img, dir)
         return true
     }
     /**  @param {HTMLImageElement} img */
