@@ -5,7 +5,6 @@ import WordexConfig from "./WordexConfig.mjs"
 import WordexEdit from "./WordexEdit.mjs"
 import WordexImage from "./WordexImage.mjs"
 import WordexParagraph from "./WordexParagraph.mjs"
-import WordexFormat from "./WordexFormat.mjs"
 import WordexTable from "./WordexTable.mjs"
 import WordexTableCell from "./WordexTableCell.mjs"
 import WordexTableRow from "./WordexTableRow.mjs"
@@ -77,7 +76,7 @@ export default class WordexPage {
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
         if (hasSelection) {
-            return WordexFormat.setFontColor(hex)
+            return WordexRange.setFontColor(hex)
         }
 
         const paragraph = WordexPage.getParagraphTarget()

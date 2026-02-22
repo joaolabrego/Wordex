@@ -151,7 +151,7 @@ export default class WordexRange {
    * @param {string} hex ex: "#ff0000" 
    * @returns {boolean}
    */
-  static setColor(hex) {
+  static setFontColor(hex) {
     if (!hex)
       return false
     

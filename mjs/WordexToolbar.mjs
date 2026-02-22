@@ -3,7 +3,6 @@
 "use strict"
 
 import WordexConfig from "./WordexConfig.mjs"
-import WordexFormat from "./WordexFormat.mjs"
 import WordexPage from "./WordexPage.mjs"
 import WordexRange from "./WordexRange.mjs"
 import WordexImage from "./WordexImage.mjs"
@@ -150,21 +149,18 @@ export default class WordexToolbar {
     #setFontSize() {
         const value = this.#getHTMLSelectElementValue(this.#selectFontSize)
         if (!value)
-            return
+            return false
         const size = WordexConfig.fontSizeList.find((p) => p.value === value)
         if (!size)
-            return
+            return false
 
         WordexRange.restoreRange(WordexRange.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
 
-        if (hasSelection) {
-            if (/^[1-7]$/.test(value))
-                return !!WordexFormat.setFontSize(value)
-            return false
-        }
+        if (hasSelection)
+            return !!WordexRange.setFontSize(value)
 
         const paragraph = WordexPage.getParagraphTarget()
         if (paragraph) {
