@@ -8,6 +8,8 @@ import WordexParagraph from './WordexParagraph.mjs'
 
 export default class WordexSection {
 
+    /** @type {HTMLDivElement} */ static rootSection
+
     /** @type {WordexPage} */ #page
     /** @type {HTMLDivElement} */ #section
     /** @type {WordexParagraph} */ #firstParagraph
@@ -26,7 +28,7 @@ export default class WordexSection {
         this.#section.contentEditable = "true"
 
         this.#section.addEventListener("keydown", (e) => WordexEdit.onKeyDown(e))
-        this.#section.addEventListener("focus", () => WordexConfig.rootSection = this.#section)
+        this.#section.addEventListener("focus", () => WordexSection.rootSection = this.#section)
 
         this.#firstParagraph = new WordexParagraph(this.#section)
         if (textContent.trim())
@@ -41,5 +43,13 @@ export default class WordexSection {
     }
     get firstParagraph() {
         return this.#firstParagraph
+    }
+
+    // ✅ Não precisa instanciar WordexConfig. Só setar o rootSection.
+    /**
+     * @param {HTMLDivElement} rootEditable
+     */
+    static setRoot(rootEditable) {
+        WordexSection.rootSection = rootEditable
     }
 }

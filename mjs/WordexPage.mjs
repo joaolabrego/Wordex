@@ -13,6 +13,7 @@ import WordexTableCol from "./WordexTableCol.mjs"
 import WordexToolbar from "./WordexToolbar.mjs"
 import WordexTemplate from "./WordexTemplate.mjs"
 import WordexSection from "./WordexSection.mjs"
+import WordexRange from "./WordexRange.mjs"
 export default class WordexPage {
     /** @type {"INS"|"OVR"} */
 
@@ -44,7 +45,7 @@ export default class WordexPage {
         this.#footer = new WordexSection(this, "footer", "Rodapé: clique para editar")
         this.#page.appendChild(this.#footer.instance)
         
-        WordexConfig.rootSection = this.#body.instance
+        WordexSection.rootSection = this.#body.instance
 
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
@@ -53,19 +54,25 @@ export default class WordexPage {
             WordexImage.attach(section.instance)
         }
 
-        document.addEventListener("selectionchange", () => WordexConfig.saveSelection())
+        document.addEventListener("selectionchange", () => WordexRange.saveSelection())
     }
     get instance() {
         return this.#page
     }
+    get header() {
+        return this.#header
+    }
     get body() {
         return this.#body
+    }
+    get footer() {
+        return this.#footer
     }
     /** @param {string} hex */
     setColor(hex) {
         if (!hex)
             return false
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
@@ -78,8 +85,8 @@ export default class WordexPage {
             paragraph.style.color = hex
             return true
         }
-        if (WordexConfig.rootSection) {
-            WordexConfig.rootSection.style.color = hex
+        if (WordexSection.rootSection) {
+            WordexSection.rootSection.style.color = hex
             return true
         }
 
@@ -129,7 +136,8 @@ export default class WordexPage {
     static getParagraphTarget() {
         const fp = WordexPage.#callIfExists(WordexParagraph, "getFocused")
         if (fp) return fp
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
+
         return WordexConfig.getActiveParagraph()
     }
 
@@ -194,7 +202,7 @@ export default class WordexPage {
 
     /** @param {string} widthPx @param {string} color */
     static border(widthPx, color) {
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         if (WordexTable.applyBorder(widthPx, color)) return true
         if (WordexImage.applyBorder(widthPx, color)) return true
@@ -209,7 +217,7 @@ export default class WordexPage {
     }
     /** @param {string} radiusPx */
     static borderRadius(radiusPx) {
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         if (WordexTable.applyBorderRadius(radiusPx)) return true
         if (WordexImage.applyBorderRadius(radiusPx)) return true

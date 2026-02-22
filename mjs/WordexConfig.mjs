@@ -1,6 +1,9 @@
 // @ts-check
 "use strict"
 
+import WordexRange from "./WordexRange.mjs"
+import WordexSection from "./WordexSection.mjs"
+
 export default class WordexConfig {
   /**
    * @typedef {{
@@ -12,21 +15,12 @@ export default class WordexConfig {
    * }} Item
    */
 
-  /** @type {HTMLDivElement} */ static rootSection
-  /** @type {Range|null} */ static range = null
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
   /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
   /** @readonly @type {"landscape"} */ static K_LANDSCAPE = "landscape"
   /** @readonly @type {"portrait"} */ static K_PORTRAIT = "portrait"
 
-  // ✅ Não precisa instanciar WordexConfig. Só setar o rootSection.
-  /**
-   * @param {HTMLDivElement} rootEditable
-   */
-  static setRoot(rootEditable) {
-    WordexConfig.rootSection = rootEditable
-  }
 
   /** @type {Readonly<Item[]>} */
   static paperFormatList = Object.freeze([
@@ -170,58 +164,6 @@ export default class WordexConfig {
     { value: "right", text: "Direita" },
     { value: "justify", text: "Justificado" },
   ])
-
-  static saveSelection() {
-    const root = WordexConfig.rootSection
-    if (!root)
-      return
-
-    const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0)
-      return
-
-    const r = sel.getRangeAt(0)
-
-    const a = sel.anchorNode
-    const f = sel.focusNode
-    if (!a || !f)
-      return
-    if (!a.isConnected || !f.isConnected)
-      return
-
-    const aEl = a.nodeType === Node.TEXT_NODE ? a.parentElement : a
-    const fEl = f.nodeType === Node.TEXT_NODE ? f.parentElement : f
-    if (!(aEl instanceof Element) || !(fEl instanceof Element))
-      return
-    if (!root.contains(aEl) || !root.contains(fEl))
-      return
-
-    WordexConfig.range = r.cloneRange()
-  }
-  /**
-   * @param {Range|null} range
-   * @returns {boolean}
-   */
-  static restoreRange(range) {
-    if (!range) return false
-    const sel = window.getSelection()
-    if (!sel) return false
-    sel.removeAllRanges()
-    sel.addRange(range)
-    return true
-  }
-
-  static saveRange() {
-    const r = WordexConfig.getSelRange()
-    return r ? r.cloneRange() : null
-  }
-
-  static getSelRange() {
-    const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0) return null
-    return sel.getRangeAt(0)
-  }
-
   /** @readonly */
   static Script = `
       :root { --margin: 20mm; }
@@ -441,20 +383,20 @@ export default class WordexConfig {
    * @returns {boolean}
    */
   static exec(cmd, value = null) {
-    if (!WordexConfig.range) return false
+    if (!WordexRange.range) return false
 
     const sel = window.getSelection()
     if (!sel) return false
 
     sel.removeAllRanges()
-    sel.addRange(WordexConfig.range)
+    sel.addRange(WordexRange.range)
 
-    WordexConfig.rootSection?.focus({ preventScroll: true })
+    WordexSection.rootSection?.focus({ preventScroll: true })
 
     if (value !== null && value !== undefined) document.execCommand(cmd, false, value)
     else document.execCommand(cmd, false)
 
-    WordexConfig.saveSelection()
+    WordexRange.saveSelection()
     return true
   }
 

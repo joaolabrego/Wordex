@@ -7,6 +7,7 @@ import WordexFormat from "./WordexFormat.mjs"
 import WordexPage from "./WordexPage.mjs"
 import WordexRange from "./WordexRange.mjs"
 import WordexImage from "./WordexImage.mjs"
+import WordexSection from "./WordexSection.mjs"
 
 /**
  * @typedef {{
@@ -201,7 +202,7 @@ export default class WordexToolbar {
         if (!value)
             return
 
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         // 1) Se há seleção de texto → WordexText manda
         if (WordexRange.hasSelection()) {
@@ -218,7 +219,7 @@ export default class WordexToolbar {
         const value = WordexConfig.getHTMLSelectElementValue(this.#selectFontFamily)
         if (!value)
             return false
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         const selection = window.getSelection()
         if (!!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed)
@@ -230,8 +231,8 @@ export default class WordexToolbar {
             paragraph.style.fontFamily = value
             return true
         }
-        if (WordexConfig.rootSection) {
-            WordexConfig.rootSection.style.fontFamily = value
+        if (WordexSection.rootSection) {
+            WordexSection.rootSection.style.fontFamily = value
             return true
         }
 
@@ -246,7 +247,7 @@ export default class WordexToolbar {
         if (!size)
             return
 
-        WordexConfig.restoreRange(WordexConfig.range)
+        WordexRange.restoreRange(WordexRange.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
@@ -262,8 +263,8 @@ export default class WordexToolbar {
             paragraph.style.fontSize = size.value
             return true
         }
-        if (WordexConfig.rootSection) {
-            WordexConfig.rootSection.style.fontSize = size.value
+        if (WordexSection.rootSection) {
+            WordexSection.rootSection.style.fontSize = size.value
             return true
         }
 

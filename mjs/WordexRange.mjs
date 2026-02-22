@@ -2,21 +2,71 @@
 "use strict"
 
 import WordexConfig from "./WordexConfig.mjs"
-
-/**
- * WordexRange
- * - representa “texto selecionado” (Range não-colapsado)
- * - funciona igual dentro de <div> (parágrafo) ou dentro de <td> (célula)
- * - aplica formatação SEMÂNTICA envolvendo o Range com tags (<b>, <i>, <u>…)
- * - para fonte/cor/tamanho, envolve com <span style="...">
- *
- * Observação: este objeto NÃO decide alinhamento (isso é do alvo: Cell/Row/Col/WordexTable/WordexImage/WordexParagraph).
- */
+import WordexSection from "./WordexSection.mjs"
 export default class WordexRange {
+  /** @type {Range|null} */ static range = null
+
+  static saveSelection() {
+    const root = WordexSection.rootSection
+    if (!root)
+      return false
+
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0)
+      return false
+
+    const r = sel.getRangeAt(0)
+
+    const a = sel.anchorNode
+    const f = sel.focusNode
+    if (!a || !f)
+      return false
+    if (!a.isConnected || !f.isConnected)
+      return false
+
+    const aEl = a.nodeType === Node.TEXT_NODE ? a.parentElement : a
+    const fEl = f.nodeType === Node.TEXT_NODE ? f.parentElement : f
+    if (!(aEl instanceof Element) || !(fEl instanceof Element))
+      return false
+    if (!root.contains(aEl) || !root.contains(fEl))
+      return false
+
+    WordexRange.range = r.cloneRange()
+
+    return true
+  }
+  /**
+   * @param {Range|null} range
+   * @returns {boolean}
+   */
+  static restoreRange(range) {
+    if (!range)
+      return false
+    const sel = window.getSelection()
+    if (!sel)
+      return false
+    sel.removeAllRanges()
+    sel.addRange(range)
+
+    return true
+  }
+
+  static saveRange() {
+    const range = WordexRange.getSelRange()
+    return range ? range.cloneRange() : null
+  }
+
+  static getSelRange() {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0)
+      return null
+
+    return selection.getRangeAt(0)
+  }
 
   /** @returns {Range|null} */
   static getSelectedRange() {
-    WordexConfig.restoreRange(WordexConfig.range)
+    WordexRange.restoreRange(WordexRange.range)
 
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0)
@@ -28,6 +78,8 @@ export default class WordexRange {
 
     return range
   }
+
+  
 
   static hasSelection() {
     return !!WordexRange.getSelectedRange()
@@ -152,7 +204,7 @@ export default class WordexRange {
     selection.removeAllRanges()
     selection.addRange(range)
 
-    WordexConfig.saveSelection()
+    WordexRange.saveSelection()
 
     return true
   }
@@ -172,7 +224,7 @@ export default class WordexRange {
     selection.removeAllRanges()
     selection.addRange(range)
 
-    WordexConfig.saveSelection()
+    WordexRange.saveSelection()
 
     return true
   }  
