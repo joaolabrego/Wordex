@@ -77,15 +77,14 @@ export default class WordexToolbar {
         this.#toolbar.appendChild(this.#createButton("🖼️+", "Inserir imagem", () => this.#inputFile.click()))
 
         // resize / move genéricos -> WordexPage decide alvo
-        this.#toolbar.appendChild((this.#buttonIncrease = this.#createButton("+", "Aumentar", () => WordexPage.increase())))
-        this.#toolbar.appendChild((this.#buttonDecrease = this.#createButton("-", "Diminuir", () => WordexPage.decrease())))
-        this.#toolbar.appendChild(this.#buttonInsertTable =
-            this.#createButton("▦+", "Inserir tabela", async () => this.#createTable())
+        this.#toolbar.appendChild(this.#createButton("+", "Aumentar", () => WordexPage.increase()))
+        this.#toolbar.appendChild(this.#createButton("-", "Diminuir", () => WordexPage.decrease()))
+        this.#toolbar.appendChild(this.#createButton("▦+", "Inserir tabela", async () => this.#createTable())
         )
-        this.#toolbar.appendChild((this.#buttonMoveLeft = this.#createButton("⬅", "Mover esquerda", () => WordexPage.left())))
-        this.#toolbar.appendChild((this.#buttonMoveRight = this.#createButton("➡", "Mover direita", () => WordexPage.right())))
-        this.#toolbar.appendChild((this.#buttonMoveUp = this.#createButton("⬆", "Mover cima", () => WordexPage.up())))
-        this.#toolbar.appendChild((this.#buttonMoveDown = this.#createButton("⬇", "Mover baixo", () => WordexPage.down())))
+        this.#toolbar.appendChild(this.#createButton("⬅", "Mover esquerda", () => WordexPage.left()))
+        this.#toolbar.appendChild(this.#createButton("➡", "Mover direita", () => WordexPage.right()))
+        this.#toolbar.appendChild(this.#createButton("⬆", "Mover cima", () => WordexPage.up()))
+        this.#toolbar.appendChild(this.#createButton("⬇", "Mover baixo", () => WordexPage.down()))
 
         // borda -> WordexPage decide alvo (e recebe cor)
         this.#toolbar.appendChild(
@@ -222,7 +221,6 @@ export default class WordexToolbar {
         return Math.min(max, Math.max(min, n))
     }
 
-
     async #createTable() {
         const rows = this.#askInteger("Quantidade de linhas:", 3, 1, 50)
         if (rows === null)
@@ -273,7 +271,7 @@ export default class WordexToolbar {
 
     #setBorder() {
         const value = this.#getHTMLSelectElementValue(this.#selectBorders)
-        WordexPage.border(value, this.#inputColor.value)
+        WordexPage.border(value, this.#selectedColor)
     }
 
     #setBorderRadius() {
@@ -410,6 +408,4 @@ export default class WordexToolbar {
     get editMode() {
         return /** @type {`${typeof WordexConfig.K_INSERT_MODE}|${typeof WordexConfig.K_OVERWRITE_MODE}`} */ (this.#buttonEditMode.textContent);
     }
-
-    
 }
