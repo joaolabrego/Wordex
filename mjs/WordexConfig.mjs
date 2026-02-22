@@ -173,7 +173,6 @@ export default class Config {
   ])
 
   static saveSelection() {
-    console.log(Config.rootSection)
     if (!Config.rootSection)
       return
     const sel = window.getSelection()
@@ -216,7 +215,7 @@ export default class Config {
 
   /** @readonly */
   static Script = `
-      :rootSection { --margin: 20mm; }
+      :root { --margin: 20mm; }
 
       html, body { margin: 0; padding: 0; }
       body { background-color: #555; }
@@ -402,7 +401,7 @@ export default class Config {
    * @param {HTMLSelectElement} select
    */
   static getHTMLSelectElementValue(select) {
-    if (!select.selectedIndex)
+    if (select.selectedIndex < 0)
       return ""
 
     return select.options[select.selectedIndex].value

@@ -194,7 +194,7 @@ export default class Toolbar {
         )
 
         this.#toolbar.appendChild(this.#buttonEditMode = Config.createButton(Config.K_INSERT_MODE, "Modo inserção/sobrescrita",
-            () => this.#toogleEditMode()))
+            () => this.#toggleEditMode()))
         
         this.#initializeDefaults()
     }
@@ -317,7 +317,7 @@ export default class Toolbar {
         this.editMode = Config.K_INSERT_MODE
     }
     
-    #toogleEditMode() {
+    #toggleEditMode() {
         this.editMode = this.isInsertMode ? Config.K_OVERWRITE_MODE : Config.K_INSERT_MODE
     }
     get isInsertMode() {

@@ -15,7 +15,6 @@ import Layout from "./WordexLayout.mjs"
 import Toolbar from "./WordexToolbar.mjs"
 import Template from "./WordexTemplate.mjs"
 import Section from "./WordexSection.mjs"
-
 export default class Page {
     /** @type {"INS"|"OVR"} */
 
@@ -47,7 +46,14 @@ export default class Page {
         this.#footer = new Section(this, "footer", "Rodapé: clique para editar")
         this.#main.appendChild(this.#footer.instance)
         
-        Config.rootSection = this.#body.instance;
+        Config.rootSection = this.#body.instance
+
+        // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
+        for (const section of [this.#header, this.#body, this.#footer]) {
+            Paragraph.attach(section.instance)
+            Table.attach(section.instance)
+            Image.attach(section.instance)
+        }
 
         document.addEventListener("selectionchange", () => Config.saveSelection())
     }

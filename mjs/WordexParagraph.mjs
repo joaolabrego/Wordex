@@ -1,7 +1,6 @@
 // @ts-check
 "use strict"
 
-import { createElement } from "react"
 import Config from "./WordexConfig.mjs"
 
 export default class Paragraph {
@@ -17,10 +16,6 @@ export default class Paragraph {
         this.#paragraph = document.createElement("div")
         this.#paragraph.classList.add("paragraph")
         this.#paragraph.append(document.createElement("br"))
-
-
-        
-
     }
 
     get instance() {
