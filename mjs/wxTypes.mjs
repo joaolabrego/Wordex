@@ -9,29 +9,108 @@
  * }} wxItem
  */
 
+/** @typedef {DOMStringMap & { wxKind: "page" }} wxPageData */
+/** @typedef {DOMStringMap & { wxKind: "section", wxSector: "header"|"body"|"footer" }} wxSectionData */
+/** @typedef {DOMStringMap & { wxKind: "section", wxSector: "header" }} wxSectionHeaderData */
+/** @typedef {DOMStringMap & { wxKind: "section", wxSector: "body" }} wxSectionBodyData */
+/** @typedef {DOMStringMap & { wxKind: "section", wxSector: "footer" }} wxSectionFooterData */
+/** @typedef {DOMStringMap & { wxKind: "paragraph" }} wxParagraphData */
+/** @typedef {DOMStringMap & { wxKind: "image" }} wxImageData */
+/** @typedef {DOMStringMap & { wxKind: "table" }} wxTableData */
+
+/** @typedef {DOMStringMap & { wxKind: "table", wxRole: "row" }} wxTableRowData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "header", wxRole: "row" }} wxTableHeadRowData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "body", wxRole: "row" }} wxTableBodyRowData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "footer", wxRole: "row" }} wxTableFootRowData */
+
+/** @typedef {DOMStringMap & { wxKind: "table", wxRole: "cell" }} wxTableCellData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "header", wxRole: "cell" }} wxTableHeadCellData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "body", wxRole: "cell" }} wxTableBodyCellData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "footer", wxRole: "cell" }} wxTableFootCellData */
+
+/** @typedef {DOMStringMap & { wxKind: "table", wxRole: "col" }} wxTableColData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "header", wxRole: "col" }} wxTableHeadColData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "body", wxRole: "col" }} wxTableBodyColData */
+/** @typedef {DOMStringMap & { wxKind: "table", wxSector: "footer", wxRole: "col" }} wxTableFootColData */
+
 /**
- * Div que representa uma Page do Wordex.
- * @typedef {HTMLDivElement & { wxKind: "page" }} wxPageDiv
+ * @typedef {HTMLDivElement & { dataset: wxPageData }} wxPage
  */
 
 /**
- * Div que representa uma Section do Wordex (header/body/footer).
- * @typedef {HTMLDivElement & { wxKind: "section" }} wxSectionDiv
+ * @typedef {HTMLDivElement & { dataset: wxSectionData }} wxSection
  */
 
 /**
- * Div que representa um Paragraph do Wordex.
- * @typedef {HTMLDivElement & { wxKind?: "paragraph" }} wxParagraphDiv
+ * @typedef {HTMLDivElement & { dataset: wxSectionHeaderData }} wxSectionHeader
  */
 
 /**
- * Img que representa um Picture do Wordex.
- * @typedef {HTMLDivElement & { wxKind?: "image" }} wxImageImg
+ * @typedef {HTMLDivElement & { dataset: wxSectionBodyData }} wxSectionBody
  */
 
 /**
- * Table que representa um grid do Wordex.
- * @typedef {HTMLDivElement & { wxKind?: "image" }} wxGridTable
+ * @typedef {HTMLDivElement & { dataset: wxSectionFooterData }} wxSectionFooter
+ */
+
+/**
+ * @typedef {HTMLDivElement & { dataset: wxParagraphData }} wxParagraph
+ */
+
+/**
+ * @typedef {HTMLImageElement & { dataset: wxImageData }} wxImage
+ */
+
+/**
+ * @typedef {HTMLTableElement & { dataset: wxTableData }} wxTable
+ */
+
+/**
+ * @typedef {HTMLTableRowElement & { dataset: wxTableRowData }} wxTableRow
+ */
+
+/**
+ * @typedef {HTMLTableRowElement & { dataset: wxTableHeadRowData }} wxTableHeadRow
+ */
+
+/**
+ * @typedef {HTMLTableRowElement & { dataset: wxTableBodyRowData }} wxTableBodyRow
+ */
+
+/**
+ * @typedef {HTMLTableRowElement & { dataset: wxTableFootRowData }} wxTableFootRow
+ */
+
+/**
+ * @typedef {HTMLTableCellElement & { dataset: wxTableCellData }} wxTableCell
+ */
+
+/**
+ * @typedef {HTMLTableCellElement & { dataset: wxTableHeadCellData }} wxTableHeadCell
+ */
+
+/**
+ * @typedef {HTMLTableCellElement & { dataset: wxTableBodyCellData }} wxTableBodyCell
+ */
+
+/**
+ * @typedef {HTMLTableCellElement & { dataset: wxTableFootCellData }} wxTableFootCell
+ */
+
+/**
+ * @typedef {HTMLTableColElement & { dataset: wxTableColData }} wxTableCol
+ */
+
+/**
+ * @typedef {HTMLTableColElement & { dataset: wxTableHeadColData }} wxTableHeadCol
+ */
+
+/**
+ * @typedef {HTMLTableColElement & { dataset: wxTableBodyColData }} wxTableBodyCol
+ */
+
+/**
+ * @typedef {HTMLTableColElement & { dataset: wxTableFootColData }} wxTableFootCol
  */
 
 export { };

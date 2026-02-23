@@ -37,7 +37,7 @@ export default class wxMovement {
     static #moveByWord(el, dir) {
         if (!el) return false
 
-        const rootSection = wxSection.rootSection
+        const rootSection = wxSection.getRoot()
         if (!rootSection) return false
 
         const p = wxMovement.#getParagraph(el, rootSection)
@@ -74,7 +74,7 @@ export default class wxMovement {
     static #moveParagraph(el, dir) {
         if (!el) return false
 
-        const rootSection = wxSection.rootSection
+        const rootSection = wxSection.getRoot()
         if (!rootSection) return false
 
         const p = wxMovement.#getParagraph(el, rootSection)

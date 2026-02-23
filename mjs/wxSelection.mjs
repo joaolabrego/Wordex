@@ -2,15 +2,19 @@
 // @ts-check
 "use strict"
 
-/** @typedef {import("./wxTypes.mjs").wxParagraphDiv} wxParagraphDiv */
-/** @typedef {import("./wxTypes.mjs").wxImageImg} wxImageImg */
+/** @typedef {import("./wxTypes.mjs").wxParagraph} wxParagraphType */
+/** @typedef {import("./wxTypes.mjs").wxImage} wxImageType */
+/** @typedef {import("./wxTypes.mjs").wxTable} wxTableType */
+/** @typedef {import("./wxTypes.mjs").wxTableRow} wxTableRowType */
+/** @typedef {import("./wxTypes.mjs").wxTableCol} wxTableColType */
+/** @typedef {import("./wxTypes.mjs").wxTableCell} wxTableCellType */
 
 export default class wxSelection {
   /** @type {Range|null} */ static range = null
-  /** @type {wxParagraphDiv|null} */ static paragraph = null
-  /** @type {HTMLImageElement|null} */ static image = null
-  /** @type {HTMLTableElement|null} */ static table = null
-  /** @type {HTMLTableRowElement|null} */ static tableRow = null
+  /** @type {wxParagraphType|null} */ static paragraph = null
+  /** @type {wxImageType|null} */ static image = null
+  /** @type {wxTableType|null} */ static table = null
+  /** @type {wxTableRowType|null} */ static tableRow = null
   /** @type {number|null} */ static tableCol = null
   /** @type {HTMLTableCellElement|null} */ static tableCell = null
 
@@ -18,12 +22,12 @@ export default class wxSelection {
 
     static clear() {
         /** @type {Range} */ wxSelection.range = null
-        /** @type {wxParagraphDiv} */ wxSelection.paragraph = null
-        /** @type {wxImageImg} */ wxSelection.image = null
-        /** @type {Range} */ wxSelection.table = null
-        /** @type {Range} */ wxSelection.tableRow = null
-        /** @type {Range} */ wxSelection.tableCol = null
-        /** @type {Range} */ wxSelection.tableCell = null
+        /** @type {wxParagraphType} */ wxSelection.paragraph = null
+        /** @type {wxImageType} */ wxSelection.image = null
+        /** @type {wxTableType[]} */ wxSelection.table = null
+        /** @type {wxTableRowType[]} */ wxSelection.tableRow = null
+        /** @type {wxTableColType[]} */ wxSelection.tableCol = null
+        /** @type {wxTableCellType} */ wxSelection.tableCell = null
         /** @type {Range} */ wxSelection.selectedList = []
     }
 
@@ -45,31 +49,6 @@ export default class wxSelection {
 
             if (!range.collapsed)
                 wxSelection.range = range.cloneRange()
-
-            const node = range.startContainer
-            const element = node.nodeType === Node.ELEMENT_NODE ? /** @type {Element} */ (node) : node.parentElement
-            if (element) {
-                wxSelection.paragraph = /** @type {HTMLDivElement|null} */ (element.closest("div.paragraph"))
-
-                const cell = /** @type {HTMLTableCellElement|null} */ (
-                    element.closest("td,th")
-                )
-                if (cell) {
-                    wxSelection.tableCell = cell
-                    wxSelection.tableRow =
-                        cell.parentElement instanceof HTMLTableRowElement ? cell.parentElement : null
-                    wxSelection.table = /** @type {HTMLTableElement|null} */ (cell.closest("table"))
-
-                    const row = wxSelection.tableRow
-                    if (row) {
-                        const cells = Array.from(row.cells)
-                        const idx = cells.indexOf(cell)
-                        wxSelection.tableCol = idx >= 0 ? idx : null
-                    }
-                } else {
-                    wxSelection.table = /** @type {HTMLTableElement|null} */ (element.closest("table"))
-                }
-            }
         }
 
         // 2) Seleção estrutural via .selected (múltiplos)
@@ -77,33 +56,30 @@ export default class wxSelection {
 
         for (const element of selectedElements) {
             // paragraph
-            if (
-                element instanceof HTMLDivElement &&
-                element.classList.contains("paragraph")
-            ) {
-                wxSelection.paragraph = element
+            if (element instanceof HTMLDivElement && element.classList.contains("paragraph")) {
+                wxSelection.paragraph = /** @type {wxParagraphType} */(element)
                 wxSelection.selectedList.push({ kind: "paragraph", element })
                 continue
             }
 
             // image
             if (element instanceof HTMLImageElement) {
-                wxSelection.image = element
+                wxSelection.image = /** @type {wxImageType} */(element)
                 wxSelection.selectedList.push({ kind: "image", element })
                 continue
             }
 
             // table
             if (element instanceof HTMLTableElement) {
-                wxSelection.table = element
+                wxSelection.table = /** @type {wxTableType} */(element)
                 wxSelection.selectedList.push({ kind: "table", element })
                 continue
             }
 
             // row
             if (element instanceof HTMLTableRowElement) {
-                wxSelection.tableRow = element
-                wxSelection.table = /** @type {HTMLTableElement|null} */ (element.closest("table"))
+                wxSelection.tableRow = /** @type {wxTableRowType|null} */(element)
+                wxSelection.table = /** @type {wxTableType|null} */ (element.closest("table"))
                 wxSelection.selectedList.push({ kind: "row", element })
                 continue
             }
@@ -111,9 +87,8 @@ export default class wxSelection {
             // cell
             if (element instanceof HTMLTableCellElement) {
                 wxSelection.tableCell = element
-                wxSelection.tableRow =
-                    element.parentElement instanceof HTMLTableRowElement ? element.parentElement : null
-                wxSelection.table = /** @type {HTMLTableElement|null} */ (element.closest("table"))
+                wxSelection.tableRow = /** @type {wxTableRowType|null} */(element.parentElement instanceof HTMLTableRowElement ? element.parentElement : null)
+                wxSelection.table = /** @type {wxTableType|null} */(element.closest("table"))
                 wxSelection.selectedList.push({ kind: "cell", element })
                 continue
             }

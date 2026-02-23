@@ -3,7 +3,9 @@
 
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
+
 /** @typedef {import("./wxTypes.mjs").wxItem} wxItem */
+
 export default class wxConfig {
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
@@ -15,7 +17,7 @@ export default class wxConfig {
   /** @readonly @type {"#000000"} */ static K_DEFAULT_COLOR = "#000000"
 
 
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly <wxItem[]>} */
   static paperFormatList = Object.freeze([
     // Genérico
     { value: "", text: "Folha" },
@@ -73,7 +75,7 @@ export default class wxConfig {
     { value: "ANSI_D", text: "ANSI D", width: "558.8mm", height: "863.6mm" },
     { value: "ANSI_E", text: "ANSI E", width: "863.6mm", height: "1117.6mm" }
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly <wxItem[]>} */
   static fontFamilyList = Object.freeze([
     { value: "", text: "Fonte" },
 
@@ -307,7 +309,7 @@ export default class wxConfig {
     sel.removeAllRanges()
     sel.addRange(wxRange.range)
 
-    wxSection.rootSection?.focus({ preventScroll: true })
+    wxSection.getRoot()?.focus({ preventScroll: true })
 
     if (value !== null && value !== undefined) document.execCommand(cmd, false, value)
     else document.execCommand(cmd, false)

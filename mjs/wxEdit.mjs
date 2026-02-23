@@ -5,7 +5,7 @@ import wxParagraph from "./wxParagraph.mjs"
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
 
-/** @typedef {import("./wxTypes.mjs").wxSectionDiv} wxSectionDiv */
+/** @typedef {import("./wxTypes.mjs").wxSection} wxSectionDiv */
 
 export default class wxEdit {
   static #TAB_LENGTH = 4
@@ -242,7 +242,7 @@ export default class wxEdit {
     if (!sel || !sel.rangeCount) return null
     const r = sel.getRangeAt(0)
 
-    const rootSection = wxSection.rootSection
+    const rootSection = wxSection.getRoot()
     if (!rootSection) return null
 
     const anchor =
@@ -299,7 +299,7 @@ export default class wxEdit {
     if (!sel || !sel.rangeCount) return false
     const r = sel.getRangeAt(0)
 
-    const rootSection = wxSection.rootSection
+    const rootSection = wxSection.getRoot()
     if (!rootSection) return false
 
     const p = wxEdit.#getCurrentParagraphDirectChild()

@@ -133,8 +133,10 @@ export default class wxToolbar {
             paragraph.style.fontFamily = value
             return true
         }
-        if (wxSection.rootSection) {
-            wxSection.rootSection.style.fontFamily = value
+
+        const section = wxSection.getRoot()
+        if (section) {
+            section.style.fontFamily = value
             return true
         }
 
@@ -162,8 +164,9 @@ export default class wxToolbar {
             paragraph.style.fontSize = size.value
             return true
         }
-        if (wxSection.rootSection) {
-            wxSection.rootSection.style.fontSize = size.value
+        const section = wxSection.getRoot()
+        if (section) {
+            section.style.fontSize = size.value
             return true
         }
 

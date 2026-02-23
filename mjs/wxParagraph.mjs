@@ -4,8 +4,8 @@
 import wxConfig from "./wxConfig.mjs"
 import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
-/** @typedef {import("./wxTypes.mjs").wxParagraphDiv} wxParagraphDiv */
-/** @typedef {import("./wxTypes.mjs").wxSectionDiv} wxSectionDiv */
+/** @typedef {import("./wxTypes.mjs").wxParagraph} wxParagraphDiv */
+/** @typedef {import("./wxTypes.mjs").wxSection} wxSectionDiv */
 
 export default class wxParagraph {
     /** @type {HTMLDivElement|null} */
@@ -17,7 +17,9 @@ export default class wxParagraph {
     /** @param {wxSectionDiv} owner */
     constructor(owner) {
         this.#owner = owner
-        this.#paragraph = document.createElement("div")
+
+        this.#paragraph = /** @type {wxParagraphDiv} */(document.createElement("div"))
+        this.#paragraph.dataset.wxKind = "paragraph"
         this.#paragraph.tabIndex = -1
         this.#paragraph.classList.add("paragraph")
         this.#paragraph.append(document.createElement("br"))
@@ -47,7 +49,7 @@ export default class wxParagraph {
     static attach(scope) {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
-            const rootSection = wxSection.rootSection
+            const rootSection = wxSection.getRoot()
             if (!rootSection) return
 
             const p = t.closest("div")
@@ -176,7 +178,7 @@ export default class wxParagraph {
 
     /** Move parágrafo selecionado 1 posição para cima (entre irmãos do rootSection). */
     static moveUp() {
-        const rootSection = wxSection.rootSection
+        const rootSection = wxSection.getRoot()
         const p = wxParagraph.#selected
         if (!rootSection || !p) return false
 
@@ -192,7 +194,7 @@ export default class wxParagraph {
 
     /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do rootSection). */
     static moveDown() {
-        const rootSection = wxSection.rootSection
+        const rootSection = wxSection.getRoot()
         const p = wxParagraph.#selected
         if (!rootSection || !p) return false
 

@@ -32,21 +32,21 @@ export default class wxPage {
         })
 
         this.#header = new wxSection(this, "header", "Cabeçalho: clique para editar")
-        this.#page.appendChild(this.#header.instance)
+        this.#page.appendChild(this.#header.element)
 
         this.#body = new wxSection(this, "body", "Corpo do documento: clique para editar")
-        this.#page.appendChild(this.#body.instance)
+        this.#page.appendChild(this.#body.element)
 
         this.#footer = new wxSection(this, "footer", "Rodapé: clique para editar")
-        this.#page.appendChild(this.#footer.instance)
+        this.#page.appendChild(this.#footer.element)
         
-        wxSection.rootSection = this.#body.instance
+        wxSection.setRoot(this.#body.element)
 
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
-            wxParagraph.attach(section.instance)
-            wxGrid.attach(section.instance)
-            wxPicture.attach(section.instance)
+            wxParagraph.attach(section.element)
+            wxGrid.attach(section.element)
+            wxPicture.attach(section.element)
         }
 
         document.addEventListener("selectionchange", () => wxRange.saveSelection())
@@ -80,8 +80,9 @@ export default class wxPage {
             paragraph.style.color = hex
             return true
         }
-        if (wxSection.rootSection) {
-            wxSection.rootSection.style.color = hex
+        const section = wxSection.getRoot()
+        if (section) {
+            section.style.color = hex
             return true
         }
 

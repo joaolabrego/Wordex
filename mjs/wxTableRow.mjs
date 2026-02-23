@@ -159,7 +159,7 @@ export default class wxTableRow {
         const cell = tr.cells?.[0]
         if (cell) {
             // garante que o range fique dentro do escopo atual
-            wxSection.rootSection?.focus({ preventScroll: true })
+            wxSection.getRoot()?.focus({ preventScroll: true })
 
             const r = document.createRange()
             r.selectNodeContents(cell)

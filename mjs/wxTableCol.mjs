@@ -171,7 +171,7 @@ export default class wxTableCol {
         // Opcional: ao ativar coluna, joga caret na 1ª célula “existente”
         const firstCell = wxTableCol.#findFirstCellInColumn(table, idx)
         if (firstCell) {
-            wxSection.rootSection?.focus({ preventScroll: true })
+            wxSection.getRoot()?.focus({ preventScroll: true })
             const r = document.createRange()
             r.selectNodeContents(firstCell)
             r.collapse(true)
