@@ -20,8 +20,9 @@
  */
 
 /**
- * Div comum, não estruturante.
- * @typedef {HTMLDivElement & { __wxKind?: "plain" }} WordexPlainDiv
+ * Div que representa um Paragraph do Wordex.
+ * @typedef {HTMLDivElement & { __wxKind?: "paragraph" }} WordexParagraphDiv
  */
+
 
 export { };

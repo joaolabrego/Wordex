@@ -4,15 +4,17 @@
 import WordexConfig from "./WordexConfig.mjs"
 import WordexSection from "./WordexSection.mjs"
 import WordexRange from "./WordexRange.mjs"
+/** @typedef {import("./WordexTypes.mjs").WordexParagraphDiv} WordexParagraphDiv */
+/** @typedef {import("./WordexTypes.mjs").WordexSectionDiv} WordexSectionDiv */
 
 export default class WordexParagraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
-    /** @type {HTMLDivElement} */ #owner
-    /** @type {HTMLDivElement} */ #paragraph
+    /** @type {WordexSectionDiv} */ #owner
+    /** @type {WordexParagraphDiv} */ #paragraph
 
-    /** @param {HTMLDivElement} owner */
+    /** @param {WordexSectionDiv} owner */
     constructor(owner) {
         this.#owner = owner
         this.#paragraph = document.createElement("div")

@@ -6,6 +6,8 @@ import WordexConfig from "./WordexConfig.mjs"
 import WordexPage from "./WordexPage.mjs"
 import WordexToolbar from "./WordexToolbar.mjs"
 
+
+
 export default class WordexTemplate {
   /** @type {HTMLStyleElement|null} */ #style = null
   /** @type {WordexPage} */ #page

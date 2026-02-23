@@ -9,16 +9,7 @@ import WordexImage from "./WordexImage.mjs"
 import WordexSection from "./WordexSection.mjs"
 import WordexAlignment from "./WordexAlignment.mjs"
 
-/**
- * @typedef {{
- *   value: string,
- *   text: string,
- *   width?: string,
- *   height?: string,
- *   tag?: string,
- *   selected?: boolean
- * }} Item
- */
+/** @typedef {import("./WordexTypes.mjs").Item} Item */
 
 export default class WordexToolbar {
     /** @type {HTMLDivElement} */ #toolbar

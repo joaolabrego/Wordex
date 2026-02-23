@@ -129,10 +129,6 @@ export default class WordexRange {
 
     return WordexRange.wrapTag(value)
   }
-
-  // -----------------------------
-  // Estilos via <span style="...">
-  // -----------------------------
   /**
    * @param {string} cssFontName ex: "Arial" 
    * @returns {boolean}
@@ -143,7 +139,6 @@ export default class WordexRange {
 
     return WordexRange.wrapSpanStyle({ fontFamily: cssFontName })
   }
-
   /** 
    * @param {string} cssSize ex: "12pt" | "14px" 
    * @returns {boolean}
@@ -167,7 +162,6 @@ export default class WordexRange {
   }
 
   /**
-   * Envolve a seleção com <span style="...">
    * @param {{fontFamily?:string, fontSize?:string, color?:string}} style
    * @returns {boolean}
    */
