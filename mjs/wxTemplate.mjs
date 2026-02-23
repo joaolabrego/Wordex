@@ -1,4 +1,3 @@
-// wxTemplate.mjs
 // @ts-check
 "use strict"
 
