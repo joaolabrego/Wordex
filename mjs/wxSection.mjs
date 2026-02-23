@@ -1,36 +1,37 @@
 // @ts-check
 'use strict'
 
-import WordexConfig from './WordexConfig.mjs'
-import WordexEdit from './WordexEdit.mjs'
-import WordexPage from './WordexPage.mjs'
-import WordexParagraph from './WordexParagraph.mjs'
+/** @typedef {import("./wxTypes.mjs").WordexSectionDiv} WordexSectionDiv */
 
-export default class WordexSection {
+import wxEdit from './wxEdit.mjs'
+import wxPage from './wxPage.mjs'
+import wxParagraph from './wxParagraph.mjs'
+
+export default class wxSection {
 
     /** @type {HTMLDivElement} */ static rootSection
 
-    /** @type {WordexPage} */ #page
-    /** @type {HTMLDivElement} */ #section
-    /** @type {WordexParagraph} */ #firstParagraph
+    /** @type {wxPage} */ #page
+    /** @type {WordexSectionDiv} */ #section
+    /** @type {wxParagraph} */ #firstParagraph
     
     /** 
-     * @param {WordexPage} page 
+     * @param {wxPage} page 
      * @param {string} id
      * @param {string} textContent
      */
     constructor(page, id, textContent = "") {
         this.#page = page
 
-        this.#section = document.createElement("div")
+        this.#section = /** @type {WordexSectionDiv} */(document.createElement("div"))
         this.#section.id = id
         this.#section.classList.add("editable", "workspace", id)
         this.#section.contentEditable = "true"
 
-        this.#section.addEventListener("keydown", (e) => WordexEdit.onKeyDown(e))
-        this.#section.addEventListener("focus", () => WordexSection.rootSection = this.#section)
+        this.#section.addEventListener("keydown", (e) => wxEdit.onKeyDown(e))
+        this.#section.addEventListener("focus", () => wxSection.rootSection = this.#section)
 
-        this.#firstParagraph = new WordexParagraph(this.#section)
+        this.#firstParagraph = new wxParagraph(this.#section)
         if (textContent.trim())
             this.#firstParagraph.instance.textContent = textContent
         else
@@ -45,11 +46,11 @@ export default class WordexSection {
         return this.#firstParagraph
     }
 
-    // ✅ Não precisa instanciar WordexConfig. Só setar o rootSection.
+    // ✅ Não precisa instanciar wxConfig. Só setar o rootSection.
     /**
      * @param {HTMLDivElement} rootEditable
      */
     static setRoot(rootEditable) {
-        WordexSection.rootSection = rootEditable
+        wxSection.rootSection = rootEditable
     }
 }

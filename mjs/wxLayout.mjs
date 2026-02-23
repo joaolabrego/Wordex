@@ -1,11 +1,11 @@
 // @ts-check
 "use strict"
 
-import WordexRange from "./WordexRange.mjs"
+import wxRange from "./wxRange.mjs"
 
-export default class WordexLayout {
+export default class wxLayout {
     // =========================================================
-    // WordexAlignment
+    // wxAlignment
     // =========================================================
 
     /**
@@ -79,14 +79,14 @@ export default class WordexLayout {
 
         if (el instanceof HTMLImageElement) el.style.height = "auto"
 
-        WordexRange.saveSelection()
+        wxRange.saveSelection()
         return true
     }    
     /** @param {HTMLImageElement|HTMLTableElement} el */
-    static increase(el) { return WordexLayout.#resize(el, 1.1) }
+    static increase(el) { return wxLayout.#resize(el, 1.1) }
 
     /** @param {HTMLImageElement|HTMLTableElement} el */
-    static decrease(el) { return WordexLayout.#resize(el, 0.9) }
+    static decrease(el) { return wxLayout.#resize(el, 0.9) }
 
 
     /**

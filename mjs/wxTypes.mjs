@@ -10,8 +10,17 @@
  */
 
 /**
- * Div que representa uma Section do Wordex (header/body/footer).
- * @typedef {HTMLDivElement & { __wxKind: "section" }} WordexSectionDiv
+ * @typedef {{
+ *   Range: Range|null,
+ *   Paragraph: HTMLDivElement|null,
+ *   Image: HTMLImageElement|null,
+ *   Table: {
+ *     Table: HTMLTableElement|null,
+ *     TableRow: HTMLTableRowElement|null,
+ *     TableCol: number|null,
+ *     TableCell: HTMLTableCellElement|null,
+ *   }
+ * }} WordexSelectionTargets
  */
 
 /**
@@ -20,9 +29,13 @@
  */
 
 /**
+ * Div que representa uma Section do Wordex (header/body/footer).
+ * @typedef {HTMLDivElement & { __wxKind: "section" }} WordexSectionDiv
+ */
+
+/**
  * Div que representa um Paragraph do Wordex.
  * @typedef {HTMLDivElement & { __wxKind?: "paragraph" }} WordexParagraphDiv
  */
-
 
 export { };

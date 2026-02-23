@@ -1,24 +1,22 @@
-// WordexTemplate.mjs
+// wxTemplate.mjs
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
-import WordexPage from "./WordexPage.mjs"
-import WordexToolbar from "./WordexToolbar.mjs"
+import wxConfig from "./wxConfig.mjs"
+import wxPage from "./wxPage.mjs"
+import wxToolbar from "./wxToolbar.mjs"
 
-
-
-export default class WordexTemplate {
+export default class wxTemplate {
   /** @type {HTMLStyleElement|null} */ #style = null
-  /** @type {WordexPage} */ #page
-  /** @type {WordexToolbar} */ #toolbar
+  /** @type {wxPage} */ #page
+  /** @type {wxToolbar} */ #toolbar
   constructor() {
     this.#style?.remove()
     this.#style = document.createElement("style")
-    this.#style.textContent = WordexConfig.Script
+    this.#style.textContent = wxConfig.Script
     document.head.appendChild(this.#style)
 
-    this.#toolbar = new WordexToolbar(this.#page = new WordexPage(this))
+    this.#toolbar = new wxToolbar(this.#page = new wxPage(this))
 
     document.body.replaceChildren(this.#toolbar.instance, this.#page.instance)
     

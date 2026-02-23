@@ -1,14 +1,14 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
-import WordexParagraph from "./WordexParagraph.mjs"
-import WordexSection from "./WordexSection.mjs"
-export default class WordexRange {
+import wxConfig from "./wxConfig.mjs"
+import wxParagraph from "./wxParagraph.mjs"
+import wxSection from "./wxSection.mjs"
+export default class wxRange {
   /** @type {Range|null} */ static range = null
 
   static saveSelection() {
-    const root = WordexSection.rootSection
+    const root = wxSection.rootSection
     if (!root)
       return false
 
@@ -32,7 +32,7 @@ export default class WordexRange {
     if (!root.contains(aEl) || !root.contains(fEl))
       return false
 
-    WordexRange.range = r.cloneRange()
+    wxRange.range = r.cloneRange()
 
     return true
   }
@@ -63,7 +63,7 @@ export default class WordexRange {
   }
 
   static saveRange() {
-    const range = WordexRange.getSelRange()
+    const range = wxRange.getSelRange()
     return range ? range.cloneRange() : null
   }
 
@@ -77,7 +77,7 @@ export default class WordexRange {
 
   /** @returns {Range|null} */
   static getSelectedRange() {
-    WordexRange.restoreRange(WordexRange.range)
+    wxRange.restoreRange(wxRange.range)
 
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0)
@@ -90,7 +90,7 @@ export default class WordexRange {
     return range
   }
   static hasSelection() {
-    return !!WordexRange.getSelectedRange()
+    return !!wxRange.getSelectedRange()
   }
 
   /** 
@@ -99,7 +99,7 @@ export default class WordexRange {
    * @returns {boolean}
   */
   static wrapTag(tag, collapse = false) {
-    const range = WordexRange.getSelectedRange()
+    const range = wxRange.getSelectedRange()
 
     if (!range)
       return false
@@ -110,9 +110,9 @@ export default class WordexRange {
     range.insertNode(element)
 
     if (collapse)
-      return WordexRange.#collapseAfter(element)
+      return wxRange.#collapseAfter(element)
 
-    return WordexRange.#selectNodeContents(element)
+    return wxRange.#selectNodeContents(element)
   }
 
   /** 
@@ -121,13 +121,13 @@ export default class WordexRange {
    */
   static applyFontStyle(value = "") {
     if (!value) {
-      const fontStyle = WordexConfig.fontStyleList.find(style => style.selected)
+      const fontStyle = wxConfig.fontStyleList.find(style => style.selected)
       if (!fontStyle)
         return false
       value = fontStyle.value ?? ""
     }
 
-    return WordexRange.wrapTag(value)
+    return wxRange.wrapTag(value)
   }
   /**
    * @param {string} cssFontName ex: "Arial" 
@@ -137,7 +137,7 @@ export default class WordexRange {
     if (!cssFontName)
       return false
 
-    return WordexRange.wrapSpanStyle({ fontFamily: cssFontName })
+    return wxRange.wrapSpanStyle({ fontFamily: cssFontName })
   }
   /** 
    * @param {string} cssSize ex: "12pt" | "14px" 
@@ -147,7 +147,7 @@ export default class WordexRange {
     if (!cssSize)
       return false
 
-    return WordexRange.wrapSpanStyle({ fontSize: cssSize })
+    return wxRange.wrapSpanStyle({ fontSize: cssSize })
   }
 
   /** 
@@ -158,7 +158,7 @@ export default class WordexRange {
     if (!hex)
       return false
     
-    return WordexRange.wrapSpanStyle({ color: hex })
+    return wxRange.wrapSpanStyle({ color: hex })
   }
 
   /**
@@ -166,7 +166,7 @@ export default class WordexRange {
    * @returns {boolean}
    */
   static wrapSpanStyle(style) {
-    const range = WordexRange.getSelectedRange()
+    const range = wxRange.getSelectedRange()
     if (!range)
       return false
 
@@ -182,7 +182,7 @@ export default class WordexRange {
     span.appendChild(fragment)
     range.insertNode(span)
 
-    WordexRange.#collapseAfter(span)
+    wxRange.#collapseAfter(span)
 
     return true
   }
@@ -206,7 +206,7 @@ export default class WordexRange {
     selection.removeAllRanges()
     selection.addRange(range)
 
-    WordexRange.saveSelection()
+    wxRange.saveSelection()
 
     return true
   }
@@ -226,7 +226,7 @@ export default class WordexRange {
     selection.removeAllRanges()
     selection.addRange(range)
 
-    WordexRange.saveSelection()
+    wxRange.saveSelection()
 
     return true
   }
@@ -236,7 +236,7 @@ export default class WordexRange {
    * Mantém o texto e a estrutura (o que não for inline).
    */
   static clearInlineFormatting() {
-    const range = WordexRange.getSelectedRange()
+    const range = wxRange.getSelectedRange()
     if (!range || range.collapsed) return false
 
     const frag = range.extractContents()
@@ -294,27 +294,27 @@ export default class WordexRange {
       r2.setEndAfter(last)
       sel.removeAllRanges()
       sel.addRange(r2)
-      WordexRange.saveSelection()
+      wxRange.saveSelection()
     }
 
     return true
   }
-  // WordexRange.mjs
+  // wxRange.mjs
 
   static alignLeft() {
-    return WordexRange.#alignText("left")
+    return wxRange.#alignText("left")
   }
 
   static alignCenter() {
-    return WordexRange.#alignText("center")
+    return wxRange.#alignText("center")
   }
 
   static alignRight() {
-    return WordexRange.#alignText("right")
+    return wxRange.#alignText("right")
   }
 
   static justify() {
-    return WordexRange.#alignText("justify")
+    return wxRange.#alignText("justify")
   }
 
   /**
@@ -323,16 +323,16 @@ export default class WordexRange {
    */
   static #alignText(dir) {
     // 1) se há seleção → aplica no(s) parágrafo(s) envolvidos
-    const range = WordexRange.getSelectedRange()
+    const range = wxRange.getSelectedRange()
     if (range) {
-      const blocks = WordexRange.#getParagraphsFromRange(range)
+      const blocks = wxRange.#getParagraphsFromRange(range)
       for (const p of blocks) p.style.textAlign = dir
-      WordexRange.saveSelection()
+      wxRange.saveSelection()
       return true
     }
 
     // 2) sem seleção → parágrafo ativo
-    const p = WordexParagraph?.getActive?.()
+    const p = wxParagraph?.getActive?.()
     if (p) {
       p.style.textAlign = dir
       return true

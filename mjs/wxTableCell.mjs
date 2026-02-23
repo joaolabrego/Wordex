@@ -1,18 +1,18 @@
 // @ts-check
 "use strict"
 
-import WordexSection from "./WordexSection.mjs"
-import WordexRange from "./WordexRange.mjs"
+import wxSection from "./wxSection.mjs"
+import wxRange from "./wxRange.mjs"
 
 /**
- * WordexTableCell
+ * wxTableCell
  * - mantém célula ativa
  * - (opcional) seleção múltipla de células (Alt+Click = toggle)
  * - aplica operações diretamente no TD/TH (sem execCommand)
  *
  * Obs: por enquanto não lida com rowspan/colspan como “grade lógica”.
  */
-export default class WordexTableCell {
+export default class wxTableCell {
     /** @type {HTMLTableCellElement|null} */
     static #activeCell = null
 
@@ -32,18 +32,18 @@ export default class WordexTableCell {
             const t = /** @type {HTMLElement} */ (e.target)
             const cell = t.closest("td, th")
             if (!(cell instanceof HTMLTableCellElement)) {
-                WordexTableCell.#clearActive()
+                wxTableCell.#clearActive()
                 return
             }
 
-            WordexTableCell.#setActive(cell)
+            wxTableCell.#setActive(cell)
 
             if (e.altKey) {
-                WordexTableCell.toggleSelect(cell)
+                wxTableCell.toggleSelect(cell)
                 e.preventDefault()
             } else {
                 // click normal: se tinha seleção múltipla, zera
-                if (WordexTableCell.#selectedCells.size) WordexTableCell.clearSelection()
+                if (wxTableCell.#selectedCells.size) wxTableCell.clearSelection()
             }
         })
     }
@@ -52,38 +52,38 @@ export default class WordexTableCell {
     // estado
     // -----------------------------
     static hasActive() {
-        return !!WordexTableCell.#activeCell
+        return !!wxTableCell.#activeCell
     }
 
     /** @returns {HTMLTableCellElement|null} */
     static getActive() {
-        return WordexTableCell.#activeCell
+        return wxTableCell.#activeCell
     }
 
     static hasSelection() {
-        return WordexTableCell.#selectedCells.size > 0
+        return wxTableCell.#selectedCells.size > 0
     }
 
     /** @returns {ReadonlyArray<HTMLTableCellElement>} */
     static getSelected() {
-        return Array.from(WordexTableCell.#selectedCells)
+        return Array.from(wxTableCell.#selectedCells)
     }
 
     static clearSelection() {
-        for (const c of WordexTableCell.#selectedCells) c.classList.remove("cell-selected")
-        WordexTableCell.#selectedCells.clear()
+        for (const c of wxTableCell.#selectedCells) c.classList.remove("cell-selected")
+        wxTableCell.#selectedCells.clear()
     }
 
     /**
      * @param {HTMLTableCellElement} cell
      */
     static toggleSelect(cell) {
-        if (WordexTableCell.#selectedCells.has(cell)) {
-            WordexTableCell.#selectedCells.delete(cell)
+        if (wxTableCell.#selectedCells.has(cell)) {
+            wxTableCell.#selectedCells.delete(cell)
             cell.classList.remove("cell-selected")
             return false
         }
-        WordexTableCell.#selectedCells.add(cell)
+        wxTableCell.#selectedCells.add(cell)
         cell.classList.add("cell-selected")
         return true
     }
@@ -98,7 +98,7 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static align(cmd, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell) return false
 
         const val =
@@ -108,8 +108,8 @@ export default class WordexTableCell {
                         "justify"
 
         // aplica na ativa e/ou nas selecionadas (se existirem)
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) c.style.textAlign = val
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) c.style.textAlign = val
             return true
         }
 
@@ -123,13 +123,13 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static applyBorder(widthPx, color, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell) return false
 
         const style = widthPx === "0px" ? "none" : "solid"
 
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) {
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) {
                 c.style.borderStyle = style
                 c.style.borderWidth = widthPx
                 c.style.borderColor = color
@@ -148,11 +148,11 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static applyBorderRadius(radiusPx, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell) return false
 
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) c.style.borderRadius = radiusPx
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) c.style.borderRadius = radiusPx
             return true
         }
 
@@ -166,11 +166,11 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static setTextColor(hex, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell || !hex) return false
 
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) c.style.color = hex
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) c.style.color = hex
             return true
         }
 
@@ -184,11 +184,11 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static setFontFamily(name, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell || !name) return false
 
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) c.style.fontFamily = name
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) c.style.fontFamily = name
             return true
         }
 
@@ -202,11 +202,11 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement|null} [cell]
      */
     static setFontSize(sizeCss, cell = null) {
-        cell = cell ?? WordexTableCell.#activeCell
+        cell = cell ?? wxTableCell.#activeCell
         if (!cell || !sizeCss) return false
 
-        if (WordexTableCell.#selectedCells.size) {
-            for (const c of WordexTableCell.#selectedCells) c.style.fontSize = sizeCss
+        if (wxTableCell.#selectedCells.size) {
+            for (const c of wxTableCell.#selectedCells) c.style.fontSize = sizeCss
             return true
         }
 
@@ -221,17 +221,17 @@ export default class WordexTableCell {
      * @param {HTMLTableCellElement} cell
      */
     static #setActive(cell) {
-        if (WordexTableCell.#activeCell === cell) return
+        if (wxTableCell.#activeCell === cell) return
 
-        if (WordexTableCell.#activeCell) WordexTableCell.#activeCell.classList.remove("cell-active")
-        WordexTableCell.#activeCell = cell
+        if (wxTableCell.#activeCell) wxTableCell.#activeCell.classList.remove("cell-active")
+        wxTableCell.#activeCell = cell
         cell.classList.add("cell-active")
 
         // garante lugar pro caret
         if (!cell.firstChild) cell.appendChild(document.createElement("br"))
 
-        // joga o caret pra dentro (coerente com seu modelo WordexRange.range)
-        WordexSection.rootSection?.focus({ preventScroll: true })
+        // joga o caret pra dentro (coerente com seu modelo wxRange.range)
+        wxSection.rootSection?.focus({ preventScroll: true })
         const r = document.createRange()
         r.selectNodeContents(cell)
         r.collapse(true)
@@ -240,11 +240,11 @@ export default class WordexTableCell {
         sel?.removeAllRanges()
         sel?.addRange(r)
 
-        WordexRange.saveSelection()
+        wxRange.saveSelection()
     }
 
     static #clearActive() {
-        if (WordexTableCell.#activeCell) WordexTableCell.#activeCell.classList.remove("cell-active")
-        WordexTableCell.#activeCell = null
+        if (wxTableCell.#activeCell) wxTableCell.#activeCell.classList.remove("cell-active")
+        wxTableCell.#activeCell = null
     }
 }

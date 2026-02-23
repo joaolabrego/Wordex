@@ -1,13 +1,13 @@
 // @ts-check
 "use strict"
 
-import WordexMovement from "./WordexMovement.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexLayout from "./WordexLayout.mjs"
-import WordexPage from "./WordexPage.mjs"
+import wxMovement from "./wxMovement.mjs"
+import wxRange from "./wxRange.mjs"
+import wxLayout from "./wxLayout.mjs"
+import wxPage from "./wxPage.mjs"
 
-export default class WordexTable {
-    /** @type {WordexPage} */ #page
+export default class wxTable {
+    /** @type {wxPage} */ #page
     /** @type {HTMLTableCellElement|null} */ static activeCell = null
     /** @type {HTMLTableElement|null} */ static selectedTable = null
 
@@ -21,7 +21,7 @@ export default class WordexTable {
     static #SEL_COLOR = "#0AEC0A"
 
 
-    /** @param {WordexPage} page */
+    /** @param {wxPage} page */
     constructor(page) {
         this.#page = page
         
@@ -37,7 +37,7 @@ export default class WordexTable {
 
             const cell = t.closest("td, th")
             if (!(cell instanceof HTMLTableCellElement)) {
-                WordexTable.#clearAll()
+                wxTable.#clearAll()
                 return
             }
 
@@ -46,57 +46,57 @@ export default class WordexTable {
 
             if (e.ctrlKey) {
                 // se não era a mesma tabela, apenas seleciona tabela
-                if (WordexTable.selectedTable !== table) {
-                    WordexTable.#focusTable(table)
-                    WordexTable.#clearRowCol()
-                    WordexTable.#clearCell()
-                    WordexTable.#cycleMode = 0
+                if (wxTable.selectedTable !== table) {
+                    wxTable.#focusTable(table)
+                    wxTable.#clearRowCol()
+                    wxTable.#clearCell()
+                    wxTable.#cycleMode = 0
                     e.preventDefault()
                     return
                 }
 
                 // ciclo row -> col -> table
-                if (WordexTable.#cycleMode === 0) {
-                    WordexTable.#selectRowFromCell(cell)
-                    WordexTable.#cycleMode = 1
-                } else if (WordexTable.#cycleMode === 1) {
-                    WordexTable.#selectColFromCell(cell)
-                    WordexTable.#cycleMode = 2
+                if (wxTable.#cycleMode === 0) {
+                    wxTable.#selectRowFromCell(cell)
+                    wxTable.#cycleMode = 1
+                } else if (wxTable.#cycleMode === 1) {
+                    wxTable.#selectColFromCell(cell)
+                    wxTable.#cycleMode = 2
                 } else {
-                    WordexTable.#clearRowCol()
-                    WordexTable.#cycleMode = 0
+                    wxTable.#clearRowCol()
+                    wxTable.#cycleMode = 0
                 }
 
                 // ctrl-click não seleciona célula
-                WordexTable.#clearCell()
+                wxTable.#clearCell()
                 e.preventDefault()
                 return
             }
 
             // clique comum: seleciona célula
-            WordexTable.#focusTable(table)
-            WordexTable.#clearRowCol()
-            WordexTable.#cycleMode = 0
-            WordexTable.#focusCell(cell)
-            WordexTable.#placeCaretInCell(cell)
-            WordexRange.saveSelection()
+            wxTable.#focusTable(table)
+            wxTable.#clearRowCol()
+            wxTable.#cycleMode = 0
+            wxTable.#focusCell(cell)
+            wxTable.#placeCaretInCell(cell)
+            wxRange.saveSelection()
         })
     }
 
     // =========================================================
     // Focus API
     // =========================================================
-    static hasFocus() { return !!WordexTable.selectedTable }
-  /** @returns {HTMLTableElement|null} */ static getFocused() { return WordexTable.selectedTable }
+    static hasFocus() { return !!wxTable.selectedTable }
+  /** @returns {HTMLTableElement|null} */ static getFocused() { return wxTable.selectedTable }
 
-    static hasActiveCell() { return !!WordexTable.activeCell }
-  /** @returns {HTMLTableCellElement|null} */ static getActiveCell() { return WordexTable.activeCell }
+    static hasActiveCell() { return !!wxTable.activeCell }
+  /** @returns {HTMLTableCellElement|null} */ static getActiveCell() { return wxTable.activeCell }
 
-    static hasSelectedRow() { return !!WordexTable.#selectedRow }
-  /** @returns {HTMLTableRowElement|null} */ static getSelectedRow() { return WordexTable.#selectedRow }
+    static hasSelectedRow() { return !!wxTable.#selectedRow }
+  /** @returns {HTMLTableRowElement|null} */ static getSelectedRow() { return wxTable.#selectedRow }
 
-    static hasSelectedCol() { return !!WordexTable.#selectedCol }
-  /** @returns {{table:HTMLTableElement, index:number}|null} */ static getSelectedCol() { return WordexTable.#selectedCol }
+    static hasSelectedCol() { return !!wxTable.#selectedCol }
+  /** @returns {{table:HTMLTableElement, index:number}|null} */ static getSelectedCol() { return wxTable.#selectedCol }
 
     // =========================================================
     // Create / Insert
@@ -151,13 +151,13 @@ export default class WordexTable {
     }
 
     /**
-     * Insere tabela na posição do cursor (WordexRange.range)
+     * Insere tabela na posição do cursor (wxRange.range)
      * @param {number} rows
      * @param {number} cols
      * @returns {boolean}
      */
     static insertAtSelection(rows = 2, cols = 2) {
-        WordexRange.restoreRange(WordexRange.range)
+        wxRange.restoreRange(wxRange.range)
 
         const selection = window.getSelection()
         if (!selection || !selection.rangeCount)
@@ -172,23 +172,23 @@ export default class WordexTable {
         if (!range.collapsed)
             range.deleteContents()
 
-        const table = WordexTable.create(rows, cols)
+        const table = wxTable.create(rows, cols)
 
         // se estiver no meio de TextNode, split é automático, mas vamos evitar “surpresas”:
         // insere e garante que não cria nós de espaço.
         range.insertNode(table)
 
         // nasce selecionada
-        WordexTable.#focusTable(table)
-        WordexTable.#clearRowCol()
-        WordexTable.#clearCell()
-        WordexTable.#cycleMode = 0
+        wxTable.#focusTable(table)
+        wxTable.#clearRowCol()
+        wxTable.#clearCell()
+        wxTable.#cycleMode = 0
 
         const firstCell = table.querySelector("td")
         if (firstCell instanceof HTMLTableCellElement) {
-            WordexTable.#focusCell(firstCell)
-            WordexTable.#placeCaretInCell(firstCell)
-            WordexRange.saveSelection()
+            wxTable.#focusCell(firstCell)
+            wxTable.#placeCaretInCell(firstCell)
+            wxRange.saveSelection()
             return true
         }
 
@@ -196,13 +196,13 @@ export default class WordexTable {
         range.collapse(true)
         selection.removeAllRanges()
         selection.addRange(range)
-        WordexRange.saveSelection()
+        wxRange.saveSelection()
         return true
     }
 
     /** @param {"left"|"center"|"right"} dir */
     static align(dir) {
-        const t = WordexTable.selectedTable
+        const t = wxTable.selectedTable
         if (!t)
             return false
         // limpa estado anterior
@@ -255,7 +255,7 @@ export default class WordexTable {
         if (instance instanceof HTMLImageElement)
             instance.style.height = "auto"
 
-        WordexRange.saveSelection()
+        wxRange.saveSelection()
         return true
     }
 
@@ -263,41 +263,41 @@ export default class WordexTable {
     static increase(table) {
         if (!table)
             return
-        WordexTable.#resize(table, 1.1)
+        wxTable.#resize(table, 1.1)
     }
     
     /** @param {HTMLTableElement} t */
     static decrease(t) {
         if (!t) return
-        WordexLayout.decrease(t)
+        wxLayout.decrease(t)
     }
 
     /** @param {HTMLTableElement} t */
     static moveLeftWord(t) {
         if (!t) return
-        WordexMovement.moveLeftWord(t)
+        wxMovement.moveLeftWord(t)
     }
 
     /** @param {HTMLTableElement} t */
     static moveRightWord(t) {
         if (!t) return
-        WordexMovement.moveRightWord(t)
+        wxMovement.moveRightWord(t)
     }
 
     /** @param {HTMLTableElement} t */
     static moveUp(t) {
         if (!t) return
-        WordexMovement.moveParagraphUp(t)
+        wxMovement.moveParagraphUp(t)
     }
 
     /** @param {HTMLTableElement} t */
     static moveDown(t) {
         if (!t) return
-        WordexMovement.moveParagraphDown(t)
+        wxMovement.moveParagraphDown(t)
     }
 
     // =========================================================
-    // Border / Radius (WordexPage)
+    // Border / Radius (wxPage)
     // prioridade: row/col -> cell -> table
     // =========================================================
     /**
@@ -306,13 +306,13 @@ export default class WordexTable {
      * @returns {boolean}
      */
     static applyBorder(widthPx, color) {
-        const table = WordexTable.selectedTable
+        const table = wxTable.selectedTable
         if (!table) return false
 
         const borderStyle = widthPx === "0px" ? "none" : "solid"
 
-        if (WordexTable.#selectedRow) {
-            for (const cell of WordexTable.#selectedRow.cells) {
+        if (wxTable.#selectedRow) {
+            for (const cell of wxTable.#selectedRow.cells) {
                 cell.style.borderStyle = borderStyle
                 cell.style.borderWidth = widthPx
                 cell.style.borderColor = color
@@ -320,8 +320,8 @@ export default class WordexTable {
             return true
         }
 
-        if (WordexTable.#selectedCol) {
-            const { table, index } = WordexTable.#selectedCol
+        if (wxTable.#selectedCol) {
+            const { table, index } = wxTable.#selectedCol
             for (const tr of table.rows) {
                 const td = tr.cells[index]
                 if (!td) continue
@@ -332,8 +332,8 @@ export default class WordexTable {
             return true
         }
 
-        if (WordexTable.activeCell) {
-            const td = WordexTable.activeCell
+        if (wxTable.activeCell) {
+            const td = wxTable.activeCell
             td.style.borderStyle = borderStyle
             td.style.borderWidth = widthPx
             td.style.borderColor = color
@@ -346,7 +346,7 @@ export default class WordexTable {
         table.style.borderColor = color
 
         // mantém seleção verde (outline)
-        WordexTable.#renderSelection(table, true)
+        wxTable.#renderSelection(table, true)
         return true
     }
 
@@ -355,7 +355,7 @@ export default class WordexTable {
      * @returns {boolean}
      */
     static applyBorderRadius(radiusPx) {
-        const table = WordexTable.selectedTable
+        const table = wxTable.selectedTable
         if (!table) return false
 
         /** @param {Iterable<HTMLTableCellElement>} cells */
@@ -373,9 +373,9 @@ export default class WordexTable {
             table.querySelectorAll("td,th")
         )
 
-        if (WordexTable.#selectedRow) {
+        if (wxTable.#selectedRow) {
             clearCells(allCells)
-            const cells = WordexTable.#selectedRow.cells
+            const cells = wxTable.#selectedRow.cells
             if (!cells.length) return true
             const first = cells[0]
             const last = cells[cells.length - 1]
@@ -388,9 +388,9 @@ export default class WordexTable {
             return true
         }
 
-        if (WordexTable.#selectedCol) {
+        if (wxTable.#selectedCol) {
             clearCells(allCells)
-            const { index } = WordexTable.#selectedCol
+            const { index } = wxTable.#selectedCol
             const top = table.rows[0]?.cells[index] ?? null
             const bottom = table.rows[table.rows.length - 1]?.cells[index] ?? null
 
@@ -406,8 +406,8 @@ export default class WordexTable {
             return true
         }
 
-        if (WordexTable.activeCell) {
-            WordexTable.activeCell.style.borderRadius = radiusPx
+        if (wxTable.activeCell) {
+            wxTable.activeCell.style.borderRadius = radiusPx
             return true
         }
 
@@ -431,7 +431,7 @@ export default class WordexTable {
         if (bl) bl.style.borderBottomLeftRadius = radiusPx
         if (br) br.style.borderBottomRightRadius = radiusPx
 
-        WordexTable.#renderSelection(table, true)
+        wxTable.#renderSelection(table, true)
         return true
     }
 
@@ -441,7 +441,7 @@ export default class WordexTable {
     /** @param {HTMLTableElement} table @param {boolean} selected */
     static #renderSelection(table, selected) {
         if (selected) {
-            table.style.outline = `${WordexTable.#SEL_W}px solid ${WordexTable.#SEL_COLOR}`
+            table.style.outline = `${wxTable.#SEL_W}px solid ${wxTable.#SEL_COLOR}`
             table.style.outlineOffset = "2px"
         } else {
             table.style.outline = ""
@@ -454,10 +454,10 @@ export default class WordexTable {
     // =========================================================
     /** @param {HTMLTableElement} table */
     static #focusTable(table) {
-        WordexTable.#clearTable()
-        WordexTable.selectedTable = table
+        wxTable.#clearTable()
+        wxTable.selectedTable = table
         table.classList.add("table-selected")
-        WordexTable.#renderSelection(table, true)
+        wxTable.#renderSelection(table, true)
 
         // ao selecionar table/row/col, célula deve ser explicitamente clicada
         // então limpamos a célula ativa aqui
@@ -467,46 +467,46 @@ export default class WordexTable {
 
     /** @param {HTMLTableCellElement} cell */
     static #focusCell(cell) {
-        WordexTable.#clearCell()
-        WordexTable.activeCell = cell
+        wxTable.#clearCell()
+        wxTable.activeCell = cell
         cell.classList.add("cell-active")
     }
 
     static #clearCell() {
-        if (WordexTable.activeCell) WordexTable.activeCell.classList.remove("cell-active")
-        WordexTable.activeCell = null
+        if (wxTable.activeCell) wxTable.activeCell.classList.remove("cell-active")
+        wxTable.activeCell = null
     }
 
     static #clearTable() {
-        if (WordexTable.selectedTable) {
-            const t = WordexTable.selectedTable
+        if (wxTable.selectedTable) {
+            const t = wxTable.selectedTable
             t.classList.remove("table-selected")
-            WordexTable.#renderSelection(t, false)
+            wxTable.#renderSelection(t, false)
         }
-        WordexTable.selectedTable = null
+        wxTable.selectedTable = null
     }
 
     static #clearRowCol() {
-        if (WordexTable.#selectedRow) {
-            WordexTable.#selectedRow.classList.remove("row-selected")
-            WordexTable.#selectedRow = null
+        if (wxTable.#selectedRow) {
+            wxTable.#selectedRow.classList.remove("row-selected")
+            wxTable.#selectedRow = null
         }
 
-        if (WordexTable.#selectedCol) {
-            const { table, index } = WordexTable.#selectedCol
+        if (wxTable.#selectedCol) {
+            const { table, index } = wxTable.#selectedCol
             for (const tr of table.rows) {
                 const td = tr.cells[index]
                 if (td) td.classList.remove("col-selected")
             }
-            WordexTable.#selectedCol = null
+            wxTable.#selectedCol = null
         }
     }
 
     static #clearAll() {
-        WordexTable.#clearCell()
-        WordexTable.#clearRowCol()
-        WordexTable.#clearTable()
-        WordexTable.#cycleMode = 0
+        wxTable.#clearCell()
+        wxTable.#clearRowCol()
+        wxTable.#clearTable()
+        wxTable.#cycleMode = 0
     }
 
     /** @param {HTMLTableCellElement} cell */
@@ -522,17 +522,17 @@ export default class WordexTable {
 
     /** @param {HTMLTableCellElement} cell */
     static #selectRowFromCell(cell) {
-        WordexTable.#clearRowCol()
+        wxTable.#clearRowCol()
         const tr = cell.parentElement
         if (tr instanceof HTMLTableRowElement) {
             tr.classList.add("row-selected")
-            WordexTable.#selectedRow = tr
+            wxTable.#selectedRow = tr
         }
     }
 
     /** @param {HTMLTableCellElement} cell */
     static #selectColFromCell(cell) {
-        WordexTable.#clearRowCol()
+        wxTable.#clearRowCol()
         const table = cell.closest("table")
         if (!(table instanceof HTMLTableElement)) return
 
@@ -541,40 +541,40 @@ export default class WordexTable {
             const td = r.cells[idx]
             if (td) td.classList.add("col-selected")
         }
-        WordexTable.#selectedCol = { table, index: idx }
+        wxTable.#selectedCol = { table, index: idx }
     }
 
   // =========================================================
-  // WordexAlignment (wrap / center)
+  // wxAlignment (wrap / center)
   // =========================================================
   /**
    * @param {HTMLTableElement|null} table
    */
   static alignLeft(table = null) {
-    const t = table ?? WordexTable.selectedTable
+    const t = table ?? wxTable.selectedTable
     if (!t) return
-    WordexLayout.alignObject(t, "left")
-    WordexTable.#renderSelection(t, true)
+    wxLayout.alignObject(t, "left")
+    wxTable.#renderSelection(t, true)
   }
 
   /**
    * @param {HTMLTableElement|null} table
    */
   static alignRight(table = null) {
-    const t = table ?? WordexTable.selectedTable
+    const t = table ?? wxTable.selectedTable
     if (!t) return
-    WordexLayout.alignObject(t, "right")
-    WordexTable.#renderSelection(t, true)
+    wxLayout.alignObject(t, "right")
+    wxTable.#renderSelection(t, true)
   }
 
   /**
    * @param {HTMLTableElement|null} table
    */
   static alignCenter(table = null) {
-    const t = table ?? WordexTable.selectedTable
+    const t = table ?? wxTable.selectedTable
     if (!t) return
-    WordexLayout.alignObject(t, "center")
-    WordexTable.#renderSelection(t, true)
+    wxLayout.alignObject(t, "center")
+    wxTable.#renderSelection(t, true)
   }
 
 }

@@ -1,50 +1,50 @@
 // @ts-check
 "use strict"
 
-import WordexImage from "./WordexImage.mjs"
-import WordexPage from "./WordexPage.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexSection from "./WordexSection.mjs"
-import WordexTable from "./WordexTable.mjs"
+import wxImage from "./wxImage.mjs"
+import wxPage from "./wxPage.mjs"
+import wxRange from "./wxRange.mjs"
+import wxSection from "./wxSection.mjs"
+import wxTable from "./wxTable.mjs"
 
 /**
- * WordexAlignment: aplica alinhamento em:
+ * wxAlignment: aplica alinhamento em:
  * - elementos flutuáveis (img, table): left/right => float (wrap), center => block centralizado
  * - parágrafo (div): move a "caixa" (margin auto) + textAlign (opcional)
  */
-export default class WordexAlignment {
+export default class wxAlignment {
 
     /** @param {"left"|"center"|"right"|"justify"} dir */
     static align(dir) {
-        const target = WordexPage.selectedTarget()
+        const target = wxPage.selectedTarget()
 
         // 1) imagem: usa alvo focado
         if (target.kind === "image") {
-            WordexImage.align(dir)
+            wxImage.align(dir)
             return true
         }
 
         // 2) tabela (célula/linha/col/tabela inteira)
         if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
             if (dir === "left")
-                WordexTable.alignLeft()
+                wxTable.alignLeft()
             else if (dir === "right")
-                WordexTable.alignRight()
+                wxTable.alignRight()
             else
-                WordexTable.alignCenter()
+                wxTable.alignCenter()
 
             return true
         }
 
         // 3) parágrafo/texto: execCommand
         if (dir === "left")
-            WordexRange.alignLeft()
+            wxRange.alignLeft()
         else if (dir === "right")
-            WordexRange.alignRight()
+            wxRange.alignRight()
         else if (dir === "center")
-            WordexRange.alignCenter()
+            wxRange.alignCenter()
         else
-            WordexRange.justify()
+            wxRange.justify()
         
         return true
     }

@@ -1,17 +1,17 @@
-// WordexToolbar.mjs
+// wxToolbar.mjs
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
-import WordexPage from "./WordexPage.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexImage from "./WordexImage.mjs"
-import WordexSection from "./WordexSection.mjs"
-import WordexAlignment from "./WordexAlignment.mjs"
+import wxConfig from "./wxConfig.mjs"
+import wxPage from "./wxPage.mjs"
+import wxRange from "./wxRange.mjs"
+import wxImage from "./wxImage.mjs"
+import wxSection from "./wxSection.mjs"
+import wxAlignment from "./wxAlignment.mjs"
 
-/** @typedef {import("./WordexTypes.mjs").Item} Item */
+/** @typedef {import("./wxTypes.mjs").Item} Item */
 
-export default class WordexToolbar {
+export default class wxToolbar {
     /** @type {HTMLDivElement} */ #toolbar
     /** @type {HTMLSelectElement} */ #selectFontStyles
     /** @type {HTMLSelectElement} */ #selectAlignments
@@ -23,71 +23,71 @@ export default class WordexToolbar {
     /** @type {HTMLSelectElement} */ #selectBorderRadius
     /** @type {HTMLButtonElement} */ #buttonEditMode
     /** @type {HTMLInputElement} */ #inputFile
-    /** @type {WordexPage} */ #owner
-    /** @type {string} */ #selectedColor = WordexConfig.K_DEFAULT_COLOR
+    /** @type {wxPage} */ #owner
+    /** @type {string} */ #selectedColor = wxConfig.K_DEFAULT_COLOR
 
-    /** @param {WordexPage} owner */
+    /** @param {wxPage} owner */
     constructor(owner) {
         this.#owner = owner
         this.#toolbar = document.createElement("div")
         this.#toolbar.classList.add("toolbar")
 
         this.#toolbar.appendChild(
-            this.#selectFontFamily = this.#createSelect(WordexConfig.fontFamilyList,"Selecionar família da fonte", () => this.#setFontFamily())
+            this.#selectFontFamily = this.#createSelect(wxConfig.fontFamilyList,"Selecionar família da fonte", () => this.#setFontFamily())
         )
 
-        // tamanho -> WordexPage decide (seleção ou fallback)
+        // tamanho -> wxPage decide (seleção ou fallback)
         this.#toolbar.appendChild(
-            this.#selectFontSize = this.#createSelect(WordexConfig.fontSizeList, "Selecionar tamanho da fonte", () => this.#setFontSize())
+            this.#selectFontSize = this.#createSelect(wxConfig.fontSizeList, "Selecionar tamanho da fonte", () => this.#setFontSize())
         )
 
-        // cor -> WordexPage decide
+        // cor -> wxPage decide
         this.#toolbar.appendChild(this.#createInputColor())
 
-        // estilos (b/i/u etc) — por enquanto via execCommand/WordexConfig
+        // estilos (b/i/u etc) — por enquanto via execCommand/wxConfig
         this.#toolbar.appendChild(
-            this.#selectFontStyles = this.#createSelect(WordexConfig.fontStyleList, "Estilizar texto/parágrafo selecionado", () => this.#setFontStyle())
+            this.#selectFontStyles = this.#createSelect(wxConfig.fontStyleList, "Estilizar texto/parágrafo selecionado", () => this.#setFontStyle())
         )
 
         // orientação / formato (mexem na largura da página)
         this.#toolbar.appendChild(
-            this.#selectOrientations = this.#createSelect(WordexConfig.pageOrientationList, "Selecionar orientação da página", () => this.#setOrientation())
+            this.#selectOrientations = this.#createSelect(wxConfig.pageOrientationList, "Selecionar orientação da página", () => this.#setOrientation())
         )
 
         this.#toolbar.appendChild(
-            this.#selectPaperFormats = this.#createSelect(WordexConfig.paperFormatList, "Selecionar formato da folha", () => this.#setPaperFormat())
+            this.#selectPaperFormats = this.#createSelect(wxConfig.paperFormatList, "Selecionar formato da folha", () => this.#setPaperFormat())
         )
 
-        // alinhamento -> WordexPage decide alvo
+        // alinhamento -> wxPage decide alvo
         this.#toolbar.appendChild(
-            this.#selectAlignments = this.#createSelect(WordexConfig.alignmentList, "Selecionar alinhamento", () => this.#setAlignment())
+            this.#selectAlignments = this.#createSelect(wxConfig.alignmentList, "Selecionar alinhamento", () => this.#setAlignment())
         )
 
         // inserir imagem
         this.#toolbar.appendChild(this.#inputFile = this.#createInputFile())
         this.#toolbar.appendChild(this.#createButton("🖼️⬆", "Inserir imagem", () => this.#inputFile.click()))
 
-        // resize / move genéricos -> WordexPage decide alvo
-        this.#toolbar.appendChild(this.#createButton("+", "Aumentar", () => WordexPage.increase()))
-        this.#toolbar.appendChild(this.#createButton("-", "Diminuir", () => WordexPage.decrease()))
+        // resize / move genéricos -> wxPage decide alvo
+        this.#toolbar.appendChild(this.#createButton("+", "Aumentar", () => wxPage.increase()))
+        this.#toolbar.appendChild(this.#createButton("-", "Diminuir", () => wxPage.decrease()))
         this.#toolbar.appendChild(this.#createButton("▦+", "Inserir tabela", async () => this.#createTable())
         )
-        this.#toolbar.appendChild(this.#createButton("⬅", "Mover esquerda", () => WordexPage.left()))
-        this.#toolbar.appendChild(this.#createButton("➡", "Mover direita", () => WordexPage.right()))
-        this.#toolbar.appendChild(this.#createButton("⬆", "Mover cima", () => WordexPage.up()))
-        this.#toolbar.appendChild(this.#createButton("⬇", "Mover baixo", () => WordexPage.down()))
+        this.#toolbar.appendChild(this.#createButton("⬅", "Mover esquerda", () => wxPage.left()))
+        this.#toolbar.appendChild(this.#createButton("➡", "Mover direita", () => wxPage.right()))
+        this.#toolbar.appendChild(this.#createButton("⬆", "Mover cima", () => wxPage.up()))
+        this.#toolbar.appendChild(this.#createButton("⬇", "Mover baixo", () => wxPage.down()))
 
-        // borda -> WordexPage decide alvo (e recebe cor)
+        // borda -> wxPage decide alvo (e recebe cor)
         this.#toolbar.appendChild(
-            this.#selectBorders = this.#createSelect(WordexConfig.borderList, "Selecionar borda", () => this.#setBorder())
+            this.#selectBorders = this.#createSelect(wxConfig.borderList, "Selecionar borda", () => this.#setBorder())
         )
 
-        // radius -> WordexPage decide alvo
+        // radius -> wxPage decide alvo
         this.#toolbar.appendChild(
-            this.#selectBorderRadius = this.#createSelect(WordexConfig.borderRadiusList, "Selecionar raio da borda", () => this.#setBorderRadius())
+            this.#selectBorderRadius = this.#createSelect(wxConfig.borderRadiusList, "Selecionar raio da borda", () => this.#setBorderRadius())
         )
 
-        this.#toolbar.appendChild(this.#buttonEditMode = this.#createButton(WordexConfig.K_INSERT_MODE, "Modo inserção/sobrescrita", () => this.#toggleEditMode()))
+        this.#toolbar.appendChild(this.#buttonEditMode = this.#createButton(wxConfig.K_INSERT_MODE, "Modo inserção/sobrescrita", () => this.#toggleEditMode()))
         
         this.#initializeDefaults()
     }
@@ -102,14 +102,14 @@ export default class WordexToolbar {
         if (!value)
             return
         if (value === "none") {
-            WordexRange.clearInlineFormatting()
+            wxRange.clearInlineFormatting()
             return true
         }
-        WordexRange.restoreRange(WordexRange.range)
+        wxRange.restoreRange(wxRange.range)
 
         // 1) Se há seleção de texto → WordexText manda
-        if (WordexRange.hasSelection()) {
-            WordexRange.applyFontStyle(value)
+        if (wxRange.hasSelection()) {
+            wxRange.applyFontStyle(value)
             return
         }
 
@@ -122,19 +122,19 @@ export default class WordexToolbar {
         const value = this.#getHTMLSelectElementValue(this.#selectFontFamily)
         if (!value)
             return false
-        WordexRange.restoreRange(WordexRange.range)
+        wxRange.restoreRange(wxRange.range)
 
         const selection = window.getSelection()
         if (!!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed)
-            return WordexRange.setFontFamily(value)
+            return wxRange.setFontFamily(value)
 
-        const paragraph = WordexPage.getParagraphTarget()
+        const paragraph = wxPage.getParagraphTarget()
         if (paragraph) {
             paragraph.style.fontFamily = value
             return true
         }
-        if (WordexSection.rootSection) {
-            WordexSection.rootSection.style.fontFamily = value
+        if (wxSection.rootSection) {
+            wxSection.rootSection.style.fontFamily = value
             return true
         }
 
@@ -145,25 +145,25 @@ export default class WordexToolbar {
         const value = this.#getHTMLSelectElementValue(this.#selectFontSize)
         if (!value)
             return false
-        const size = WordexConfig.fontSizeList.find((p) => p.value === value)
+        const size = wxConfig.fontSizeList.find((p) => p.value === value)
         if (!size)
             return false
 
-        WordexRange.restoreRange(WordexRange.range)
+        wxRange.restoreRange(wxRange.range)
 
         const selection = window.getSelection()
         const hasSelection = !!selection && selection.rangeCount && !selection.getRangeAt(0).collapsed
 
         if (hasSelection)
-            return !!WordexRange.setFontSize(value)
+            return !!wxRange.setFontSize(value)
 
-        const paragraph = WordexPage.getParagraphTarget()
+        const paragraph = wxPage.getParagraphTarget()
         if (paragraph) {
             paragraph.style.fontSize = size.value
             return true
         }
-        if (WordexSection.rootSection) {
-            WordexSection.rootSection.style.fontSize = size.value
+        if (wxSection.rootSection) {
+            wxSection.rootSection.style.fontSize = size.value
             return true
         }
 
@@ -191,7 +191,7 @@ export default class WordexToolbar {
         inputFile.style.display = "none"
         inputFile.addEventListener("change", async () => {
             const file = this.#inputFile.files?.[0] ?? null
-            await WordexImage.insertImageFromFile(file)
+            await wxImage.insertImageFromFile(file)
             this.#inputFile.value = ""
         })
         
@@ -222,17 +222,17 @@ export default class WordexToolbar {
         const cols = this.#askInteger("Quantidade de colunas:", 3, 1, 20)
         if (cols === null)
             return
-        await WordexPage.insertTable(rows, cols)
+        await wxPage.insertTable(rows, cols)
     }
 
     #setOrientation() {
         const value = this.#getHTMLSelectElementValue(this.#selectOrientations)
         if (!value)
             return
-        const paper = WordexConfig.paperFormatList.find((p) => p.selected)
+        const paper = wxConfig.paperFormatList.find((p) => p.selected)
         if (!paper)
             return
-        if (value === WordexConfig.K_LANDSCAPE)
+        if (value === wxConfig.K_LANDSCAPE)
             this.#owner.instance.style.width = paper.height ?? ""
         else
             this.#owner.instance.style.width = paper.width ?? ""
@@ -245,14 +245,14 @@ export default class WordexToolbar {
         if (!value)
             return false
 
-        const orient = WordexConfig.pageOrientationList.find(p => p.selected)
+        const orient = wxConfig.pageOrientationList.find(p => p.selected)
         if (!orient)
             return false
 
-        const paper = WordexConfig.paperFormatList.find(p => p.value === value)
+        const paper = wxConfig.paperFormatList.find(p => p.value === value)
         if (!paper)
             return false
-        this.#owner.instance.style.width = (orient.value === WordexConfig.K_LANDSCAPE ? paper.height : paper.width) ?? ""
+        this.#owner.instance.style.width = (orient.value === wxConfig.K_LANDSCAPE ? paper.height : paper.width) ?? ""
 
         return true
     }
@@ -260,21 +260,21 @@ export default class WordexToolbar {
     #setAlignment() {
         const value = /** @type {"left"|"center"|"right"|"justify"} */(this.#getHTMLSelectElementValue(this.#selectAlignments))
         if (value)
-            WordexAlignment.align(value)
+            wxAlignment.align(value)
     }
 
     #setBorder() {
         const value = this.#getHTMLSelectElementValue(this.#selectBorders)
-        WordexPage.border(value, this.#selectedColor)
+        wxPage.border(value, this.#selectedColor)
     }
 
     #setBorderRadius() {
         const value = this.#getHTMLSelectElementValue(this.#selectBorderRadius)
-        WordexPage.borderRadius(value)
+        wxPage.borderRadius(value)
     }
 
 
-    /** aplica os defaults marcados no WordexConfig (selected:true) */
+    /** aplica os defaults marcados no wxConfig (selected:true) */
     #initializeDefaults() {
         /**
          * @param {readonly Item[]} list
@@ -288,25 +288,25 @@ export default class WordexToolbar {
             }
         }
 
-        dispatchSelected(WordexConfig.fontStyleList, this.#selectFontStyles)
-        dispatchSelected(WordexConfig.alignmentList, this.#selectAlignments)
-        dispatchSelected(WordexConfig.fontFamilyList, this.#selectFontFamily)
-        dispatchSelected(WordexConfig.fontSizeList, this.#selectFontSize)
-        dispatchSelected(WordexConfig.paperFormatList, this.#selectPaperFormats)
-        dispatchSelected(WordexConfig.pageOrientationList, this.#selectOrientations)
-        dispatchSelected(WordexConfig.borderList, this.#selectBorders)
-        dispatchSelected(WordexConfig.borderRadiusList, this.#selectBorderRadius)
-        this.editMode = WordexConfig.K_INSERT_MODE
+        dispatchSelected(wxConfig.fontStyleList, this.#selectFontStyles)
+        dispatchSelected(wxConfig.alignmentList, this.#selectAlignments)
+        dispatchSelected(wxConfig.fontFamilyList, this.#selectFontFamily)
+        dispatchSelected(wxConfig.fontSizeList, this.#selectFontSize)
+        dispatchSelected(wxConfig.paperFormatList, this.#selectPaperFormats)
+        dispatchSelected(wxConfig.pageOrientationList, this.#selectOrientations)
+        dispatchSelected(wxConfig.borderList, this.#selectBorders)
+        dispatchSelected(wxConfig.borderRadiusList, this.#selectBorderRadius)
+        this.editMode = wxConfig.K_INSERT_MODE
 
     }
     
     #toggleEditMode() {
-        this.editMode = this.isInsertMode ? WordexConfig.K_OVERWRITE_MODE : WordexConfig.K_INSERT_MODE
+        this.editMode = this.isInsertMode ? wxConfig.K_OVERWRITE_MODE : wxConfig.K_INSERT_MODE
     }
     /** @param {string} mode */
     set editMode(mode) {
         this.#buttonEditMode.textContent = mode
-        const color = mode === WordexConfig.K_OVERWRITE_MODE ? WordexConfig.K_OVERWRITE_COLOR : WordexConfig.K_INSERT_COLOR
+        const color = mode === wxConfig.K_OVERWRITE_MODE ? wxConfig.K_OVERWRITE_COLOR : wxConfig.K_INSERT_COLOR
         this.#buttonEditMode.style.background = color
         this.instance.style.caretColor = color
     }
@@ -353,7 +353,7 @@ export default class WordexToolbar {
                 bold = false
             }
             option.value = item.value
-            option.textContent = (item.selected ? WordexConfig.K_OK : "") + item.text
+            option.textContent = (item.selected ? wxConfig.K_OK : "") + item.text
             selectElement.appendChild(option)
         })
         return selectElement
@@ -398,13 +398,13 @@ export default class WordexToolbar {
     }
     
     get isInsertMode() {
-        return this.#buttonEditMode.textContent === WordexConfig.K_INSERT_MODE
+        return this.#buttonEditMode.textContent === wxConfig.K_INSERT_MODE
     }
     get isOverwriteMode() {
-        return this.#buttonEditMode.textContent === WordexConfig.K_OVERWRITE_MODE
+        return this.#buttonEditMode.textContent === wxConfig.K_OVERWRITE_MODE
     }
-    /** @returns {`${typeof WordexConfig.K_INSERT_MODE}|${typeof WordexConfig.K_OVERWRITE_MODE}`} */
+    /** @returns {`${typeof wxConfig.K_INSERT_MODE}|${typeof wxConfig.K_OVERWRITE_MODE}`} */
     get editMode() {
-        return /** @type {`${typeof WordexConfig.K_INSERT_MODE}|${typeof WordexConfig.K_OVERWRITE_MODE}`} */ (this.#buttonEditMode.textContent);
+        return /** @type {`${typeof wxConfig.K_INSERT_MODE}|${typeof wxConfig.K_OVERWRITE_MODE}`} */ (this.#buttonEditMode.textContent);
     }
 }

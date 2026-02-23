@@ -1,27 +1,27 @@
 // @ts-check
 "use strict"
 
-import WordexLayout from "./WordexLayout.mjs"
-import WordexSection from "./WordexSection.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexTable from "./WordexTable.mjs"
+import wxLayout from "./wxLayout.mjs"
+import wxSection from "./wxSection.mjs"
+import wxRange from "./wxRange.mjs"
+import wxTable from "./wxTable.mjs"
 
-export default class WordexMovement {
+export default class wxMovement {
     // =========================================================
     // Public API
     // =========================================================
 
     /** @param {Element|null} el */
-    static leftWord(el) { return WordexMovement.#moveByWord(el, -1) }
+    static leftWord(el) { return wxMovement.#moveByWord(el, -1) }
 
     /** @param {Element|null} el */
-    static rightWord(el) { return WordexMovement.#moveByWord(el, +1) }
+    static rightWord(el) { return wxMovement.#moveByWord(el, +1) }
 
     /** @param {Element|null} el */
-    static upParagraph(el) { return WordexMovement.#moveParagraph(el, -1) }
+    static upParagraph(el) { return wxMovement.#moveParagraph(el, -1) }
 
     /** @param {Element|null} el */
-    static downParagraph(el) { return WordexMovement.#moveParagraph(el, +1) }
+    static downParagraph(el) { return wxMovement.#moveParagraph(el, +1) }
 
     // =========================================================
     // Core: move by word
@@ -37,28 +37,28 @@ export default class WordexMovement {
     static #moveByWord(el, dir) {
         if (!el) return false
 
-        const rootSection = WordexSection.rootSection
+        const rootSection = wxSection.rootSection
         if (!rootSection) return false
 
-        const p = WordexMovement.#getParagraph(el, rootSection)
+        const p = wxMovement.#getParagraph(el, rootSection)
         if (!p) return false
 
-        const segs = WordexMovement.#getTextSegments(p)
+        const segs = wxMovement.#getTextSegments(p)
         const fullText = segs.map(s => s.node.nodeValue ?? "").join("")
         if (!fullText.length) return false
 
-        const pos = WordexMovement.#getGlobalOffsetBeforeElement(segs, el)
+        const pos = wxMovement.#getGlobalOffsetBeforeElement(segs, el)
 
         const target = dir < 0
-            ? WordexMovement.#findPrevWordStart(fullText, pos)
-            : WordexMovement.#findNextWordEnd(fullText, pos)
+            ? wxMovement.#findPrevWordStart(fullText, pos)
+            : wxMovement.#findNextWordEnd(fullText, pos)
 
         if (target === pos) return false
 
-        if (!WordexMovement.#insertNodeAtGlobalOffset(p, segs, target, el)) return false
+        if (!wxMovement.#insertNodeAtGlobalOffset(p, segs, target, el)) return false
 
-        WordexMovement.#placeCaretAfter(el)
-        WordexRange.saveSelection()
+        wxMovement.#placeCaretAfter(el)
+        wxRange.saveSelection()
         return true
     }
 
@@ -74,10 +74,10 @@ export default class WordexMovement {
     static #moveParagraph(el, dir) {
         if (!el) return false
 
-        const rootSection = WordexSection.rootSection
+        const rootSection = wxSection.rootSection
         if (!rootSection) return false
 
-        const p = WordexMovement.#getParagraph(el, rootSection)
+        const p = wxMovement.#getParagraph(el, rootSection)
         if (!p) return false
 
         const target = dir < 0 ? p.previousElementSibling : p.nextElementSibling
@@ -85,8 +85,8 @@ export default class WordexMovement {
 
         target.appendChild(el)
 
-        WordexMovement.#placeCaretAfter(el)
-        WordexRange.saveSelection()
+        wxMovement.#placeCaretAfter(el)
+        wxRange.saveSelection()
         return true
     }
 
@@ -150,18 +150,18 @@ export default class WordexMovement {
     /** @param {string} text @param {number} pos */
     static #findPrevWordStart(text, pos) {
         let i = Math.min(pos - 1, text.length - 1)
-        while (i >= 0 && !WordexMovement.#isWordChar(text[i])) i--
+        while (i >= 0 && !wxMovement.#isWordChar(text[i])) i--
         if (i < 0) return 0
-        while (i >= 0 && WordexMovement.#isWordChar(text[i])) i--
+        while (i >= 0 && wxMovement.#isWordChar(text[i])) i--
         return i + 1
     }
 
     /** @param {string} text @param {number} pos */
     static #findNextWordEnd(text, pos) {
         let i = Math.max(0, pos)
-        while (i < text.length && !WordexMovement.#isWordChar(text[i])) i++
+        while (i < text.length && !wxMovement.#isWordChar(text[i])) i++
         if (i >= text.length) return text.length
-        while (i < text.length && WordexMovement.#isWordChar(text[i])) i++
+        while (i < text.length && wxMovement.#isWordChar(text[i])) i++
         return i
     }
 
@@ -223,27 +223,27 @@ export default class WordexMovement {
     }
 
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveLeftWord(instance) { return WordexMovement.leftWord(instance) }
+    static moveLeftWord(instance) { return wxMovement.leftWord(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveRightWord(instance) { return WordexMovement.rightWord(instance) }
+    static moveRightWord(instance) { return wxMovement.rightWord(instance) }
 
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveParagraphUp(instance) { return WordexMovement.upParagraph(instance) }
+    static moveParagraphUp(instance) { return wxMovement.upParagraph(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static moveParagraphDown(instance) { return WordexMovement.downParagraph(instance) }
+    static moveParagraphDown(instance) { return wxMovement.downParagraph(instance) }
 
     // alinhamento com wrap e sem “buraco” por margem
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignLeft(instance) { return WordexLayout.alignObject(instance, "left") }
+    static alignLeft(instance) { return wxLayout.alignObject(instance, "left") }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignRight(instance) { return WordexLayout.alignObject(instance, "right") }
+    static alignRight(instance) { return wxLayout.alignObject(instance, "right") }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static alignCenter(instance) { return WordexLayout.alignObject(instance, "center") }
+    static alignCenter(instance) { return wxLayout.alignObject(instance, "center") }
 
     // resize unificado
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static increase(instance) { return WordexLayout.increase(instance) }
+    static increase(instance) { return wxLayout.increase(instance) }
     /** @param {HTMLImageElement|HTMLTableElement} instance */
-    static decrease(instance) { return WordexLayout.decrease(instance) }
+    static decrease(instance) { return wxLayout.decrease(instance) }
 
 }

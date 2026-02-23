@@ -1,10 +1,10 @@
 // @ts-check
 "use strict"
 
-import WordexRange from "./WordexRange.mjs"
-import WordexSection from "./WordexSection.mjs"
-/** @typedef {import("./WordexTypes.mjs").Item} Item */
-export default class WordexConfig {
+import wxRange from "./wxRange.mjs"
+import wxSection from "./wxSection.mjs"
+/** @typedef {import("./wxTypes.mjs").Item} Item */
+export default class wxConfig {
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
   /** @readonly @type {"OVR"} */ static K_OVERWRITE_MODE = "OVR"
@@ -142,8 +142,8 @@ export default class WordexConfig {
   /** @type {Readonly<Item[]>} */
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
-    { value: WordexConfig.K_PORTRAIT, text: "Retrato", selected: true },
-    { value: WordexConfig.K_LANDSCAPE, text: "Paisagem" },
+    { value: wxConfig.K_PORTRAIT, text: "Retrato", selected: true },
+    { value: wxConfig.K_LANDSCAPE, text: "Paisagem" },
   ])
   /** @type {Readonly<Item[]>} */
   static fontStyleList = Object.freeze([
@@ -299,20 +299,20 @@ export default class WordexConfig {
    * @returns {boolean}
    */
   static exec(cmd, value = null) {
-    if (!WordexRange.range) return false
+    if (!wxRange.range) return false
 
     const sel = window.getSelection()
     if (!sel) return false
 
     sel.removeAllRanges()
-    sel.addRange(WordexRange.range)
+    sel.addRange(wxRange.range)
 
-    WordexSection.rootSection?.focus({ preventScroll: true })
+    wxSection.rootSection?.focus({ preventScroll: true })
 
     if (value !== null && value !== undefined) document.execCommand(cmd, false, value)
     else document.execCommand(cmd, false)
 
-    WordexRange.saveSelection()
+    wxRange.saveSelection()
     return true
   }
 }

@@ -1,17 +1,17 @@
 // @ts-check
 "use strict"
 
-import WordexSection from "./WordexSection.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexTable from "./WordexTable.mjs"
+import wxSection from "./wxSection.mjs"
+import wxRange from "./wxRange.mjs"
+import wxTable from "./wxTable.mjs"
 
 /**
- * WordexTableRow
+ * wxTableRow
  * - mantém estado de “linha ativa” e “linhas selecionadas”
- * - não decide política (WordexPage decidirá depois)
+ * - não decide política (wxPage decidirá depois)
  * - opera em HTMLTableRowElement (TR)
  */
-export default class WordexTableRow {
+export default class wxTableRow {
     /** @type {HTMLTableRowElement|null} */
     static #activeRow = null
 
@@ -35,17 +35,17 @@ export default class WordexTableRow {
             const tr = cell.closest("tr")
             if (!(tr instanceof HTMLTableRowElement)) return
 
-            // mantém o foco de célula do WordexTable (se você já estiver usando)
+            // mantém o foco de célula do wxTable (se você já estiver usando)
             // (não é obrigatório, mas ajuda a coerência)
-            // WordexTable já faz isso no attach dele, mas não atrapalha:
+            // wxTable já faz isso no attach dele, mas não atrapalha:
             // (deixe comentado se preferir)
-            // if (WordexTable.getActiveCell?.()) {}
+            // if (wxTable.getActiveCell?.()) {}
 
-            WordexTableRow.#setActive(tr)
+            wxTableRow.#setActive(tr)
 
             if (e.altKey) {
                 // toggle seleção de linha
-                WordexTableRow.toggleSelect(tr)
+                wxTableRow.toggleSelect(tr)
                 e.preventDefault()
             }
         })
@@ -53,28 +53,28 @@ export default class WordexTableRow {
 
     /** @returns {boolean} */
     static hasActive() {
-        return !!WordexTableRow.#activeRow
+        return !!wxTableRow.#activeRow
     }
 
     /** @returns {HTMLTableRowElement|null} */
     static getActive() {
-        return WordexTableRow.#activeRow
+        return wxTableRow.#activeRow
     }
 
     /** @returns {ReadonlyArray<HTMLTableRowElement>} */
     static getSelected() {
-        return Array.from(WordexTableRow.#selectedRows)
+        return Array.from(wxTableRow.#selectedRows)
     }
 
     /** @returns {boolean} */
     static hasSelection() {
-        return WordexTableRow.#selectedRows.size > 0
+        return wxTableRow.#selectedRows.size > 0
     }
 
     /** limpa seleção (não mexe na ativa) */
     static clearSelection() {
-        for (const tr of WordexTableRow.#selectedRows) tr.classList.remove("row-selected")
-        WordexTableRow.#selectedRows.clear()
+        for (const tr of wxTableRow.#selectedRows) tr.classList.remove("row-selected")
+        wxTableRow.#selectedRows.clear()
     }
 
     /**
@@ -82,22 +82,22 @@ export default class WordexTableRow {
      * @param {HTMLTableRowElement} tr
      */
     static toggleSelect(tr) {
-        if (WordexTableRow.#selectedRows.has(tr)) {
-            WordexTableRow.#selectedRows.delete(tr)
+        if (wxTableRow.#selectedRows.has(tr)) {
+            wxTableRow.#selectedRows.delete(tr)
             tr.classList.remove("row-selected")
             return false
         }
-        WordexTableRow.#selectedRows.add(tr)
+        wxTableRow.#selectedRows.add(tr)
         tr.classList.add("row-selected")
         return true
     }
 
     /**
-     * Se existir célula ativa (WordexTable), retorna a linha dela.
+     * Se existir célula ativa (wxTable), retorna a linha dela.
      * @returns {HTMLTableRowElement|null}
      */
     static getFromActiveCell() {
-        const cell = WordexTable.getActiveCell?.()
+        const cell = wxTable.getActiveCell?.()
         if (!cell) return null
         const tr = cell.closest("tr")
         return tr instanceof HTMLTableRowElement ? tr : null
@@ -110,7 +110,7 @@ export default class WordexTableRow {
      * @param {HTMLTableRowElement|null} [tr] se omitido, usa ativa
      */
     static align(cmd, tr = null) {
-        tr = tr ?? WordexTableRow.#activeRow
+        tr = tr ?? wxTableRow.#activeRow
         if (!tr) return false
 
         const val =
@@ -132,7 +132,7 @@ export default class WordexTableRow {
      * @param {HTMLTableRowElement|null} [tr]
      */
     static applyBorder(widthPx, color, tr = null) {
-        tr = tr ?? WordexTableRow.#activeRow
+        tr = tr ?? wxTableRow.#activeRow
         if (!tr) return false
 
         const style = widthPx === "0px" ? "none" : "solid"
@@ -145,21 +145,21 @@ export default class WordexTableRow {
     }
 
     /**
-     * Ativa uma linha e sincroniza caret com WordexRange.range (na 1ª célula, se possível).
+     * Ativa uma linha e sincroniza caret com wxRange.range (na 1ª célula, se possível).
      * @param {HTMLTableRowElement} tr
      */
     static #setActive(tr) {
-        if (WordexTableRow.#activeRow === tr) return
+        if (wxTableRow.#activeRow === tr) return
 
-        if (WordexTableRow.#activeRow) WordexTableRow.#activeRow.classList.remove("row-active")
-        WordexTableRow.#activeRow = tr
+        if (wxTableRow.#activeRow) wxTableRow.#activeRow.classList.remove("row-active")
+        wxTableRow.#activeRow = tr
         tr.classList.add("row-active")
 
         // Opcional: se você quiser que ativar linha mova caret para 1ª célula
         const cell = tr.cells?.[0]
         if (cell) {
             // garante que o range fique dentro do escopo atual
-            WordexSection.rootSection?.focus({ preventScroll: true })
+            wxSection.rootSection?.focus({ preventScroll: true })
 
             const r = document.createRange()
             r.selectNodeContents(cell)
@@ -168,7 +168,7 @@ export default class WordexTableRow {
             const sel = window.getSelection()
             sel?.removeAllRanges()
             sel?.addRange(r)
-            WordexRange.saveSelection()
+            wxRange.saveSelection()
         }
     }
 }

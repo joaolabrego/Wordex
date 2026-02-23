@@ -1,13 +1,13 @@
 // @ts-check
 "use strict"
 
-import WordexConfig from "./WordexConfig.mjs"
-import WordexSection from "./WordexSection.mjs"
-import WordexRange from "./WordexRange.mjs"
-/** @typedef {import("./WordexTypes.mjs").WordexParagraphDiv} WordexParagraphDiv */
-/** @typedef {import("./WordexTypes.mjs").WordexSectionDiv} WordexSectionDiv */
+import wxConfig from "./wxConfig.mjs"
+import wxSection from "./wxSection.mjs"
+import wxRange from "./wxRange.mjs"
+/** @typedef {import("./wxTypes.mjs").WordexParagraphDiv} WordexParagraphDiv */
+/** @typedef {import("./wxTypes.mjs").WordexSectionDiv} WordexSectionDiv */
 
-export default class WordexParagraph {
+export default class wxParagraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
@@ -18,6 +18,7 @@ export default class WordexParagraph {
     constructor(owner) {
         this.#owner = owner
         this.#paragraph = document.createElement("div")
+        this.#paragraph.tabIndex = -1
         this.#paragraph.classList.add("paragraph")
         this.#paragraph.append(document.createElement("br"))
     }
@@ -40,43 +41,43 @@ export default class WordexParagraph {
 
     /**
      * Liga seleção de parágrafo ao container do editor.
-     * Parágrafo = filho direto do WordexSection.rootSection.
+     * Parágrafo = filho direto do wxSection.rootSection.
      * @param {HTMLElement} scope
      */
     static attach(scope) {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
-            const rootSection = WordexSection.rootSection
+            const rootSection = wxSection.rootSection
             if (!rootSection) return
 
             const p = t.closest("div")
             if (!(p instanceof HTMLDivElement) || p.parentElement !== rootSection) {
-                WordexParagraph.#clear()
+                wxParagraph.#clear()
                 return
             }
 
-            WordexParagraph.focus(p)
+            wxParagraph.focus(p)
         })
     }
 
-    static hasFocus() { return !!WordexParagraph.#selected }
+    static hasFocus() { return !!wxParagraph.#selected }
     /** @returns {HTMLDivElement|null} */
-    static getFocused() { return WordexParagraph.#selected }
+    static getFocused() { return wxParagraph.#selected }
 
     /** @param {HTMLDivElement} p */
     static focus(p) {
-        WordexParagraph.#clear()
-        WordexParagraph.#selected = p
+        wxParagraph.#clear()
+        wxParagraph.#selected = p
         p.classList.add("p-selected")
-        WordexParagraph.#applySelectionRing(p)
+        wxParagraph.#applySelectionRing(p)
     }
 
     static #clear() {
-        if (WordexParagraph.#selected) {
-            WordexParagraph.#selected.classList.remove("p-selected")
-            WordexParagraph.#removeSelectionRing(WordexParagraph.#selected)
+        if (wxParagraph.#selected) {
+            wxParagraph.#selected.classList.remove("p-selected")
+            wxParagraph.#removeSelectionRing(wxParagraph.#selected)
         }
-        WordexParagraph.#selected = null
+        wxParagraph.#selected = null
     }
     /**
      * @param {HTMLElement} p
@@ -95,19 +96,19 @@ export default class WordexParagraph {
         if (!sel) return false
         sel.removeAllRanges()
         sel.addRange(r)
-        WordexRange.saveSelection()
+        wxRange.saveSelection()
         return true
     }
 
     /** garante que o execCommand vai atuar no lugar certo */
     static #restore() {
-        return WordexRange.restoreRange(WordexRange.range)
+        return wxRange.restoreRange(wxRange.range)
     }
 
-    static alignLeft() { WordexParagraph.#restore(); return WordexConfig.exec("justifyLeft") }
-    static alignCenter() { WordexParagraph.#restore(); return WordexConfig.exec("justifyCenter") }
-    static alignRight() { WordexParagraph.#restore(); return WordexConfig.exec("justifyRight") }
-    static justify() { WordexParagraph.#restore(); return WordexConfig.exec("justifyFull") }
+    static alignLeft() { wxParagraph.#restore(); return wxConfig.exec("justifyLeft") }
+    static alignCenter() { wxParagraph.#restore(); return wxConfig.exec("justifyCenter") }
+    static alignRight() { wxParagraph.#restore(); return wxConfig.exec("justifyRight") }
+    static justify() { wxParagraph.#restore(); return wxConfig.exec("justifyFull") }
 
     /**
     * @returns {HTMLDivElement|null}
@@ -131,8 +132,8 @@ export default class WordexParagraph {
 
     /** @returns {HTMLDivElement|null} */
     static getActive() {
-        WordexParagraph.#restore()
-        const p = WordexParagraph.getActiveParagraph()
+        wxParagraph.#restore()
+        const p = wxParagraph.getActiveParagraph()
         return /** @type {HTMLDivElement|null} */ (p)
     }
 
@@ -145,7 +146,7 @@ export default class WordexParagraph {
      * @param {number} stepPx
      */
     static increaseWidth(stepPx = 30) {
-        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
+        const p = wxParagraph.#selected ?? wxParagraph.getActive()
         if (!p) return false
 
         const w = Math.round(p.getBoundingClientRect().width) || 0
@@ -160,7 +161,7 @@ export default class WordexParagraph {
      * @param {number} minPx
      */
     static decreaseWidth(stepPx = 30, minPx = 80) {
-        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
+        const p = wxParagraph.#selected ?? wxParagraph.getActive()
         if (!p) return false
 
         const w = Math.round(p.getBoundingClientRect().width) || 0
@@ -175,8 +176,8 @@ export default class WordexParagraph {
 
     /** Move parágrafo selecionado 1 posição para cima (entre irmãos do rootSection). */
     static moveUp() {
-        const rootSection = WordexSection.rootSection
-        const p = WordexParagraph.#selected
+        const rootSection = wxSection.rootSection
+        const p = wxParagraph.#selected
         if (!rootSection || !p) return false
 
         const prev = p.previousElementSibling
@@ -184,15 +185,15 @@ export default class WordexParagraph {
 
         rootSection.insertBefore(p, prev)
 
-        WordexParagraph.activate(p, "start")
-        WordexParagraph.focus(p)
+        wxParagraph.activate(p, "start")
+        wxParagraph.focus(p)
         return true
     }
 
     /** Move parágrafo selecionado 1 posição para baixo (entre irmãos do rootSection). */
     static moveDown() {
-        const rootSection = WordexSection.rootSection
-        const p = WordexParagraph.#selected
+        const rootSection = wxSection.rootSection
+        const p = wxParagraph.#selected
         if (!rootSection || !p) return false
 
         const next = p.nextElementSibling
@@ -200,14 +201,14 @@ export default class WordexParagraph {
 
         rootSection.insertBefore(next, p) // troca
 
-        WordexParagraph.activate(p, "start")
-        WordexParagraph.focus(p)
+        wxParagraph.activate(p, "start")
+        wxParagraph.focus(p)
         return true
     }
 
     /** “Mover para a direita” = indent (margin-left). */
     static indent(stepPx = 20) {
-        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
+        const p = wxParagraph.#selected ?? wxParagraph.getActive()
         if (!p) return false
 
         const cur = parseInt(p.style.marginLeft || "0", 10) || 0
@@ -217,7 +218,7 @@ export default class WordexParagraph {
 
     /** “Mover para a esquerda” = outdent (margin-left). */
     static outdent(stepPx = 20) {
-        const p = WordexParagraph.#selected ?? WordexParagraph.getActive()
+        const p = wxParagraph.#selected ?? wxParagraph.getActive()
         if (!p) return false
 
         const cur = parseInt(p.style.marginLeft || "0", 10) || 0
@@ -226,36 +227,36 @@ export default class WordexParagraph {
     }
 
     // =========================================================
-    // aliases padronizados (mesmos nomes de WordexImage/WordexTable)
+    // aliases padronizados (mesmos nomes de wxImage/wxTable)
     // =========================================================
 
     /** + (toolbar) */
     static increase(stepPx = 30) {
-        return WordexParagraph.increaseWidth(stepPx)
+        return wxParagraph.increaseWidth(stepPx)
     }
 
     /** - (toolbar) */
     static decrease(stepPx = 30, minPx = 80) {
-        return WordexParagraph.decreaseWidth(stepPx, minPx)
+        return wxParagraph.decreaseWidth(stepPx, minPx)
     }
 
     /** ⬅ (toolbar) */
     static left(stepPx = 20) {
-        return WordexParagraph.outdent(stepPx)
+        return wxParagraph.outdent(stepPx)
     }
 
     /** ➡ (toolbar) */
     static right(stepPx = 20) {
-        return WordexParagraph.indent(stepPx)
+        return wxParagraph.indent(stepPx)
     }
 
     /** ⬆ (toolbar) */
     static up() {
-        return WordexParagraph.moveUp()
+        return wxParagraph.moveUp()
     }
 
     /** ⬇ (toolbar) */
     static down() {
-        return WordexParagraph.moveDown()
+        return wxParagraph.moveDown()
     }
 }

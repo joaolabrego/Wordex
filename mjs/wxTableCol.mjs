@@ -1,19 +1,19 @@
 // @ts-check
 "use strict"
 
-import WordexSection from "./WordexSection.mjs"
-import WordexRange from "./WordexRange.mjs"
-import WordexTable from "./WordexTable.mjs"
+import wxSection from "./wxSection.mjs"
+import wxRange from "./wxRange.mjs"
+import wxTable from "./wxTable.mjs"
 
 /**
- * WordexTableCol
+ * wxTableCol
  * - mantém “coluna ativa” e “colunas selecionadas”
  * - seleção provisória: Alt+Click numa célula => toggle da coluna daquela célula
  * - aplica operações na coluna iterando linhas e pegando cellIndex
  *
  * Observação: não trata colspan/rowspan (por enquanto).
  */
-export default class WordexTableCol {
+export default class wxTableCol {
     /** @type {{ table: HTMLTableElement, index: number } | null} */
     static #active = null
 
@@ -36,10 +36,10 @@ export default class WordexTableCol {
             const idx = cell.cellIndex
             if (idx < 0) return
 
-            WordexTableCol.#setActive(table, idx)
+            wxTableCol.#setActive(table, idx)
 
             if (e.altKey) {
-                WordexTableCol.toggleSelect(table, idx)
+                wxTableCol.toggleSelect(table, idx)
                 e.preventDefault()
             }
         })
@@ -47,20 +47,20 @@ export default class WordexTableCol {
 
     /** @returns {boolean} */
     static hasActive() {
-        return !!WordexTableCol.#active
+        return !!wxTableCol.#active
     }
 
     /** @returns {{ table: HTMLTableElement, index: number } | null} */
     static getActive() {
-        return WordexTableCol.#active
+        return wxTableCol.#active
     }
 
     /**
-     * Se existir célula ativa (WordexTable), retorna a coluna dela.
+     * Se existir célula ativa (wxTable), retorna a coluna dela.
      * @returns {{ table: HTMLTableElement, index: number } | null}
      */
     static getFromActiveCell() {
-        const cell = WordexTable.getActiveCell?.()
+        const cell = wxTable.getActiveCell?.()
         if (!cell) return null
         const table = cell.closest("table")
         if (!(table instanceof HTMLTableElement)) return null
@@ -71,19 +71,19 @@ export default class WordexTableCol {
 
     /** @param {HTMLTableElement} table */
     static getSelected(table) {
-        return Array.from(WordexTableCol.#selected.get(table) ?? [])
+        return Array.from(wxTableCol.#selected.get(table) ?? [])
     }
 
     /** @param {HTMLTableElement} table */
     static hasSelection(table) {
-        return (WordexTableCol.#selected.get(table)?.size ?? 0) > 0
+        return (wxTableCol.#selected.get(table)?.size ?? 0) > 0
     }
 
     /** @param {HTMLTableElement} table */
     static clearSelection(table) {
-        const set = WordexTableCol.#selected.get(table)
+        const set = wxTableCol.#selected.get(table)
         if (!set) return
-        for (const idx of set) WordexTableCol.#applyClassToColumn(table, idx, "col-selected", false)
+        for (const idx of set) wxTableCol.#applyClassToColumn(table, idx, "col-selected", false)
         set.clear()
     }
 
@@ -93,20 +93,20 @@ export default class WordexTableCol {
      * @param {number} idx
      */
     static toggleSelect(table, idx) {
-        let set = WordexTableCol.#selected.get(table)
+        let set = wxTableCol.#selected.get(table)
         if (!set) {
             set = new Set()
-            WordexTableCol.#selected.set(table, set)
+            wxTableCol.#selected.set(table, set)
         }
 
         if (set.has(idx)) {
             set.delete(idx)
-            WordexTableCol.#applyClassToColumn(table, idx, "col-selected", false)
+            wxTableCol.#applyClassToColumn(table, idx, "col-selected", false)
             return false
         }
 
         set.add(idx)
-        WordexTableCol.#applyClassToColumn(table, idx, "col-selected", true)
+        wxTableCol.#applyClassToColumn(table, idx, "col-selected", true)
         return true
     }
 
@@ -117,7 +117,7 @@ export default class WordexTableCol {
      * @param {{ table: HTMLTableElement, index: number } | null} [col]
      */
     static align(cmd, col = null) {
-        col = col ?? WordexTableCol.#active
+        col = col ?? wxTableCol.#active
         if (!col) return false
 
         const val =
@@ -126,7 +126,7 @@ export default class WordexTableCol {
                     cmd === "right" ? "right" :
                         "justify"
 
-        for (const cell of WordexTableCol.#iterColumnCells(col.table, col.index)) {
+        for (const cell of wxTableCol.#iterColumnCells(col.table, col.index)) {
             cell.style.textAlign = val
         }
         return true
@@ -139,11 +139,11 @@ export default class WordexTableCol {
      * @param {{ table: HTMLTableElement, index: number } | null} [col]
      */
     static applyBorder(widthPx, color, col = null) {
-        col = col ?? WordexTableCol.#active
+        col = col ?? wxTableCol.#active
         if (!col) return false
 
         const style = widthPx === "0px" ? "none" : "solid"
-        for (const cell of WordexTableCol.#iterColumnCells(col.table, col.index)) {
+        for (const cell of wxTableCol.#iterColumnCells(col.table, col.index)) {
             cell.style.borderStyle = style
             cell.style.borderWidth = widthPx
             cell.style.borderColor = color
@@ -160,25 +160,25 @@ export default class WordexTableCol {
      * @param {number} idx
      */
     static #setActive(table, idx) {
-        const prev = WordexTableCol.#active
+        const prev = wxTableCol.#active
         if (prev && prev.table === table && prev.index === idx) return
 
-        if (prev) WordexTableCol.#applyClassToColumn(prev.table, prev.index, "col-active", false)
+        if (prev) wxTableCol.#applyClassToColumn(prev.table, prev.index, "col-active", false)
 
-        WordexTableCol.#active = { table, index: idx }
-        WordexTableCol.#applyClassToColumn(table, idx, "col-active", true)
+        wxTableCol.#active = { table, index: idx }
+        wxTableCol.#applyClassToColumn(table, idx, "col-active", true)
 
         // Opcional: ao ativar coluna, joga caret na 1ª célula “existente”
-        const firstCell = WordexTableCol.#findFirstCellInColumn(table, idx)
+        const firstCell = wxTableCol.#findFirstCellInColumn(table, idx)
         if (firstCell) {
-            WordexSection.rootSection?.focus({ preventScroll: true })
+            wxSection.rootSection?.focus({ preventScroll: true })
             const r = document.createRange()
             r.selectNodeContents(firstCell)
             r.collapse(true)
             const sel = window.getSelection()
             sel?.removeAllRanges()
             sel?.addRange(r)
-            WordexRange.saveSelection()
+            wxRange.saveSelection()
         }
     }
 
@@ -201,7 +201,7 @@ export default class WordexTableCol {
      * @param {number} idx
      */
     static #findFirstCellInColumn(table, idx) {
-        for (const cell of WordexTableCol.#iterColumnCells(table, idx)) return cell
+        for (const cell of wxTableCol.#iterColumnCells(table, idx)) return cell
         return null
     }
 
@@ -212,7 +212,7 @@ export default class WordexTableCol {
      * @param {boolean} on
      */
     static #applyClassToColumn(table, idx, className, on) {
-        for (const cell of WordexTableCol.#iterColumnCells(table, idx)) {
+        for (const cell of wxTableCol.#iterColumnCells(table, idx)) {
             if (on) cell.classList.add(className)
             else cell.classList.remove(className)
         }
