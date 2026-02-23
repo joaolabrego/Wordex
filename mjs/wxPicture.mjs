@@ -22,7 +22,9 @@ export default class wxPicture {
         })
     }
 
-    static hasFocus() { return !!wxPicture.#selectedImage }
+    static hasFocus() {
+        return !!wxPicture.#selectedImage
+    }
     /** @returns {HTMLImageElement|null} */
     static getFocused() { return wxPicture.#selectedImage }
     /**

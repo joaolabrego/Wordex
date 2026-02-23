@@ -9,7 +9,7 @@ import wxPicture from "./wxPicture.mjs"
 import wxSection from "./wxSection.mjs"
 import wxAlignment from "./wxAlignment.mjs"
 
-/** @typedef {import("./wxTypes.mjs").wxItem} wxItem */
+/** @typedef {import("./wdxTypes.mjs").wdxItem} wdxItem */
 
 export default class wxToolbar {
     /** @type {HTMLDivElement} */ #toolbar
@@ -30,6 +30,11 @@ export default class wxToolbar {
     constructor(owner) {
         this.#owner = owner
         this.#toolbar = document.createElement("div")
+
+        const style = document.createElement("style")
+        style.textContent = wxConfig.ScriptToolbar
+        this.#toolbar.appendChild(style)
+
         this.#toolbar.classList.add("toolbar")
 
         this.#toolbar.appendChild(
@@ -236,9 +241,9 @@ export default class wxToolbar {
         if (!paper)
             return
         if (value === wxConfig.K_LANDSCAPE)
-            this.#owner.instance.style.width = paper.height ?? ""
+            this.#owner.root.style.width = paper.height ?? ""
         else
-            this.#owner.instance.style.width = paper.width ?? ""
+            this.#owner.root.style.width = paper.width ?? ""
 
         return true
     }
@@ -255,7 +260,7 @@ export default class wxToolbar {
         const paper = wxConfig.paperFormatList.find(p => p.value === value)
         if (!paper)
             return false
-        this.#owner.instance.style.width = (orient.value === wxConfig.K_LANDSCAPE ? paper.height : paper.width) ?? ""
+        this.#owner.root.style.width = (orient.value === wxConfig.K_LANDSCAPE ? paper.height : paper.width) ?? ""
 
         return true
     }
@@ -280,7 +285,7 @@ export default class wxToolbar {
     /** aplica os defaults marcados no wxConfig (selected:true) */
     #initializeDefaults() {
         /**
-         * @param {readonly wxItem[]} list
+         * @param {readonly wdxItem[]} list
          * @param {HTMLSelectElement} select
          */
         const dispatchSelected = (list, select) => {
@@ -315,7 +320,7 @@ export default class wxToolbar {
     }
 
     /**
-     * @param {ReadonlyArray<wxItem>} templateList
+     * @param {ReadonlyArray<wdxItem>} templateList
      * @param {string} title
      * @param {(() => void)|undefined} [eventChange]
      * @returns {HTMLSelectElement}
@@ -340,7 +345,7 @@ export default class wxToolbar {
 
     /**
      * @param {HTMLSelectElement} selectElement
-     * @param {ReadonlyArray<wxItem>} selectList
+     * @param {ReadonlyArray<wdxItem>} selectList
      * @param {string} [value]
      * @returns {HTMLSelectElement}
      */
@@ -364,7 +369,7 @@ export default class wxToolbar {
 
     /**
      * @param {HTMLSelectElement} selectElement
-     * @param {ReadonlyArray<wxItem>} templateList
+     * @param {ReadonlyArray<wdxItem>} templateList
      */
      #toggleSelectOption(selectElement, templateList) {
         const value = selectElement.options[selectElement.selectedIndex].value

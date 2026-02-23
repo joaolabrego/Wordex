@@ -1,37 +1,38 @@
 // @ts-check
 'use strict'
 
-/** @typedef {import("./wxTypes.mjs").wxSection} wxSectionDiv */
+/** @typedef {import("./wdxTypes.mjs").wdxSection} wxSectionType */
 
 import wxEdit from './wxEdit.mjs'
 import wxPage from './wxPage.mjs'
 import wxParagraph from './wxParagraph.mjs'
 
-export default class wxSection {
 
-    /** @type {wxSectionDiv} */ static #rootSection
+export default class wdxSection {
+
+    /** @type {wxSectionType} */ static #rootSection
 
     /** @type {wxPage} */ #page
-    /** @type {wxSectionDiv} */ #section
+    /** @type {wxSectionType} */ #section
     /** @type {wxParagraph} */ #firstParagraph
     
     /** 
      * @param {wxPage} page 
-     * @param {string} id
+     * @param {"header"|"body"|"footer"} sector
      * @param {string} textContent
      */
-    constructor(page, id, textContent = "") {
+    constructor(page, sector, textContent = "") {
         this.#page = page
 
-        this.#section = /** @type {wxSectionDiv} */(document.createElement("div"))
+        this.#section = /** @type {wxSectionType} */(document.createElement("div"))
         this.#section.tabIndex = -1
         this.#section.dataset.wxKind = "section"
-        this.#section.id = id
-        this.#section.classList.add("editable", "workspace", id)
+        this.#section.dataset.wxSector = sector
+        this.#section.classList.add("editable", "workspace", sector)
         this.#section.contentEditable = "true"
 
         this.#section.addEventListener("keydown", (e) => wxEdit.onKeyDown(e))
-        this.#section.addEventListener("focus", () => wxSection.#rootSection = this.#section)
+        this.#section.addEventListener("focus", () => wdxSection.#rootSection = this.#section)
 
         this.#firstParagraph = new wxParagraph(this.#section)
         if (textContent.trim())
@@ -41,21 +42,20 @@ export default class wxSection {
         this.#section.append(this.#firstParagraph.instance)
     }
 
-    /** @returns {wxSectionDiv} */
-    get element() {
+    /** @returns {wxSectionType} */
+    get root() {
         return this.#section
     }
     /** @returns {wxParagraph} */
     get firstParagraph() {
         return this.#firstParagraph
     }
-    /** @param {wxSectionDiv} section */
-    static setRoot(section) {
-        wxSection.#rootSection = section
-    }
-
-    /** @returns {wxSectionDiv} */
+    /** @returns {wxSectionType} */
     static getRoot() {
-        return wxSection.#rootSection
+        return wdxSection.#rootSection
+    }
+    /** @param {wxSectionType} value */
+    static setRoot(value) {
+        wdxSection.#rootSection = value
     }
 }

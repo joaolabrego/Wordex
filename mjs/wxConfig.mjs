@@ -4,7 +4,7 @@
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
 
-/** @typedef {import("./wxTypes.mjs").wxItem} wxItem */
+/** @typedef {import("./wdxTypes.mjs").wdxItem} wdxItem */
 
 export default class wxConfig {
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
@@ -17,7 +17,7 @@ export default class wxConfig {
   /** @readonly @type {"#000000"} */ static K_DEFAULT_COLOR = "#000000"
 
 
-  /** @type {Readonly <wxItem[]>} */
+  /** @type {Readonly <wdxItem[]>} */
   static paperFormatList = Object.freeze([
     // Genérico
     { value: "", text: "Folha" },
@@ -75,7 +75,7 @@ export default class wxConfig {
     { value: "ANSI_D", text: "ANSI D", width: "558.8mm", height: "863.6mm" },
     { value: "ANSI_E", text: "ANSI E", width: "863.6mm", height: "1117.6mm" }
   ])
-  /** @type {Readonly <wxItem[]>} */
+  /** @type {Readonly <wdxItem[]>} */
   static fontFamilyList = Object.freeze([
     { value: "", text: "Fonte" },
 
@@ -104,7 +104,7 @@ export default class wxConfig {
     { value: '"Comic Sans MS", cursive', text: "Comic Sans MS" },
     { value: "Impact, sans-serif", text: "Impact" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static fontSizeList = Object.freeze([
     { value: "", text: "Tamanho" },
     { value: "10px", text: "8pt" },
@@ -115,7 +115,7 @@ export default class wxConfig {
     { value: "24px", text: "24pt" },
     { value: "36px", text: "36pt" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static borderList = Object.freeze([
     { value: "", text: "Borda" },
     { value: "0px", text: "none", selected: true },
@@ -128,7 +128,7 @@ export default class wxConfig {
     { value: "8px", text: "8px" },
     { value: "10px", text: "10px" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static borderRadiusList = Object.freeze([
     { value: "", text: "Arredondamento" },
     { value: "0px", text: "none", selected: true },
@@ -141,13 +141,13 @@ export default class wxConfig {
     { value: "25px", text: "25px" },
     { value: "30px", text: "30px" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
     { value: wxConfig.K_PORTRAIT, text: "Retrato", selected: true },
     { value: wxConfig.K_LANDSCAPE, text: "Paisagem" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilo" },
     { value: "none", text: "none" },
@@ -170,7 +170,7 @@ export default class wxConfig {
     { value: "strong", text: "Forte" },
     { value: "em", text: "Ênfase" },
   ])
-  /** @type {Readonly<wxItem[]>} */
+  /** @type {Readonly<wdxItem[]>} */
   static alignmentList = Object.freeze([
     { value: "", text: "Alinhamento" },
     { value: "left", text: "Esquerda", selected: true },
@@ -179,52 +179,101 @@ export default class wxConfig {
     { value: "justify", text: "Justificado" },
   ])
   /** @readonly */
-  static Script = `
-      :root { --margin: 20mm; }
+  static ScriptPage = `
+        :root { --margin: 20mm; }
 
+        .page {
+          margin: var(--margin);
+          display: flex;
+          flex-direction: column;
+          margin: 60px auto 0;
+          height: calc(100vh - calc(var(--margin) * 2));
+        }
+
+        .header {
+          height: 20mm;
+          flex: 0 0 auto;
+        }
+
+        .body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+        }
+
+        .footer {
+          flex: 0 0 auto;
+          height: 15mm;
+        }
+
+        /* layout do documento */
+
+        img.img-left {
+          float: left;
+          margin: 4px 8px 4px 0;
+        }
+
+        img.img-right {
+          float: right;
+          margin: 4px 0 4px 8px;
+        }
+
+        img.img-inline {
+          float: none;
+          display: inline-block;
+          margin: 4px auto;
+        }
+    `
+  
+  static ScriptPageUI = `
+        .page {
+          background: #fff;
+        }
+
+        .header, footer {
+          border-bottom: 1px dashed #555;
+          overflow: hidden;
+          background: #AAA;
+        }
+
+        .workspace {
+          background: #CCC;
+          padding: 10px;
+        }
+
+        .editable {
+          outline: none;
+          min-height: 24px;
+        }
+
+        .editable:focus {
+          box-shadow: 0 0 0 3px #0AEC0A inset;
+        }
+
+        /* feedback visual de seleção */
+
+        img.img-selected {
+          outline: 2px solid #0AEC0A;
+          outline-offset: 2px;
+        }
+
+        .row-selected td, .col-selected {
+          outline: 2px solid #0AEC0A;
+          outline-offset: -2px;
+        }
+
+        /* estados/auxiliares de edição */
+
+        .insert-mode {
+          padding: 0 5px;
+        }
+    `
+  /** @readonly */
+  static ScriptToolbar = `
       html, body { margin: 0; padding: 0; }
       body { background-color: #555; }
 
-      .page {
-        margin: var(--margin);
-        display: flex;
-        flex-direction: column;
-        background: #fff;
-        box-shadow: 0 8px 24px rgba(0,0,0,.35);
-        margin: 60px auto 0;
-        height: calc(100vh - calc(var(--margin) * 2));
-      }
-
       .control { margin: 5px; }
-     
-      .workspace { background: #CCC; padding: 10px; }
-      .editable { outline: none; min-height: 24px; }
-
-      .editable:focus { box-shadow: 0 0 0 3px #0aec0a inset; }
-
-      .header {
-        border-bottom: 1px dashed #555;
-        overflow: hidden;
-        background: #AAA;
-        height: 20mm;
-        flex: 0 0 auto;
-      }
-
-      .body {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-      }
-
-      .footer {
-        border-top: 1px dashed #555;
-        overflow: hidden;
-        background: #AAA;
-        flex: 0 0 auto;
-        height: 15mm;
-      }
-
-      .insert-mode { padding: 0px 5px; }
 
       .toolbar {
         top: 0;
@@ -233,14 +282,14 @@ export default class wxConfig {
         background: gray;
         border-bottom: 1px solid #d0d0d0;
         display: flex;
-        align-items: center;   /* <-- aqui */
+        align-items: center;
         gap: 3px;
       }
 
       .toolbar select,
       .toolbar button,
       .toolbar input[type="color"] {
-        height: 20px;          /* escolha um valor */
+        height: 20px;
         line-height: 20px;
         box-sizing: border-box;
         vertical-align: middle;
@@ -263,30 +312,7 @@ export default class wxConfig {
         min-width: 30px;
         max-width: 40px;
       }
-
-      img.img-selected {
-        outline: 2px solid #0aec0a;
-        outline-offset: 2px;
-      }
-
-      img.img-left { float: left;  margin: 4px 8px 4px 0; }
-      img.img-right { float: right; margin: 4px 0 4px 8px; }
-
-      img.img-inline {
-        float: none;
-        display: inline-block;
-        margin: 4px auto;
-      }
-
-      .row-selected td {
-        outline: 2px solid #0aec0a; outline-offset: -2px;
-      }
-        
-      .col-selected {
-        outline: 2px solid #0aec0a;
-        outline-offset: -2px;
-      }
-    `
+    `  
   /**
    * @param {*} array
    * @param {*} value

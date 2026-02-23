@@ -231,7 +231,7 @@ export default class wxTableCell {
         if (!cell.firstChild) cell.appendChild(document.createElement("br"))
 
         // joga o caret pra dentro (coerente com seu modelo wxRange.range)
-        wxSection.rootSection?.focus({ preventScroll: true })
+        wxSection.getRoot()?.focus({ preventScroll: true })
         const r = document.createRange()
         r.selectNodeContents(cell)
         r.collapse(true)

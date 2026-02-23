@@ -2,12 +2,12 @@
 // @ts-check
 "use strict"
 
-/** @typedef {import("./wxTypes.mjs").wxParagraph} wxParagraphType */
-/** @typedef {import("./wxTypes.mjs").wxImage} wxImageType */
-/** @typedef {import("./wxTypes.mjs").wxTable} wxTableType */
-/** @typedef {import("./wxTypes.mjs").wxTableRow} wxTableRowType */
-/** @typedef {import("./wxTypes.mjs").wxTableCol} wxTableColType */
-/** @typedef {import("./wxTypes.mjs").wxTableCell} wxTableCellType */
+/** @typedef {import("./wdxTypes.mjs").wdxParagraph} wxParagraphType */
+/** @typedef {import("./wdxTypes.mjs").wdxImage} wxImageType */
+/** @typedef {import("./wdxTypes.mjs").wdxTable} wxTableType */
+/** @typedef {import("./wdxTypes.mjs").wdxTableRow} wxTableRowType */
+/** @typedef {import("./wdxTypes.mjs").wdxTableCol} wxTableColType */
+/** @typedef {import("./wdxTypes.mjs").wdxTableCell} wxTableCellType */
 
 export default class wxSelection {
   /** @type {Range|null} */ static range = null

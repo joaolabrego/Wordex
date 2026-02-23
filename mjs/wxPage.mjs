@@ -9,21 +9,31 @@ import wxTableCell from "./wxTableCell.mjs"
 import wxTableRow from "./wxTableRow.mjs"
 import wxTableCol from "./wxTableCol.mjs"
 import wxTemplate from "./wxTemplate.mjs"
-import wxSection from "./wxSection.mjs"
+import wdxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
+import wxConfig from "./wxConfig.mjs"
 export default class wxPage {
     /** @type {"INS"|"OVR"} */
 
     /** @type {wxTemplate} */ #template
     /** @type {HTMLDivElement} */ #page
-    /** @type {wxSection} */ #header
-    /** @type {wxSection} */ #body
-    /** @type {wxSection} */ #footer
+    /** @type {wdxSection} */ #header
+    /** @type {wdxSection} */ #body
+    /** @type {wdxSection} */ #footer
 
     /** @param {wxTemplate} template */
     constructor(template) {
         this.#template = template
         this.#page = document.createElement("div")
+
+        let style = document.createElement("style")
+        style.textContent = wxConfig.ScriptPage
+        this.#page.appendChild(style)
+        
+        style = document.createElement("style")
+        style.textContent = wxConfig.ScriptPageUI
+        this.#page.appendChild(style)
+
         this.#page.classList.add("page")
         this.#page.style.caretColor = "#0B6E4F"
         this.#page.addEventListener("beforeinput", (e) => {
@@ -31,27 +41,47 @@ export default class wxPage {
                 wxEdit.handleOverwriteInput(e)
         })
 
-        this.#header = new wxSection(this, "header", "Cabeçalho: clique para editar")
-        this.#page.appendChild(this.#header.element)
+        this.#header = new wdxSection(this, "header", "Cabeçalho: clique para editar")
+        this.#page.appendChild(this.#header.root)
 
-        this.#body = new wxSection(this, "body", "Corpo do documento: clique para editar")
-        this.#page.appendChild(this.#body.element)
+        this.#body = new wdxSection(this, "body", "Corpo do documento: clique para editar")
+        this.#page.appendChild(this.#body.root)
 
-        this.#footer = new wxSection(this, "footer", "Rodapé: clique para editar")
-        this.#page.appendChild(this.#footer.element)
+        this.#footer = new wdxSection(this, "footer", "Rodapé: clique para editar")
+        this.#page.appendChild(this.#footer.root)
         
-        wxSection.setRoot(this.#body.element)
+        wdxSection.setRoot(this.#body.root)
 
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
-            wxParagraph.attach(section.element)
-            wxGrid.attach(section.element)
-            wxPicture.attach(section.element)
+            wxParagraph.attach(section.root)
+            wxGrid.attach(section.root)
+            wxPicture.attach(section.root)
         }
 
         document.addEventListener("selectionchange", () => wxRange.saveSelection())
     }
-    get instance() {
+    /**
+    /** @returns {HTMLDivElement|null} */
+    selectedSection() {
+        return this.#page.querySelector('[data-wx-kind="section"][data-wx-selected="1"]')
+    }
+    /** @returns void*/
+    unselectSection() {
+        const selected = this.selectedSection()
+        if (selected instanceof HTMLDivElement)
+            delete selected.dataset.wxSelected
+    }
+    /**
+     * @param {"header"|"body"|"footer"} id
+     * @returns void*/
+    selectSection(id) {
+        this.unselectSection()
+        const selected = document.getElementById(id)
+        if (selected instanceof HTMLDivElement)
+            selected.dataset.wxSelected = "1"
+    }
+    get root() {
         return this.#page
     }
     get header() {
@@ -80,7 +110,7 @@ export default class wxPage {
             paragraph.style.color = hex
             return true
         }
-        const section = wxSection.getRoot()
+        const section = wdxSection.getRoot()
         if (section) {
             section.style.color = hex
             return true

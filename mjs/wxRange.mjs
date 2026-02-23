@@ -8,7 +8,7 @@ export default class wxRange {
   /** @type {Range|null} */ static range = null
 
   static saveSelection() {
-    const root = wxSection.rootSection
+    const root = wxSection.getRoot()
     if (!root)
       return false
 
