@@ -1,11 +1,11 @@
 // @ts-check
 "use strict"
 
-import wxImage from "./wxImage.mjs"
+import wxPicture from "./wxPicture.mjs"
 import wxPage from "./wxPage.mjs"
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
-import wxTable from "./wxTable.mjs"
+import wxGrid from "./wxGrid.mjs"
 
 /**
  * wxAlignment: aplica alinhamento em:
@@ -20,18 +20,18 @@ export default class wxAlignment {
 
         // 1) imagem: usa alvo focado
         if (target.kind === "image") {
-            wxImage.align(dir)
+            wxPicture.align(dir)
             return true
         }
 
         // 2) tabela (célula/linha/col/tabela inteira)
         if (target.kind === "cell" || target.kind === "row" || target.kind === "col" || target.kind === "table") {
             if (dir === "left")
-                wxTable.alignLeft()
+                wxGrid.alignLeft()
             else if (dir === "right")
-                wxTable.alignRight()
+                wxGrid.alignRight()
             else
-                wxTable.alignCenter()
+                wxGrid.alignCenter()
 
             return true
         }

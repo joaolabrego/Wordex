@@ -6,7 +6,7 @@ import wxRange from "./wxRange.mjs"
 import wxLayout from "./wxLayout.mjs"
 import wxAlignment from "./wxAlignment.mjs"
 
-export default class wxImage {
+export default class wxPicture {
   /** @type {HTMLImageElement|null} */ static #selectedImage = null
     static #SEL_W = 2
     static #SELECTED_COLOR = "#0aec0a"
@@ -16,20 +16,20 @@ export default class wxImage {
         scope.addEventListener("mousedown", (e) => {
             const t = /** @type {HTMLElement} */ (e.target)
             if (t instanceof HTMLImageElement)
-                wxImage.#focus(t)
+                wxPicture.#focus(t)
             else
-                wxImage.#clearFocus()
+                wxPicture.#clearFocus()
         })
     }
 
-    static hasFocus() { return !!wxImage.#selectedImage }
+    static hasFocus() { return !!wxPicture.#selectedImage }
     /** @returns {HTMLImageElement|null} */
-    static getFocused() { return wxImage.#selectedImage }
+    static getFocused() { return wxPicture.#selectedImage }
     /**
      * @param {string} borderWidthPx 
      * @param {string} color */
     static applyBorder(borderWidthPx, color) {
-        const img = wxImage.#selectedImage
+        const img = wxPicture.#selectedImage
         if (!img) return false
         img.style.borderStyle = borderWidthPx === "0px" ? "none" : "solid"
         img.style.borderWidth = borderWidthPx
@@ -38,14 +38,14 @@ export default class wxImage {
     }
     /** @param {string} radiusPx */
     static applyBorderRadius(radiusPx) {
-        const img = wxImage.#selectedImage
+        const img = wxPicture.#selectedImage
         if (!img) return false
         img.style.borderRadius = radiusPx
         return true
     }
     /** @param {"left"|"center"|"right"|"justify"} dir */
     static align(dir) {
-        const img = wxImage.#selectedImage
+        const img = wxPicture.#selectedImage
         if (!img) return false
         wxAlignment.wrapAlign(img, dir)
         return true
@@ -65,9 +65,9 @@ export default class wxImage {
      */
     static async createFromFile(file) {
         if (!file) return
-        const src = await wxImage.#fileToDataUrl(file)
+        const src = await wxPicture.#fileToDataUrl(file)
         wxRange.restoreRange(wxRange.range)
-        wxImage.insertAtSelection(src)
+        wxPicture.insertAtSelection(src)
     }
     /**
      * @param {string} url
@@ -77,16 +77,16 @@ export default class wxImage {
         wxRange.restoreRange(wxRange.range)
 
         if (url.startsWith("data:")) {
-            wxImage.insertAtSelection(url)
+            wxPicture.insertAtSelection(url)
             return
         }
 
-        const dataUrl = await wxImage.#urlToDataUrl(url)
-        wxImage.insertAtSelection(dataUrl)
+        const dataUrl = await wxPicture.#urlToDataUrl(url)
+        wxPicture.insertAtSelection(dataUrl)
     }
     /** @param {File|null} file */
     static async insertImageFromFile(file) {
-        await wxImage.createFromFile(file)
+        await wxPicture.createFromFile(file)
     }    
     /** @param {string} src */
     static insertAtSelection(src) {
@@ -111,23 +111,23 @@ export default class wxImage {
         sel?.addRange(r)
         wxRange.saveSelection()
 
-        wxImage.#focus(img)
+        wxPicture.#focus(img)
     }
     /** @param {HTMLImageElement} img */
     static #focus(img) {
-        wxImage.#clearFocus()
-        wxImage.#selectedImage = img
+        wxPicture.#clearFocus()
+        wxPicture.#selectedImage = img
         img.classList.add("img-selected")
 
         // seleção verde padrão
-        img.style.boxShadow = `inset 0 0 0 ${wxImage.#SEL_W}px ${wxImage.#SELECTED_COLOR}`
+        img.style.boxShadow = `inset 0 0 0 ${wxPicture.#SEL_W}px ${wxPicture.#SELECTED_COLOR}`
     }
     static #clearFocus() {
-        if (wxImage.#selectedImage) {
-            wxImage.#selectedImage.classList.remove("img-selected")
-            wxImage.#selectedImage.style.boxShadow = ""
+        if (wxPicture.#selectedImage) {
+            wxPicture.#selectedImage.classList.remove("img-selected")
+            wxPicture.#selectedImage.style.boxShadow = ""
         }
-        wxImage.#selectedImage = null
+        wxPicture.#selectedImage = null
     }
     /** @param {File} file */
     static #fileToDataUrl(file) {

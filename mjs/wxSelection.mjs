@@ -2,9 +2,12 @@
 // @ts-check
 "use strict"
 
+/** @typedef {import("./wxTypes.mjs").wxParagraphDiv} wxParagraphDiv */
+/** @typedef {import("./wxTypes.mjs").wxImageImg} wxImageImg */
+
 export default class wxSelection {
   /** @type {Range|null} */ static range = null
-  /** @type {HTMLDivElement|null} */ static paragraph = null
+  /** @type {wxParagraphDiv|null} */ static paragraph = null
   /** @type {HTMLImageElement|null} */ static image = null
   /** @type {HTMLTableElement|null} */ static table = null
   /** @type {HTMLTableRowElement|null} */ static tableRow = null
@@ -14,14 +17,14 @@ export default class wxSelection {
   /** @type {{kind:string, element:Element}[]} */ static selectedList = []
 
     static clear() {
-        wxSelection.range = null
-        wxSelection.paragraph = null
-        wxSelection.image = null
-        wxSelection.table = null
-        wxSelection.tableRow = null
-        wxSelection.tableCol = null
-        wxSelection.tableCell = null
-        wxSelection.selectedList = []
+        /** @type {Range} */ wxSelection.range = null
+        /** @type {wxParagraphDiv} */ wxSelection.paragraph = null
+        /** @type {wxImageImg} */ wxSelection.image = null
+        /** @type {Range} */ wxSelection.table = null
+        /** @type {Range} */ wxSelection.tableRow = null
+        /** @type {Range} */ wxSelection.tableCol = null
+        /** @type {Range} */ wxSelection.tableCell = null
+        /** @type {Range} */ wxSelection.selectedList = []
     }
 
     /**
@@ -40,18 +43,13 @@ export default class wxSelection {
         if (selection && selection.rangeCount) {
             const range = selection.getRangeAt(0)
 
-            if (!range.collapsed) wxSelection.range = range.cloneRange()
+            if (!range.collapsed)
+                wxSelection.range = range.cloneRange()
 
             const node = range.startContainer
-            const element =
-                node.nodeType === Node.ELEMENT_NODE
-                    ? /** @type {Element} */ (node)
-                    : node.parentElement
-
+            const element = node.nodeType === Node.ELEMENT_NODE ? /** @type {Element} */ (node) : node.parentElement
             if (element) {
-                wxSelection.paragraph = /** @type {HTMLDivElement|null} */ (
-                    element.closest("div.paragraph")
-                )
+                wxSelection.paragraph = /** @type {HTMLDivElement|null} */ (element.closest("div.paragraph"))
 
                 const cell = /** @type {HTMLTableCellElement|null} */ (
                     element.closest("td,th")

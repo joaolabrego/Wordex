@@ -5,7 +5,7 @@ import wxParagraph from "./wxParagraph.mjs"
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
 
-/** @typedef {import("./wxTypes.mjs").WordexSectionDiv} WordexSectionDiv */
+/** @typedef {import("./wxTypes.mjs").wxSectionDiv} wxSectionDiv */
 
 export default class wxEdit {
   static #TAB_LENGTH = 4
@@ -319,7 +319,7 @@ export default class wxEdit {
     })()
 
     if (isEmptyParagraph) {
-      const newPara = new wxParagraph(/** @type {WordexSectionDiv} */(rootSection))
+      const newPara = new wxParagraph(/** @type {wxSectionDiv} */(rootSection))
       const newP = newPara.instance
 
       p.insertAdjacentElement("afterend", newP)
@@ -345,7 +345,7 @@ export default class wxEdit {
     if (p.lastChild) tail.setEndAfter(p.lastChild)
     const frag = tail.extractContents()
 
-    const newPara = new wxParagraph(/** @type {WordexSectionDiv} */(rootSection))
+    const newPara = new wxParagraph(/** @type {wxSectionDiv} */(rootSection))
     const newP = newPara.instance
 
     // só substitui se tiver conteúdo REAL (não whitespace/ZWSP)

@@ -2,9 +2,9 @@
 "use strict"
 
 import wxEdit from "./wxEdit.mjs"
-import wxImage from "./wxImage.mjs"
+import wxPicture from "./wxPicture.mjs"
 import wxParagraph from "./wxParagraph.mjs"
-import wxTable from "./wxTable.mjs"
+import wxGrid from "./wxGrid.mjs"
 import wxTableCell from "./wxTableCell.mjs"
 import wxTableRow from "./wxTableRow.mjs"
 import wxTableCol from "./wxTableCol.mjs"
@@ -45,8 +45,8 @@ export default class wxPage {
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
             wxParagraph.attach(section.instance)
-            wxTable.attach(section.instance)
-            wxImage.attach(section.instance)
+            wxGrid.attach(section.instance)
+            wxPicture.attach(section.instance)
         }
 
         document.addEventListener("selectionchange", () => wxRange.saveSelection())
@@ -93,9 +93,9 @@ export default class wxPage {
      * @param {number} cols
      */
     static async insertTable(rows = 2, cols = 2) {
-        if (!wxTable || typeof wxTable.insertAtSelection !== "function")
+        if (!wxGrid || typeof wxGrid.insertAtSelection !== "function")
             return false
-        return !!wxTable.insertAtSelection(rows, cols)
+        return !!wxGrid.insertAtSelection(rows, cols)
     }    
 
     // =========================================================
@@ -139,7 +139,7 @@ export default class wxPage {
 
 
     // =========================================================
-    // Resolver (Cell -> Row -> Col -> wxImage -> Text -> wxParagraph)
+    // Resolver (Cell -> Row -> Col -> wxPicture -> Text -> wxParagraph)
     // =========================================================
     static selectedTarget() {
         if (wxPage.#callIfExists(wxTableCell, "hasSelection") || wxPage.#callIfExists(wxTableCell, "hasActive"))
@@ -152,9 +152,9 @@ export default class wxPage {
         if ((table && wxPage.#callIfExists(wxTableCol, "hasSelection", table)) || wxPage.#callIfExists(wxTableCol, "hasActive"))
             return { kind: "col", obj: wxTableCol }
 
-        if (wxImage.hasFocus()) return { kind: "image", obj: wxImage }
+        if (wxPicture.hasFocus()) return { kind: "image", obj: wxPicture }
 
-        if (wxTable.hasFocus()) return { kind: "table", obj: wxTable }
+        if (wxGrid.hasFocus()) return { kind: "table", obj: wxGrid }
 
         if (wxRange.hasSelection()) return { kind: "text", obj: wxRange }
 
@@ -170,8 +170,8 @@ export default class wxPage {
     static border(widthPx, color) {
         wxRange.restoreRange(wxRange.range)
 
-        if (wxTable.applyBorder(widthPx, color)) return true
-        if (wxImage.applyBorder(widthPx, color)) return true
+        if (wxGrid.applyBorder(widthPx, color)) return true
+        if (wxPicture.applyBorder(widthPx, color)) return true
 
         const p = wxPage.getParagraphTarget()
         if (!p) return false
@@ -185,8 +185,8 @@ export default class wxPage {
     static borderRadius(radiusPx) {
         wxRange.restoreRange(wxRange.range)
 
-        if (wxTable.applyBorderRadius(radiusPx)) return true
-        if (wxImage.applyBorderRadius(radiusPx)) return true
+        if (wxGrid.applyBorderRadius(radiusPx)) return true
+        if (wxPicture.applyBorderRadius(radiusPx)) return true
 
         const p = wxPage.getParagraphTarget()
         if (!p) return false
@@ -196,43 +196,43 @@ export default class wxPage {
 
     static increase() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.increase(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.increase(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.increase(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.increase(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "increase")
     }
 
     static decrease() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.decrease(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.decrease(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.decrease(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.decrease(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "decrease")
     }
 
     static left() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.moveLeftWord(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.moveLeftWord(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.moveLeftWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.moveLeftWord(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "left")
     }
 
     static right() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.moveRightWord(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.moveRightWord(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.moveRightWord(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.moveRightWord(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "right")
     }
 
     static up() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.moveUp(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.moveUp(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.moveUp(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.moveUp(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "up")
     }
 
     static down() {
         const t = wxPage.selectedTarget()
-        if (t.kind === "image") { const img = wxImage.getFocused(); if (img) wxImage.moveDown(img); return true }
-        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxTable.getFocused(); if (table) wxTable.moveDown(table); return true }
+        if (t.kind === "image") { const img = wxPicture.getFocused(); if (img) wxPicture.moveDown(img); return true }
+        if (t.kind === "cell" || t.kind === "row" || t.kind === "col" || t.kind === "table") { const table = wxGrid.getFocused(); if (table) wxGrid.moveDown(table); return true }
         return !wxPage.#callIfExists(wxParagraph, "down")
     }
 }

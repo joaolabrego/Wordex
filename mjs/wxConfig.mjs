@@ -3,7 +3,7 @@
 
 import wxRange from "./wxRange.mjs"
 import wxSection from "./wxSection.mjs"
-/** @typedef {import("./wxTypes.mjs").Item} Item */
+/** @typedef {import("./wxTypes.mjs").wxItem} wxItem */
 export default class wxConfig {
   /** @readonly @type {"✔ "} */ static K_OK = "✔ "
   /** @readonly @type {"INS"} */ static K_INSERT_MODE = "INS"
@@ -15,7 +15,7 @@ export default class wxConfig {
   /** @readonly @type {"#000000"} */ static K_DEFAULT_COLOR = "#000000"
 
 
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static paperFormatList = Object.freeze([
     // Genérico
     { value: "", text: "Folha" },
@@ -73,7 +73,7 @@ export default class wxConfig {
     { value: "ANSI_D", text: "ANSI D", width: "558.8mm", height: "863.6mm" },
     { value: "ANSI_E", text: "ANSI E", width: "863.6mm", height: "1117.6mm" }
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static fontFamilyList = Object.freeze([
     { value: "", text: "Fonte" },
 
@@ -102,7 +102,7 @@ export default class wxConfig {
     { value: '"Comic Sans MS", cursive', text: "Comic Sans MS" },
     { value: "Impact, sans-serif", text: "Impact" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static fontSizeList = Object.freeze([
     { value: "", text: "Tamanho" },
     { value: "10px", text: "8pt" },
@@ -113,7 +113,7 @@ export default class wxConfig {
     { value: "24px", text: "24pt" },
     { value: "36px", text: "36pt" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static borderList = Object.freeze([
     { value: "", text: "Borda" },
     { value: "0px", text: "none", selected: true },
@@ -126,7 +126,7 @@ export default class wxConfig {
     { value: "8px", text: "8px" },
     { value: "10px", text: "10px" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static borderRadiusList = Object.freeze([
     { value: "", text: "Arredondamento" },
     { value: "0px", text: "none", selected: true },
@@ -139,13 +139,13 @@ export default class wxConfig {
     { value: "25px", text: "25px" },
     { value: "30px", text: "30px" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static pageOrientationList = Object.freeze([
     { value: "", text: "Orientação" },
     { value: wxConfig.K_PORTRAIT, text: "Retrato", selected: true },
     { value: wxConfig.K_LANDSCAPE, text: "Paisagem" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static fontStyleList = Object.freeze([
     { value: "", text: "Estilo" },
     { value: "none", text: "none" },
@@ -168,7 +168,7 @@ export default class wxConfig {
     { value: "strong", text: "Forte" },
     { value: "em", text: "Ênfase" },
   ])
-  /** @type {Readonly<Item[]>} */
+  /** @type {Readonly<wxItem[]>} */
   static alignmentList = Object.freeze([
     { value: "", text: "Alinhamento" },
     { value: "left", text: "Esquerda", selected: true },

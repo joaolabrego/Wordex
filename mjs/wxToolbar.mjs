@@ -5,11 +5,11 @@
 import wxConfig from "./wxConfig.mjs"
 import wxPage from "./wxPage.mjs"
 import wxRange from "./wxRange.mjs"
-import wxImage from "./wxImage.mjs"
+import wxPicture from "./wxPicture.mjs"
 import wxSection from "./wxSection.mjs"
 import wxAlignment from "./wxAlignment.mjs"
 
-/** @typedef {import("./wxTypes.mjs").Item} Item */
+/** @typedef {import("./wxTypes.mjs").wxItem} wxItem */
 
 export default class wxToolbar {
     /** @type {HTMLDivElement} */ #toolbar
@@ -191,7 +191,7 @@ export default class wxToolbar {
         inputFile.style.display = "none"
         inputFile.addEventListener("change", async () => {
             const file = this.#inputFile.files?.[0] ?? null
-            await wxImage.insertImageFromFile(file)
+            await wxPicture.insertImageFromFile(file)
             this.#inputFile.value = ""
         })
         
@@ -277,7 +277,7 @@ export default class wxToolbar {
     /** aplica os defaults marcados no wxConfig (selected:true) */
     #initializeDefaults() {
         /**
-         * @param {readonly Item[]} list
+         * @param {readonly wxItem[]} list
          * @param {HTMLSelectElement} select
          */
         const dispatchSelected = (list, select) => {
@@ -312,7 +312,7 @@ export default class wxToolbar {
     }
 
     /**
-     * @param {ReadonlyArray<Item>} templateList
+     * @param {ReadonlyArray<wxItem>} templateList
      * @param {string} title
      * @param {(() => void)|undefined} [eventChange]
      * @returns {HTMLSelectElement}
@@ -337,7 +337,7 @@ export default class wxToolbar {
 
     /**
      * @param {HTMLSelectElement} selectElement
-     * @param {ReadonlyArray<Item>} selectList
+     * @param {ReadonlyArray<wxItem>} selectList
      * @param {string} [value]
      * @returns {HTMLSelectElement}
      */
@@ -361,7 +361,7 @@ export default class wxToolbar {
 
     /**
      * @param {HTMLSelectElement} selectElement
-     * @param {ReadonlyArray<Item>} templateList
+     * @param {ReadonlyArray<wxItem>} templateList
      */
      #toggleSelectOption(selectElement, templateList) {
         const value = selectElement.options[selectElement.selectedIndex].value

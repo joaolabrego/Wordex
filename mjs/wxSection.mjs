@@ -1,7 +1,7 @@
 // @ts-check
 'use strict'
 
-/** @typedef {import("./wxTypes.mjs").WordexSectionDiv} WordexSectionDiv */
+/** @typedef {import("./wxTypes.mjs").wxSectionDiv} wxSectionDiv */
 
 import wxEdit from './wxEdit.mjs'
 import wxPage from './wxPage.mjs'
@@ -12,7 +12,7 @@ export default class wxSection {
     /** @type {HTMLDivElement} */ static rootSection
 
     /** @type {wxPage} */ #page
-    /** @type {WordexSectionDiv} */ #section
+    /** @type {wxSectionDiv} */ #section
     /** @type {wxParagraph} */ #firstParagraph
     
     /** 
@@ -23,7 +23,7 @@ export default class wxSection {
     constructor(page, id, textContent = "") {
         this.#page = page
 
-        this.#section = /** @type {WordexSectionDiv} */(document.createElement("div"))
+        this.#section = /** @type {wxSectionDiv} */(document.createElement("div"))
         this.#section.id = id
         this.#section.classList.add("editable", "workspace", id)
         this.#section.contentEditable = "true"

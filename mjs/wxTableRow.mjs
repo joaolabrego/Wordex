@@ -3,7 +3,7 @@
 
 import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
-import wxTable from "./wxTable.mjs"
+import wxGrid from "./wxGrid.mjs"
 
 /**
  * wxTableRow
@@ -35,11 +35,11 @@ export default class wxTableRow {
             const tr = cell.closest("tr")
             if (!(tr instanceof HTMLTableRowElement)) return
 
-            // mantém o foco de célula do wxTable (se você já estiver usando)
+            // mantém o foco de célula do wxGrid (se você já estiver usando)
             // (não é obrigatório, mas ajuda a coerência)
-            // wxTable já faz isso no attach dele, mas não atrapalha:
+            // wxGrid já faz isso no attach dele, mas não atrapalha:
             // (deixe comentado se preferir)
-            // if (wxTable.getActiveCell?.()) {}
+            // if (wxGrid.getActiveCell?.()) {}
 
             wxTableRow.#setActive(tr)
 
@@ -93,11 +93,11 @@ export default class wxTableRow {
     }
 
     /**
-     * Se existir célula ativa (wxTable), retorna a linha dela.
+     * Se existir célula ativa (wxGrid), retorna a linha dela.
      * @returns {HTMLTableRowElement|null}
      */
     static getFromActiveCell() {
-        const cell = wxTable.getActiveCell?.()
+        const cell = wxGrid.getActiveCell?.()
         if (!cell) return null
         const tr = cell.closest("tr")
         return tr instanceof HTMLTableRowElement ? tr : null

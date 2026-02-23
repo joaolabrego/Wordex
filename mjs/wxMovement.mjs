@@ -4,7 +4,7 @@
 import wxLayout from "./wxLayout.mjs"
 import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
-import wxTable from "./wxTable.mjs"
+import wxGrid from "./wxGrid.mjs"
 
 export default class wxMovement {
     // =========================================================

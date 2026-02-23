@@ -6,36 +6,32 @@
  *   width?: string,
  *   height?: string,
  *   selected?: boolean
- * }} Item
- */
-
-/**
- * @typedef {{
- *   Range: Range|null,
- *   Paragraph: HTMLDivElement|null,
- *   Image: HTMLImageElement|null,
- *   Table: {
- *     Table: HTMLTableElement|null,
- *     TableRow: HTMLTableRowElement|null,
- *     TableCol: number|null,
- *     TableCell: HTMLTableCellElement|null,
- *   }
- * }} WordexSelectionTargets
+ * }} wxItem
  */
 
 /**
  * Div que representa uma Page do Wordex.
- * @typedef {HTMLDivElement & { __wxKind: "page" }} WordexPageDiv
+ * @typedef {HTMLDivElement & { wxKind: "page" }} wxPageDiv
  */
 
 /**
  * Div que representa uma Section do Wordex (header/body/footer).
- * @typedef {HTMLDivElement & { __wxKind: "section" }} WordexSectionDiv
+ * @typedef {HTMLDivElement & { wxKind: "section" }} wxSectionDiv
  */
 
 /**
  * Div que representa um Paragraph do Wordex.
- * @typedef {HTMLDivElement & { __wxKind?: "paragraph" }} WordexParagraphDiv
+ * @typedef {HTMLDivElement & { wxKind?: "paragraph" }} wxParagraphDiv
+ */
+
+/**
+ * Img que representa um Picture do Wordex.
+ * @typedef {HTMLDivElement & { wxKind?: "image" }} wxImageImg
+ */
+
+/**
+ * Table que representa um grid do Wordex.
+ * @typedef {HTMLDivElement & { wxKind?: "image" }} wxGridTable
  */
 
 export { };

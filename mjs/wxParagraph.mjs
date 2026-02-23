@@ -4,17 +4,17 @@
 import wxConfig from "./wxConfig.mjs"
 import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
-/** @typedef {import("./wxTypes.mjs").WordexParagraphDiv} WordexParagraphDiv */
-/** @typedef {import("./wxTypes.mjs").WordexSectionDiv} WordexSectionDiv */
+/** @typedef {import("./wxTypes.mjs").wxParagraphDiv} wxParagraphDiv */
+/** @typedef {import("./wxTypes.mjs").wxSectionDiv} wxSectionDiv */
 
 export default class wxParagraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
-    /** @type {WordexSectionDiv} */ #owner
-    /** @type {WordexParagraphDiv} */ #paragraph
+    /** @type {wxSectionDiv} */ #owner
+    /** @type {wxParagraphDiv} */ #paragraph
 
-    /** @param {WordexSectionDiv} owner */
+    /** @param {wxSectionDiv} owner */
     constructor(owner) {
         this.#owner = owner
         this.#paragraph = document.createElement("div")
@@ -227,7 +227,7 @@ export default class wxParagraph {
     }
 
     // =========================================================
-    // aliases padronizados (mesmos nomes de wxImage/wxTable)
+    // aliases padronizados (mesmos nomes de wxPicture/wxGrid)
     // =========================================================
 
     /** + (toolbar) */

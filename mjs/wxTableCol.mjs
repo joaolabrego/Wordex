@@ -3,7 +3,7 @@
 
 import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
-import wxTable from "./wxTable.mjs"
+import wxGrid from "./wxGrid.mjs"
 
 /**
  * wxTableCol
@@ -56,11 +56,11 @@ export default class wxTableCol {
     }
 
     /**
-     * Se existir célula ativa (wxTable), retorna a coluna dela.
+     * Se existir célula ativa (wxGrid), retorna a coluna dela.
      * @returns {{ table: HTMLTableElement, index: number } | null}
      */
     static getFromActiveCell() {
-        const cell = wxTable.getActiveCell?.()
+        const cell = wxGrid.getActiveCell?.()
         if (!cell) return null
         const table = cell.closest("table")
         if (!(table instanceof HTMLTableElement)) return null
