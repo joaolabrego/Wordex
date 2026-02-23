@@ -17,7 +17,7 @@ export default class WordexTemplate {
     document.head.appendChild(this.#style)
 
     this.#toolbar = new WordexToolbar(this.#page = new WordexPage(this))
-    
+
     document.body.replaceChildren(this.#toolbar.instance, this.#page.instance)
     
     const paragraph = /** @type {HTMLDivElement|null} */(this.#page.body.firstParagraph.instance)

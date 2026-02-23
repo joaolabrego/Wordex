@@ -21,17 +21,15 @@ export default class WordexPage {
     /** @type {WordexSection} */ #header
     /** @type {WordexSection} */ #body
     /** @type {WordexSection} */ #footer
-    /** @type {WordexToolbar} */ #toolbar
 
     /** @param {WordexTemplate} template */
     constructor(template) {
         this.#template = template
-        this.#toolbar = template.toolbar
         this.#page = document.createElement("div")
         this.#page.classList.add("page")
         this.#page.style.caretColor = "#0B6E4F"
         this.#page.addEventListener("beforeinput", (e) => {
-            if (this.#toolbar.isOverwriteMode)
+            if (template.toolbar.isOverwriteMode)
                 WordexEdit.handleOverwriteInput(e)
         })
 

@@ -2,6 +2,7 @@
 "use strict"
 
 import WordexConfig from "./WordexConfig.mjs"
+import WordexParagraph from "./WordexParagraph.mjs"
 import WordexRange from "./WordexRange.mjs"
 import WordexSection from "./WordexSection.mjs"
 
@@ -16,7 +17,8 @@ export default class WordexEdit {
    * @returns {void}
    */
   static handleOverwriteInput(e) {
-    if (e.inputType !== "insertText" || !e.data) return
+    if (e.inputType !== "insertText" || !e.data)
+      return
 
     WordexRange.restoreRange(WordexRange.range)
 
@@ -239,7 +241,7 @@ export default class WordexEdit {
     if (!sel || !sel.rangeCount) return null
     const r = sel.getRangeAt(0)
 
-    const rootSection = WordexSection.rootSection   // (ou o alias que você criou)
+    const rootSection = WordexSection.rootSection
     if (!rootSection) return null
 
     const anchor =
@@ -249,39 +251,20 @@ export default class WordexEdit {
     // não mexe dentro de table
     if (anchor.closest("td,th")) return null
 
-    // pega o parágrafo real (use a classe que você usa no Wordex)
-    const p = anchor.closest("div.paragraph") || anchor.closest("div")
-    if (!(p instanceof HTMLDivElement)) return null
+    // 1) tenta achar o parágrafo pelo DOM
+    let p = anchor.closest("div.paragraph")
+    if (p instanceof HTMLDivElement) return p
 
-    // em vez de exigir filho direto, só exige estar dentro do editor
-    if (!rootSection.contains(p)) return null
+    // 2) fallback: se o caret está no workspace, usa o p-selected
+    const workspace = anchor.closest("div.workspace")
+    if (!workspace) return null
 
-    return p
+    p = workspace.querySelector("div.paragraph.p-selected")
+    return (p instanceof HTMLDivElement) ? p : null
   }
-  /** @returns {boolean} */
+
+  /** SHIFT+ENTER: quebra de linha dentro do mesmo parágrafo */
   static #insertSoftBreak() {
-    WordexRange.restoreRange(WordexRange.range)
-
-    const sel = window.getSelection()
-    if (!sel || !sel.rangeCount) return false
-    const r = sel.getRangeAt(0)
-
-    if (!r.collapsed) r.deleteContents()
-
-    const br = document.createElement("br")
-    r.insertNode(br)
-
-    r.setStartAfter(br)
-    r.collapse(true)
-    sel.removeAllRanges()
-    sel.addRange(r)
-
-    WordexRange.saveSelection()
-    return true
-  }
-
-  /** @returns {boolean} */
-    static #splitParagraph() {
     WordexRange.restoreRange(WordexRange.range)
 
     const sel = window.getSelection()
@@ -291,44 +274,110 @@ export default class WordexEdit {
     const p = WordexEdit.#getCurrentParagraphDirectChild()
     if (!p) return false
 
-    // se havia seleção, apaga antes de dividir
     if (!r.collapsed) r.deleteContents()
 
-    // cria range explícito do caret até o fim do parágrafo
-    const tail = document.createRange()
-    tail.setStart(r.startContainer, r.startOffset)
-    if (p.lastChild) tail.setEndAfter(p.lastChild)
+    const br = document.createElement("br")
+    r.insertNode(br)
 
-    const frag = tail.extractContents()
+    // caret depois do <br>
+    const nr = document.createRange()
+    nr.setStartAfter(br)
+    nr.collapse(true)
 
-    // cria novo parágrafo
-    const newP = document.createElement("div")
-    newP.appendChild(frag)
+    sel.removeAllRanges()
+    sel.addRange(nr)
+    WordexRange.saveSelection()
+    return true
+  }
 
-    // garante visibilidade/caret se estiver vazio
-    if (!newP.firstChild)
-      newP.appendChild(document.createElement("br"))
+  /** ENTER: divide o parágrafo atual em dois (cria novo WordexParagraph) */
+  static #splitParagraph() {
+    WordexRange.restoreRange(WordexRange.range)
 
-    // insere após o atual
-    p.insertAdjacentElement("afterend", newP)
+    const sel = window.getSelection()
+    if (!sel || !sel.rangeCount) return false
+    const r = sel.getRangeAt(0)
 
-    // troca seleção visual (se houver)
     const rootSection = WordexSection.rootSection
-    if (rootSection) {
-      const oldSel = rootSection.querySelector(".p-selected")
-      if (oldSel) oldSel.classList.remove("p-selected")
+    if (!rootSection) return false
+
+    const p = WordexEdit.#getCurrentParagraphDirectChild()
+    if (!p) return false
+
+    if (!r.collapsed) r.deleteContents()
+
+    // ===== CASO ESPECIAL: parágrafo vazio (só <br> / whitespace) =====
+    const isEmptyParagraph = (() => {
+      // ignora whitespace e ZWSP
+      const txt = (p.textContent ?? "").replace(/[\s\u200B]/g, "")
+      if (txt.length > 0) return false
+
+      // se tiver elementos, aceita apenas <br>
+      const els = [...p.childNodes].filter(n => n.nodeType === Node.ELEMENT_NODE)
+      return els.length === 0 || (els.length === 1 && els[0].nodeName === "BR")
+    })()
+
+    if (isEmptyParagraph) {
+      const newPara = new WordexParagraph(rootSection)
+      const newP = newPara.instance
+
+      p.insertAdjacentElement("afterend", newP)
+
+      const old = rootSection.querySelector(".p-selected")
+      if (old) old.classList.remove("p-selected")
+      WordexEdit.clearParagraphSelection(rootSection)
       newP.classList.add("p-selected")
+      WordexParagraph.focus(newP)
+
+      const nr = document.createRange()
+      nr.selectNodeContents(newP)
+      nr.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(nr)
+      WordexRange.saveSelection()
+      
+      return true
     }
 
-    // caret no início do novo parágrafo
+    // ===== CASO NORMAL: divide levando o "tail" pro novo =====
+    const tail = r.cloneRange()
+    if (p.lastChild) tail.setEndAfter(p.lastChild)
+    const frag = tail.extractContents()
+
+    const newPara = new WordexParagraph(rootSection)
+    const newP = newPara.instance
+
+    // só substitui se tiver conteúdo REAL (não whitespace/ZWSP)
+    const hasMeaningfulContent = frag && [...frag.childNodes].some(n => {
+      if (n.nodeType === Node.ELEMENT_NODE) return true
+      if (n.nodeType === Node.TEXT_NODE) {
+        const s = (n.textContent ?? "").replace(/[\s\u200B]/g, "")
+        return s.length > 0
+      }      
+      return false
+    })
+
+    if (hasMeaningfulContent) newP.replaceChildren(frag)
+
+    p.insertAdjacentElement("afterend", newP)
+
+    const old = rootSection.querySelector(".p-selected")
+    
+    if (old) old.classList.remove("p-selected")
+    WordexEdit.clearParagraphSelection(rootSection)
+    newP.classList.add("p-selected")
+    WordexParagraph.focus(newP)
     const nr = document.createRange()
     nr.selectNodeContents(newP)
     nr.collapse(true)
     sel.removeAllRanges()
     sel.addRange(nr)
-
     WordexRange.saveSelection()
     return true
+  }
+  /** @param {HTMLDivElement} rootSection */
+  static clearParagraphSelection(rootSection) {
+    rootSection.querySelectorAll(".paragraph.p-selected").forEach(p => p.classList.remove("p-selected"))
   }
   // =========================================================
   // onKeyDown

@@ -53,7 +53,7 @@ export default class WordexParagraph {
                 return
             }
 
-            WordexParagraph.#focus(p)
+            WordexParagraph.focus(p)
         })
     }
 
@@ -62,7 +62,7 @@ export default class WordexParagraph {
     static getFocused() { return WordexParagraph.#selected }
 
     /** @param {HTMLDivElement} p */
-    static #focus(p) {
+    static focus(p) {
         WordexParagraph.#clear()
         WordexParagraph.#selected = p
         p.classList.add("p-selected")
@@ -183,7 +183,7 @@ export default class WordexParagraph {
         rootSection.insertBefore(p, prev)
 
         WordexParagraph.activate(p, "start")
-        WordexParagraph.#focus(p)
+        WordexParagraph.focus(p)
         return true
     }
 
@@ -199,7 +199,7 @@ export default class WordexParagraph {
         rootSection.insertBefore(next, p) // troca
 
         WordexParagraph.activate(p, "start")
-        WordexParagraph.#focus(p)
+        WordexParagraph.focus(p)
         return true
     }
 

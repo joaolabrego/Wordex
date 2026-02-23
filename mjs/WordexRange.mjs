@@ -46,10 +46,20 @@ export default class WordexRange {
     const sel = window.getSelection()
     if (!sel)
       return false
+    // Não restaurar range "detached" (nós fora do DOM) — addRange falharia e a seleção ficaria vazia
+    try {
+      if (!range.startContainer.isConnected || !range.endContainer.isConnected)
+        return false
+    } catch (_) {
+      return false
+    }
     sel.removeAllRanges()
-    sel.addRange(range)
-
-    return true
+    try {
+      sel.addRange(range)
+      return true
+    } catch (_) {
+      return false
+    }
   }
 
   static saveRange() {
