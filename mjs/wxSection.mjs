@@ -34,12 +34,49 @@ export default class wxSection {
         this.#section.addEventListener("keydown", (e) => wxEdit.onKeyDown(e))
         this.#section.addEventListener("focus", () => wxSection.#rootSection = this.#section)
 
-        this.#paragraphs.push(new wxParagraph(this.#section))
+        this.addParagraph()
         if (textContent.trim())
             this.#paragraphs[0].root.textContent = textContent
         else
             this.#paragraphs[0].root.appendChild(document.createElement("br"))
         this.#section.append(this.#paragraphs[0].root)
+    }
+    /** @returns {HTMLDivElement|void} */
+    selectedParagraph() {
+        const paragraph = this.#paragraphs.find(p => p.isSelected)?.root
+        if (paragraph)
+            return paragraph
+    }
+    /** @returns void*/
+    unselectParagraph() {
+        const selected = this.selectedParagraph()
+        if (selected instanceof HTMLDivElement)
+            delete selected.dataset.wxSelected
+    }
+    /**
+     * @param {"header"|"body"|"footer"} id
+     * @returns void*/
+    selectParagraph(id) {
+        this.unselectParagraph()
+        const selected = this.#paragraphs.find(p => p.root.id === id)?.root
+        if (selected instanceof HTMLDivElement)
+            selected.dataset.wxSelected = "1"
+    }
+    addParagraph() {
+        this.#paragraphs.push(new wxParagraph(this.#section))
+    }
+    removeParagraph() {
+        const selected = this.selectedParagraph()
+        if (selected instanceof HTMLDivElement) {
+            const idx = this.#paragraphs.findIndex(paragraph => paragraph.root.id === selected.id)
+            if (idx >= 0)
+                this.#paragraphs.splice(idx, 1)
+            selected.remove()
+        }
+    }
+    /** @returns {boolean} */
+    get isSelected() {
+        return this.#section.dataset.wdxKind ? true : false
     }
     /** @returns {boolean} */
     get isHeader() {

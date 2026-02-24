@@ -26,6 +26,7 @@ export default class wxPage {
     /** @type {wxSection} */ #header
     /** @type {wxSection} */ #body
     /** @type {wxSection} */ #footer
+    /** @type {wxSection[]} */ #sections = []
 
     /** @param {wxTemplate} owner */
     constructor(owner) {
@@ -49,12 +50,16 @@ export default class wxPage {
         })
 
         this.#header = new wxSection(this, "header", "Cabeçalho: clique para editar")
+        this.#sections.push(this.#header)
         this.#page.appendChild(this.#header.root)
+        
 
         this.#body = new wxSection(this, "body", "Corpo do documento: clique para editar")
+        this.#sections.push(this.#body)
         this.#page.appendChild(this.#body.root)
 
         this.#footer = new wxSection(this, "footer", "Rodapé: clique para editar")
+        this.#sections.push(this.#footer)
         this.#page.appendChild(this.#footer.root)
         
         wxSection.setRoot(this.#body.root)
@@ -68,9 +73,11 @@ export default class wxPage {
 
         document.addEventListener("selectionchange", () => wxRange.saveSelection())
     }
-    /** @returns {wdxSection|null} */
+    /** @returns {wdxSection|void} */
     selectedSection() {
-        return this.#page.querySelector('[data-wdx-kind="section"][data-wdx-selected="1"]')
+        const section = this.#sections.find(s => s.isSelected)?.root
+        if (section)
+            return section
     }
     /** @returns void*/
     unselectSection() {

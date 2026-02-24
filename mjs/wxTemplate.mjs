@@ -1,9 +1,10 @@
 // @ts-check
 "use strict"
 
-import wxConfig from "./wxConfig.mjs"
 import wxPage from "./wxPage.mjs"
 import wxToolbar from "./wxToolbar.mjs"
+
+/** @typedef {import("./wdxTypes.mjs").wdxParagraph} wdxParagraph */
 
 export default class wxTemplate {
   /** @type {wxPage} */ #page
@@ -13,8 +14,7 @@ export default class wxTemplate {
 
     document.body.replaceChildren(this.#toolbar.instance, this.#page.root)
     
-    const paragraph = /** @type {HTMLDivElement|null} */(this.#page.body.firstParagraph.root)
-    paragraph?.focus({ preventScroll: true })
+    //this.#page.body.firstParagraph?.selectParagraph()
   }
 
   get toolbar() {
