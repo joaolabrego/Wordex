@@ -6,8 +6,6 @@ import wxPage from "./wxPage.mjs"
 import wxToolbar from "./wxToolbar.mjs"
 
 export default class wxTemplate {
-  /** @type {HTMLStyleElement|null} */ #styleToobar = null
-  /** @type {HTMLStyleElement|null} */ #stylePage = null
   /** @type {wxPage} */ #page
   /** @type {wxToolbar} */ #toolbar
   constructor() {
@@ -15,7 +13,7 @@ export default class wxTemplate {
 
     document.body.replaceChildren(this.#toolbar.instance, this.#page.root)
     
-    const paragraph = /** @type {HTMLDivElement|null} */(this.#page.body.firstParagraph.instance)
+    const paragraph = /** @type {HTMLDivElement|null} */(this.#page.body.firstParagraph.root)
     paragraph?.focus({ preventScroll: true })
   }
 

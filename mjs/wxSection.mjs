@@ -1,20 +1,19 @@
 // @ts-check
 'use strict'
 
-/** @typedef {import("./wdxTypes.mjs").wdxSection} wxSectionType */
+/** @typedef {import("./wdxTypes.mjs").wdxSection} wdxSection */
 
 import wxEdit from './wxEdit.mjs'
 import wxPage from './wxPage.mjs'
 import wxParagraph from './wxParagraph.mjs'
 
-
-export default class wdxSection {
-
-    /** @type {wxSectionType} */ static #rootSection
+/** @typedef {import("./wdxTypes.mjs").wdxParagraph} wdxParagraph */
+export default class wxSection {
+    /** @type {wdxSection} */ static #rootSection
 
     /** @type {wxPage} */ #page
-    /** @type {wxSectionType} */ #section
-    /** @type {wxParagraph} */ #firstParagraph
+    /** @type {wdxSection} */ #section
+    /** @type {wxParagraph[]} */ #paragraphs = []
     
     /** 
      * @param {wxPage} page 
@@ -24,38 +23,61 @@ export default class wdxSection {
     constructor(page, sector, textContent = "") {
         this.#page = page
 
-        this.#section = /** @type {wxSectionType} */(document.createElement("div"))
+        this.#section = /** @type {wdxSection} */(document.createElement("div"))
+        this.#section.id = sector
         this.#section.tabIndex = -1
-        this.#section.dataset.wxKind = "section"
-        this.#section.dataset.wxSector = sector
+        this.#section.dataset.wdxKind = "section"
+        this.#section.dataset.wdxSector = sector
         this.#section.classList.add("editable", "workspace", sector)
         this.#section.contentEditable = "true"
 
         this.#section.addEventListener("keydown", (e) => wxEdit.onKeyDown(e))
-        this.#section.addEventListener("focus", () => wdxSection.#rootSection = this.#section)
+        this.#section.addEventListener("focus", () => wxSection.#rootSection = this.#section)
 
-        this.#firstParagraph = new wxParagraph(this.#section)
+        this.#paragraphs.push(new wxParagraph(this.#section))
         if (textContent.trim())
-            this.#firstParagraph.instance.textContent = textContent
+            this.#paragraphs[0].root.textContent = textContent
         else
-            this.#firstParagraph.instance.appendChild(document.createElement("br"))
-        this.#section.append(this.#firstParagraph.instance)
+            this.#paragraphs[0].root.appendChild(document.createElement("br"))
+        this.#section.append(this.#paragraphs[0].root)
     }
-
-    /** @returns {wxSectionType} */
+    /** @returns {boolean} */
+    get isHeader() {
+        return this.#section.dataset.wdxKind === "section" && this.#section.dataset.wdxSector === "header"
+    }
+    /** @returns {boolean} */
+    get isBody() {
+        return this.#section.dataset.wdxKind === "section" && this.#section.dataset.wdxSector === "body"
+    }
+    /** @returns {boolean} */
+    get isFooter() {
+        return this.#section.dataset.wdxKind === "section" && this.#section.dataset.wdxSector === "footer"
+    }
+    /** @returns {wxPage} */
+    get owner() {
+        return this.#page
+    }
+    /** @returns {wdxSection} */
     get root() {
         return this.#section
     }
-    /** @returns {wxParagraph} */
+    /** @returns {wxParagraph|void} */
     get firstParagraph() {
-        return this.#firstParagraph
+        if (this.#paragraphs.length)
+            return this.#paragraphs[0]
     }
-    /** @returns {wxSectionType} */
+    /** @returns {wxParagraph|void} */
+    get lastParagraph() {
+        const length = this.#paragraphs.length
+        if (length)
+            return this.#paragraphs[length - 1]
+    }
+    /** @returns {wdxSection} */
     static getRoot() {
-        return wdxSection.#rootSection
+        return wxSection.#rootSection
     }
-    /** @param {wxSectionType} value */
+    /** @param {wdxSection} value */
     static setRoot(value) {
-        wdxSection.#rootSection = value
+        wxSection.#rootSection = value
     }
 }

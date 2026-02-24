@@ -9,22 +9,29 @@ import wxTableCell from "./wxTableCell.mjs"
 import wxTableRow from "./wxTableRow.mjs"
 import wxTableCol from "./wxTableCol.mjs"
 import wxTemplate from "./wxTemplate.mjs"
-import wdxSection from "./wxSection.mjs"
+import wxSection from "./wxSection.mjs"
 import wxRange from "./wxRange.mjs"
 import wxConfig from "./wxConfig.mjs"
+
+/** @typedef {import("./wdxTypes.mjs").wdxSection} wdxSection */
+/** @typedef {import("./wdxTypes.mjs").wdxSectionHeader} wdxSectionHeader */
+/** @typedef {import("./wdxTypes.mjs").wdxSectionBody} wdxSectionBody */
+/** @typedef {import("./wdxTypes.mjs").wdxSectionFooter} wdxSectionFooter */
+/** @typedef {import("./wdxTypes.mjs").wdxPage} wdxPage */
 export default class wxPage {
     /** @type {"INS"|"OVR"} */
 
     /** @type {wxTemplate} */ #template
-    /** @type {HTMLDivElement} */ #page
-    /** @type {wdxSection} */ #header
-    /** @type {wdxSection} */ #body
-    /** @type {wdxSection} */ #footer
+    /** @type {wdxPage} */ #page
+    /** @type {wxSection} */ #header
+    /** @type {wxSection} */ #body
+    /** @type {wxSection} */ #footer
 
-    /** @param {wxTemplate} template */
-    constructor(template) {
-        this.#template = template
-        this.#page = document.createElement("div")
+    /** @param {wxTemplate} owner */
+    constructor(owner) {
+        this.#template = owner
+        this.#page = /** @type {wdxPage} */(document.createElement("div"))
+        this.#page.dataset.wdxKind = "page"
 
         let style = document.createElement("style")
         style.textContent = wxConfig.ScriptPage
@@ -37,20 +44,20 @@ export default class wxPage {
         this.#page.classList.add("page")
         this.#page.style.caretColor = "#0B6E4F"
         this.#page.addEventListener("beforeinput", (e) => {
-            if (template.toolbar.isOverwriteMode)
+            if (this.#template.toolbar.isOverwriteMode)
                 wxEdit.handleOverwriteInput(e)
         })
 
-        this.#header = new wdxSection(this, "header", "Cabeçalho: clique para editar")
+        this.#header = new wxSection(this, "header", "Cabeçalho: clique para editar")
         this.#page.appendChild(this.#header.root)
 
-        this.#body = new wdxSection(this, "body", "Corpo do documento: clique para editar")
+        this.#body = new wxSection(this, "body", "Corpo do documento: clique para editar")
         this.#page.appendChild(this.#body.root)
 
-        this.#footer = new wdxSection(this, "footer", "Rodapé: clique para editar")
+        this.#footer = new wxSection(this, "footer", "Rodapé: clique para editar")
         this.#page.appendChild(this.#footer.root)
         
-        wdxSection.setRoot(this.#body.root)
+        wxSection.setRoot(this.#body.root)
 
         // Registra handlers de clique para parágrafo, tabela e imagem em cada seção editável
         for (const section of [this.#header, this.#body, this.#footer]) {
@@ -61,10 +68,9 @@ export default class wxPage {
 
         document.addEventListener("selectionchange", () => wxRange.saveSelection())
     }
-    /**
-    /** @returns {HTMLDivElement|null} */
+    /** @returns {wdxSection|null} */
     selectedSection() {
-        return this.#page.querySelector('[data-wx-kind="section"][data-wx-selected="1"]')
+        return this.#page.querySelector('[data-wdx-kind="section"][data-wdx-selected="1"]')
     }
     /** @returns void*/
     unselectSection() {
@@ -81,15 +87,35 @@ export default class wxPage {
         if (selected instanceof HTMLDivElement)
             selected.dataset.wxSelected = "1"
     }
+    /** @returns {wxTemplate} */
+    get owner() {
+        return this.#template
+    }
+    /** @returns {wdxPage} */
     get root() {
         return this.#page
     }
+    /** @returns {wdxSectionHeader} */
+    get rootHeader() {
+        return /** { @type { wdxSectionHeader } } */(this.#header.root)
+    }
+    /** @returns {wdxSectionBody} */
+    get rootBody() {
+        return /** { @type { wdxSectionBody } } */(this.#body.root)
+    }
+    /** @returns {wdxSectionFooter} */
+    get rootFooter() {
+        return /** { @type { wdxSectionFooter } } */(this.#footer.root)
+    }
+    /** @returns {wxSection} */
     get header() {
         return this.#header
     }
+    /** @returns {wxSection} */
     get body() {
         return this.#body
     }
+    /** @returns {wxSection} */
     get footer() {
         return this.#footer
     }
@@ -110,7 +136,7 @@ export default class wxPage {
             paragraph.style.color = hex
             return true
         }
-        const section = wdxSection.getRoot()
+        const section = wxSection.getRoot()
         if (section) {
             section.style.color = hex
             return true
@@ -118,7 +144,6 @@ export default class wxPage {
 
         return false
     }
-
     /** 
      * @param {number} rows 
      * @param {number} cols

@@ -11,12 +11,12 @@ export default class wdxParagraph {
     /** @type {HTMLDivElement|null} */
     static #selected = null
 
-    /** @type {wxSectionType} */ #owner
+    /** @type {wxSectionType} */ #section
     /** @type {wxParagraphType} */ #paragraph
 
     /** @param {wxSectionType} owner */
     constructor(owner) {
-        this.#owner = owner
+        this.#section = owner
 
         this.#paragraph = /** @type {wxParagraphType} */(document.createElement("div"))
         this.#paragraph.dataset.wxKind = "paragraph"
@@ -24,7 +24,10 @@ export default class wdxParagraph {
         this.#paragraph.classList.add("paragraph")
         this.#paragraph.append(document.createElement("br"))
     }
-    get instance() {
+    get owner() {
+        return this.#section
+    }
+    get root() {
         return this.#paragraph
     }
     /** @param {HTMLDivElement} p */

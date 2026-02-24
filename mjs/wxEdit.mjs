@@ -320,7 +320,7 @@ export default class wxEdit {
 
     if (isEmptyParagraph) {
       const newPara = new wxParagraph(/** @type {wxSectionDiv} */(rootSection))
-      const newP = newPara.instance
+      const newP = newPara.root
 
       p.insertAdjacentElement("afterend", newP)
 
@@ -346,7 +346,7 @@ export default class wxEdit {
     const frag = tail.extractContents()
 
     const newPara = new wxParagraph(/** @type {wxSectionDiv} */(rootSection))
-    const newP = newPara.instance
+    const newP = newPara.root
 
     // só substitui se tiver conteúdo REAL (não whitespace/ZWSP)
     const hasMeaningfulContent = frag && [...frag.childNodes].some(n => {
