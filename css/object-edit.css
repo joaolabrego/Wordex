@@ -1,0 +1,38 @@
+    .wordex-object-edit-overlay {
+      position: fixed;
+      display: none;
+      z-index: 10000;
+      border: 1px solid #2b78d0;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .wordex-object-edit-overlay.is-visible {
+      display: block;
+    }
+
+    .wordex-object-edit-overlay[data-edit-target-kind="Paragraph"] .wordex-object-edit-handle {
+      display: none;
+    }
+
+    .wordex-object-edit-handle {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      border: 1px solid #2b78d0;
+      background: #fff;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .75);
+      box-sizing: border-box;
+      pointer-events: auto;
+    }
+
+    .wordex-object-edit-handle[data-handle="nw"] { left: -5px; top: -5px; cursor: nwse-resize; }
+    .wordex-object-edit-handle[data-handle="n"]  { left: 50%; top: -5px; transform: translateX(-50%); cursor: ns-resize; }
+    .wordex-object-edit-handle[data-handle="ne"] { right: -5px; top: -5px; cursor: nesw-resize; }
+    .wordex-object-edit-handle[data-handle="e"]  { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+    .wordex-object-edit-handle[data-handle="se"] { right: -5px; bottom: -5px; cursor: nwse-resize; }
+    .wordex-object-edit-handle[data-handle="s"]  { left: 50%; bottom: -5px; transform: translateX(-50%); cursor: ns-resize; }
+    .wordex-object-edit-handle[data-handle="sw"] { left: -5px; bottom: -5px; cursor: nesw-resize; }
+    .wordex-object-edit-handle[data-handle="w"]  { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+

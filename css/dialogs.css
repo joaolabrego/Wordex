@@ -1,0 +1,435 @@
+    .wordex-margin-modal-backdrop {
+      position: fixed;
+      z-index: 10015;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(246, 250, 255, .58);
+      pointer-events: auto;
+      box-sizing: border-box;
+    }
+
+    .wordex-margin-modal-backdrop.is-visible {
+      display: flex;
+    }
+
+    .wordex-margin-dialog {
+      position: relative;
+      z-index: 10020;
+      display: none;
+      width: 270px;
+      padding: 12px;
+      border: 1px solid #8fb8e8;
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(38, 87, 132, .22);
+      box-sizing: border-box;
+      font-size: 12px;
+    }
+
+    .wordex-margin-dialog.is-visible {
+      display: block;
+    }
+
+    .wordex-margin-dialog-title {
+      margin-bottom: 10px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid #d8e6f6;
+      font-weight: 700;
+      color: #2f5279;
+    }
+
+    .wordex-margin-row {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 6px 0;
+    }
+
+    .wordex-margin-row label {
+      color: #4a6078;
+      font-weight: 600;
+    }
+
+    .wordex-margin-row input {
+      width: 100%;
+      min-width: 0;
+      padding: 4px 6px;
+      border: 1px solid #bfd1e6;
+      border-radius: 5px;
+      background: #fbfdff;
+      font-size: 12px;
+      text-align: right;
+      box-sizing: border-box;
+    }
+
+    .wordex-margin-row input:focus {
+      border-color: #5b9be4;
+      outline: 2px solid rgba(91, 155, 228, .20);
+      background: #ffffff;
+    }
+
+    .wordex-margin-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #e3edf8;
+    }
+
+    .wordex-margin-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 92px;
+      min-height: 28px;
+      justify-content: center;
+      padding: 4px 8px;
+      border: 1px solid #b8c7d8;
+      border-radius: 5px;
+      background: #f7faff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .wordex-margin-action:hover {
+      background: #eef6ff;
+    }
+
+    .wordex-margin-action-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+
+    .wordex-margin-action-icon.is-confirm {
+      border: 1px solid #2d9a50;
+      color: #1f7d3d;
+      background: #e9f8ee;
+    }
+
+    .wordex-margin-action-icon.is-cancel {
+      border: 1px solid #d04444;
+      color: #b42323;
+      background: #fff0f0;
+    }
+
+
+    .wordex-object-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10030;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0, 0, 0, .42);
+      box-sizing: border-box;
+    }
+
+    .wordex-object-modal-backdrop.is-visible {
+      display: flex;
+    }
+
+    .wordex-object-dialog {
+      width: min(520px, 96vw);
+      max-height: 88vh;
+      overflow: auto;
+      padding: 14px 16px 12px;
+      border: 1px solid #b8c7d8;
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 12px 28px rgba(0,0,0,.30);
+      box-sizing: border-box;
+    }
+
+    .wordex-object-dialog.is-chart-dialog {
+      width: min(900px, 96vw);
+    }
+
+    .wordex-object-dialog h2 {
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e1e7ef;
+      font-size: 17px;
+      line-height: 1.2;
+      color: #2b2b2b;
+    }
+
+
+    .wordex-object-dialog [hidden],
+    .wordex-object-form-grid[hidden],
+    .wordex-object-form-row[hidden],
+    [data-table-dynamic-options][hidden] {
+      display: none !important;
+    }
+
+    .wordex-object-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, max-content);
+      gap: 10px 22px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .wordex-object-form-row {
+      display: grid;
+      gap: 4px;
+      margin-bottom: 9px;
+      font-size: 12px;
+      color: #4a4a4a;
+    }
+
+    .wordex-object-form-row input,
+    .wordex-object-form-row select,
+    .wordex-object-form-row textarea {
+      min-height: 28px;
+      padding: 3px 7px;
+      border: 1px solid #bfcbd9;
+      border-radius: 4px;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .wordex-object-form-row select,
+    .wordex-object-form-row input[type="text"],
+    .wordex-object-form-row input[type="file"] {
+      width: 100%;
+    }
+
+    .wordex-object-form-row textarea {
+      width: 100%;
+      min-height: 130px;
+      resize: vertical;
+      font: inherit;
+      white-space: pre-wrap;
+    }
+
+    .wordex-object-form-row input[type="number"] {
+      width: 72px;
+      text-align: right;
+    }
+
+    .wordex-object-form-row input[type="range"] {
+      width: 100%;
+      min-height: 22px;
+      padding: 0;
+    }
+
+    .wordex-table-group-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 9px;
+      font-size: 12px;
+      color: #4a4a4a;
+    }
+
+    .wordex-table-group-option input[type="checkbox"] {
+      min-height: 0;
+      margin: 0;
+    }
+
+    .wordex-list-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 9px;
+      font-size: 12px;
+      color: #4a4a4a;
+    }
+
+    .wordex-list-option input[type="checkbox"] {
+      min-height: 0;
+      margin: 0;
+    }
+
+    .wordex-table-detail-fields {
+      display: grid;
+      gap: 6px;
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: #4a4a4a;
+    }
+
+    .wordex-table-detail-field-list {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2px;
+      max-height: 150px;
+      overflow: auto;
+      padding: 7px;
+      border: 1px solid #d5dfeb;
+      border-radius: 4px;
+      background: #fbfdff;
+    }
+
+    .wordex-table-detail-field-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 25px;
+    }
+
+    .wordex-table-detail-field-list label {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 5px;
+      overflow-wrap: anywhere;
+    }
+
+    .wordex-table-detail-field-order {
+      display: inline-flex;
+      gap: 3px;
+    }
+
+    .wordex-table-detail-field-order button {
+      width: 24px;
+      height: 22px;
+      padding: 0;
+      border: 1px solid #bdcbdc;
+      border-radius: 3px;
+      background: #fff;
+      color: #315f94;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .wordex-table-detail-field-order button:disabled {
+      color: #aab3bf;
+      background: #f2f4f7;
+      cursor: default;
+    }
+
+    .wordex-table-detail-field-list input[type="checkbox"] {
+      flex: 0 0 auto;
+      min-height: 0;
+      margin: 0;
+    }
+
+    .wordex-table-fields-empty,
+    .wordex-table-fields-error {
+      color: #a32626;
+      font-size: 11px;
+    }
+
+    .wordex-object-dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #e1e7ef;
+    }
+
+    .wordex-object-dialog-actions button {
+      min-width: 82px;
+      min-height: 28px;
+      padding: 4px 10px;
+    }
+
+    .wordex-primary-button {
+      border-color: #6d91bd;
+      background: #edf5ff;
+      font-weight: 600;
+    }
+
+    .wordex-primary-button:hover:not(:disabled) {
+      border-color: #3b7ddd;
+      background: #e2f0ff;
+    }
+
+
+    .wordex-object-dialog [data-object-dialog-body] > .wordex-object-form-row,
+    .wordex-object-dialog [data-object-dialog-body] > [data-table-dynamic-options],
+    .wordex-object-dialog [data-object-dialog-body] > .wordex-watermark-preview-box,
+    .wordex-object-dialog [data-object-dialog-body] > .wordex-object-button-row {
+      width: 100%;
+    }
+
+    .wordex-object-dialog [data-table-detail-source] {
+      width: 100%;
+    }
+
+    @media (max-width: 560px) {
+      .wordex-object-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wordex-object-form-row input[type="number"] {
+        width: 84px;
+      }
+    }
+
+    .wordex-rendered-image {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: contain;
+      display: block;
+    }
+
+
+
+
+    .wordex-watermark {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 2;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .wordex-watermark img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    .wordex-watermark-preview-box {
+      height: 140px;
+      border: 1px dashed #c3cbd7;
+      border-radius: 5px;
+      background: #fbfbfb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .wordex-watermark-preview-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      opacity: .35;
+      display: none;
+    }
+
+    .wordex-object-button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+

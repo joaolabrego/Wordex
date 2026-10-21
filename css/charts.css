@@ -1,0 +1,162 @@
+.main-object[data-object-kind="Chart"] {
+  padding: 8px;
+  background: #fff;
+}
+
+.wordex-chart-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  font-family: Arial, sans-serif;
+  color: #444;
+  user-select: none;
+}
+
+.wordex-chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  fill: #333;
+}
+
+.wordex-chart-category,
+.wordex-chart-svg g text {
+  font-size: 10px;
+  fill: #444;
+}
+
+.wordex-chart-axis {
+  stroke: #777;
+  stroke-width: 1;
+}
+
+.wordex-chart-grid {
+  stroke: #c7c7c7;
+  stroke-width: 1;
+}
+
+.wordex-chart-bar {
+  shape-rendering: geometricPrecision;
+}
+
+.wordex-chart-form {
+  display: grid;
+  gap: 10px;
+}
+
+.wordex-chart-series-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.wordex-chart-series-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) auto auto;
+  gap: 8px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid #d6e1ef;
+  border-radius: 6px;
+  background: #f8fbff;
+}
+
+.wordex-chart-json-source {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cbd9e8;
+  border-radius: 6px;
+  background: #f5f9fd;
+}
+
+.wordex-chart-json-source select,
+.wordex-chart-series-editor select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #bccbda;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.wordex-chart-series-editor label {
+  display: grid;
+  gap: 4px;
+  color: #45576b;
+  font-size: 12px;
+}
+
+.wordex-chart-series-editor input[type="text"] {
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #bccbda;
+  border-radius: 4px;
+}
+
+.wordex-chart-series-editor input[type="color"] {
+  width: 48px;
+  height: 30px;
+  padding: 2px;
+}
+
+.wordex-chart-series-editor button,
+.wordex-chart-data-toolbar button,
+.wordex-chart-data-table button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid #aebdce;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.wordex-chart-data-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wordex-chart-data-table-wrap {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid #cbd5df;
+}
+
+.wordex-chart-data-table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+}
+
+.wordex-chart-data-table th,
+.wordex-chart-data-table td {
+  padding: 5px;
+  border: 1px solid #d6dee7;
+}
+
+.wordex-chart-data-table th {
+  position: sticky;
+  top: 0;
+  background: #f2f6fa;
+  font-size: 12px;
+  text-align: left;
+}
+
+.wordex-chart-data-table input {
+  width: 100%;
+  min-width: 75px;
+  box-sizing: border-box;
+  padding: 5px 6px;
+  border: 1px solid #d1d9e1;
+  border-radius: 3px;
+}
+
+.wordex-chart-help {
+  margin: 0;
+  color: #66788b;
+  font-size: 12px;
+}

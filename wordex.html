@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordex</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/toolbar.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/section.css" />
+  <link rel="stylesheet" href="css/paragraph.css" />
+  <link rel="stylesheet" href="css/page-break.css" />
+  <link rel="stylesheet" href="css/subparagraph.css" />
+  <link rel="stylesheet" href="css/objects.css" />
+  <link rel="stylesheet" href="css/charts.css" />
+  <link rel="stylesheet" href="css/textbox.css" />
+  <link rel="stylesheet" href="css/object-edit.css" />
+  <link rel="stylesheet" href="css/dialogs.css" />
+  <link rel="stylesheet" href="css/side-panel.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/table-selection.css" />
+  <link rel="stylesheet" href="css/toolbar-overrides.css" />
+  <link rel="stylesheet" href="css/table.css" />
+  <link rel="stylesheet" href="css/data-preview.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="toolbar">
+      <div class="toolbar-group" aria-label="Grupo objetos">
+        <div class="toolbar-controls">
+          <select id="objectKindSelect" class="object-type-select" title="Tipo de elemento" aria-label="Tipo de elemento">
+            <optgroup label="Estrutura">
+              <option value="Paragraph">Parágrafo</option>
+              <option value="Subparagraph">Subparágrafo</option>
+            </optgroup>
+            <optgroup label="Objetos">
+              <option value="Table" selected>Tabela</option>
+              <option value="List">Lista</option>
+              <option value="Line">Linha</option>
+              <option value="Image">Imagem</option>
+              <option value="Chart">Gráfico</option>
+              <option value="TextBox">Caixa de texto</option>
+              <option value="Watermark">Marca d'água</option>
+              <option value="PageBreak">Quebra de página</option>
+            </optgroup>
+          </select>
+          <button id="btnNewObject" class="icon-button" type="button" title="Novo elemento" aria-label="Novo elemento"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#f1fff7" stroke="#1f8f52" stroke-width="1.8"/><path d="M12 7v10M7 12h10" stroke="#168447" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+          <button id="btnRemoveObject" class="icon-button danger" type="button" title="Remover elemento selecionado" aria-label="Remover elemento selecionado"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#fff1f1" stroke="#c40000" stroke-width="1.8"/><path d="M8 8l8 8M16 8l-8 8" stroke="#c40000" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+        </div>
+        <span class="toolbar-title">Objetos</span>
+      </div>
+
+      <div class="toolbar-group" aria-label="Grupo página">
+        <div class="toolbar-controls">
+          <select id="paperFormatSelect" class="paper-format-select" title="Formato da folha" aria-label="Formato da folha"></select>
+          <select id="pageOrientationSelect" class="paper-format-select" title="Orientação da folha" aria-label="Orientação da folha">
+            <option value="Portrait">Retrato</option>
+            <option value="Landscape">Paisagem</option>
+          </select>
+          <button id="btnRenderReportHtml" class="icon-button html-render-button" type="button" title="Renderizar Relatório" aria-label="Renderizar Relatório"><img src="assets/Images/html5.png" alt="" aria-hidden="true"></button>
+        </div>
+        <span class="toolbar-title">Página</span>
+      </div>
+
+      <div class="toolbar-group" aria-label="Grupo dados">
+        <div class="toolbar-controls">
+          <button id="btnLoadDataJson" class="icon-button" type="button" title="Carregar JSON" aria-label="Carregar JSON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11l2 2h4.5A2.5 2.5 0 0 1 20 7.5v1H4v-3Z" fill="#e9f2ff" stroke="#315f94" stroke-width="1.5"/><path d="M3.5 9h17l-1.4 9.2A2.2 2.2 0 0 1 16.9 20H7.1a2.2 2.2 0 0 1-2.2-1.8L3.5 9Z" fill="#ffffff" stroke="#315f94" stroke-width="1.5"/><path d="M12 11.5v5M9.7 14.2 12 16.5l2.3-2.3" fill="none" stroke="#1f8f52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <input id="dataJsonFileInput" type="file" accept="application/json,.json" hidden>
+          <select id="dataFieldSelect" class="data-source-select" title="Campo da coleção" aria-label="Campo da coleção" hidden></select>
+          <label id="tableRowVisibilityControl" class="table-row-visibility-control" title="Linha visível no relatório" hidden>
+            <input id="tableRowVisibilityCheckbox" type="checkbox" checked>
+            <span>Linha visível</span>
+          </label>
+          <button id="btnMergeTableCells" class="icon-button table-merge-button" type="button" title="Mesclar células selecionadas" aria-label="Mesclar células selecionadas" hidden>⇔</button>
+          <button id="btnUnmergeTableRow" class="icon-button table-merge-button" type="button" title="Desfazer mesclagens na linha atual" aria-label="Desfazer mesclagens na linha atual" hidden>↔</button>
+        </div>
+        <span class="toolbar-title">Dados</span>
+      </div>
+
+      <div class="toolbar-group" aria-label="Grupo alinhamento">
+        <div class="toolbar-controls">
+          <button id="btnAlignSubparagraphLeft" class="align-command-button" type="button" title="Alinhar subparágrafo à esquerda" aria-label="Alinhar subparágrafo à esquerda"><span class="align-icon align-left-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></span></button>
+          <button id="btnAlignSubparagraphCenter" class="align-command-button" type="button" title="Centralizar subparágrafo" aria-label="Centralizar subparágrafo"><span class="align-icon align-center-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></span></button>
+          <button id="btnAlignSubparagraphRight" class="align-command-button" type="button" title="Alinhar subparágrafo à direita" aria-label="Alinhar subparágrafo à direita"><span class="align-icon align-right-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></span></button>
+          <button id="btnAlignSubparagraphJustify" class="align-command-button" type="button" title="Justificar subparágrafo" aria-label="Justificar subparágrafo"><span class="align-icon align-justify-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></span></button>
+        </div>
+        <span class="toolbar-title">Alinhar</span>
+      </div>
+
+
+      <div class="toolbar-group" aria-label="Grupo borda">
+        <div class="toolbar-controls">
+          <input id="borderColorInput" class="border-color-input" type="color" value="#000000" title="Cor da borda" aria-label="Cor da borda">
+          <select id="borderWidthSelect" class="border-width-select" title="Largura da borda" aria-label="Largura da borda">
+            <option value="0px">0px</option>
+            <option value="1px" selected>1px</option>
+            <option value="2px">2px</option>
+            <option value="3px">3px</option>
+            <option value="4px">4px</option>
+            <option value="5px">5px</option>
+            <option value="6px">6px</option>
+          </select>
+          <select id="borderStyleSelect" class="border-style-select" title="Estilo da borda" aria-label="Estilo da borda">
+            <option value="solid" selected>solid</option>
+            <option value="dashed">dashed</option>
+            <option value="dotted">dotted</option>
+            <option value="double">double</option>
+            <option value="none">none</option>
+          </select>
+          <input id="borderRadiusInput" class="border-radius-input" type="text" list="borderRadiusSuggestions" value="4px" autocomplete="off" spellcheck="false" title="Raio da borda: informe um valor CSS, como 3.5px ou 50%" aria-label="Raio da borda">
+          <datalist id="borderRadiusSuggestions">
+            <option value="0px"></option>
+            <option value="2px"></option>
+            <option value="4px"></option>
+            <option value="6px"></option>
+            <option value="8px"></option>
+            <option value="10px"></option>
+            <option value="12px"></option>
+            <option value="50%"></option>
+          </datalist>
+          <select id="borderApplySelect" class="border-apply-select" title="Aplicar borda" aria-label="Aplicar borda">
+            <option value="" selected>Aplique...</option>
+            <option value="none">Nenhuma</option>
+            <option value="all">Todas</option>
+            <option value="top">Superior</option>
+            <option value="right">Direita</option>
+            <option value="left">Esquerda</option>
+            <option value="bottom">Inferior</option>
+          </select>
+        </div>
+        <span class="toolbar-title">Borda</span>
+      </div>
+      <div class="toolbar-group" aria-label="Grupo texto">
+        <div class="toolbar-controls">
+          <select id="textFontSelect" class="text-font-select" title="Fonte" aria-label="Fonte">
+            <option value="Arial" selected>Arial</option>
+            <option value="Calibri">Calibri</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+          </select>
+          <select id="textSizeSelect" class="text-size-select" title="Tamanho" aria-label="Tamanho">
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12" selected>12</option>
+            <option value="14">14</option>
+            <option value="16">16</option>
+            <option value="18">18</option>
+            <option value="20">20</option>
+            <option value="24">24</option>
+            <option value="28">28</option>
+            <option value="32">32</option>
+            <option value="36">36</option>
+          </select>
+          <button id="btnTextBold" class="text-command-button" type="button" title="Negrito" aria-label="Negrito">N</button>
+          <button id="btnTextItalic" class="text-command-button is-italic" type="button" title="Itálico" aria-label="Itálico">I</button>
+          <button id="btnTextUnderline" class="text-command-button is-underline" type="button" title="Sublinhado" aria-label="Sublinhado">S</button>
+          <button id="btnTextCase" class="text-command-button" type="button" title="Limpar formatação" aria-label="Limpar formatação">Aa</button>
+          <label class="text-color-label" title="Cor do texto">Cor
+            <input id="textColorInput" class="text-color-input" type="color" value="#000000" aria-label="Cor do texto">
+          </label>
+        </div>
+        <span class="toolbar-title">Texto</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="workspace">
+        <div id="page" class="page" aria-label="Template Wordex New"></div>
+      </section>
+
+      <aside class="side-panel">
+        <div class="panel-card">
+          <h2>Estado explícito</h2>
+          <div class="state-line"><strong>activeSection</strong><span id="activeSectionLabel"></span></div>
+          <div class="state-line"><strong>activeParagraph</strong><span id="activeParagraphLabel"></span></div>
+          <div class="state-line"><strong>activeSubparagraph</strong><span id="activeSubparagraphLabel"></span></div>
+          <div class="state-line"><strong>contentKind</strong><span id="activeContentKindLabel"></span></div>
+          <p id="message" class="muted"></p>
+        </div>
+
+        <div class="panel-card">
+          <h3>Regras desta versão</h3>
+          <ul>
+            <li>O documento é um template com <strong>Header</strong>, <strong>Body</strong> e <strong>Footer</strong>.</li>
+            <li>Cada section nasce com um paragraph.</li>
+            <li>Cada paragraph nasce com um subparagraph ocupando toda a faixa.</li>
+            <li>Paragraph nunca é editável; subparagraph sem objeto é editável.</li>
+            <li>Subparagraph com objeto é readonly como texto, mas o objeto interno pode ser editável.</li>
+            <li>Textbox pode ser inserida no caret do texto ou sobre um objeto; a versão no texto acompanha o fluxo e pode ser redimensionada.</li>
+            <li>Ctrl+clique em parágrafo abre o diálogo de margens verticais.</li>
+            <li>Botões de remoção atuam sobre o parágrafo, subparágrafo ou objeto selecionado.</li>
+            <li>Todo item incluído pode ser removido, preservando a estrutura mínima obrigatória.</li>
+          </ul>
+        </div>
+
+        <div class="panel-card">
+          <h3>Modelo JSON</h3>
+          <textarea id="jsonOutput" class="json-output" spellcheck="false"></textarea>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="js/constants.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/model/factory.js"></script>
+  <script src="js/objects/factory.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/objects/charts.js"></script>
+  <script src="js/richtext/runs.js"></script>
+  <script src="js/richtext/formatter.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/toolbar.js"></script>
+  <script src="js/model/structure.js"></script>
+  <script src="js/objects/actions.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/serialization.js"></script>
+  <script src="js/clipboard.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/selection.js"></script>
+  <script src="js/dialogs.js"></script>
+  <script src="js/resize/resize.js"></script>
+  <script src="js/table-merge.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/report-render.js"></script>
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>

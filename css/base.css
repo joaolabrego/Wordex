@@ -1,0 +1,35 @@
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --page-width: 210mm;
+      --page-height: 297mm;
+      --page-margin: 14mm;
+      --section-border: #d7e3f4;
+      --active-section: #6aa6ff;
+      --active-paragraph: #3b7ddd;
+      --active-subparagraph: #df8a00;
+      --panel-width: 330px;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #d8d8d8;
+      color: #222;
+    }
+
+    button,
+    select,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+

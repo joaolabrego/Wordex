@@ -1,0 +1,42 @@
+.data-preview-button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid #8ba4bf;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1f2c3a;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 24px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.data-preview-button.is-active {
+  border-color: #315f94;
+  background: #e9f2ff;
+  color: #163e68;
+}
+
+.page.is-data-preview .wordex-table tr.wordex-table-row-hidden > td {
+  background-image: none;
+}
+
+.page.is-data-preview [contenteditable="true"] {
+  caret-color: transparent;
+}
+
+/* Preview de dados: a tabela clonada pode ficar mais alta que a página.
+   Nesse modo, a página vira uma janela rolável para conferência visual,
+   sem alterar o designer nem paginar o relatório final. */
+.page.is-data-preview {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.page.is-data-preview .section,
+.page.is-data-preview .paragraph,
+.page.is-data-preview .subparagraph {
+  overflow: visible;
+}

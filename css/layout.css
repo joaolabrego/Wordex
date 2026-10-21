@@ -1,0 +1,29 @@
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--panel-width);
+      min-height: 0;
+    }
+
+    .workspace {
+      min-width: 0;
+      overflow: auto;
+      padding: 28px 30px 48px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .page {
+      position: relative;
+      width: var(--page-width);
+      flex: 0 0 var(--page-width);
+      min-height: var(--page-height);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 0 12px rgba(0,0,0,.35);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: var(--page-margin);
+      gap: 8mm;
+    }
+

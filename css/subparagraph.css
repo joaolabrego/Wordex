@@ -1,0 +1,80 @@
+    .subparagraph {
+      position: relative;
+      display: flow-root;
+      flex: 1 1 0;
+      min-width: 0; /* sem largura mínima operacional: pode encolher até zero */
+      padding: 5px;
+      border: 1px solid #e1e1e1;
+      border-radius: 4px;
+      outline: none;
+      background: #fff;
+      overflow: hidden;
+      line-height: 1.25;
+      font-family: var(--wordex-default-font-family, Arial), sans-serif;
+      font-size: var(--wordex-default-font-size, 12px);
+      color: var(--wordex-default-color, #000000);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .subparagraph[contenteditable="true"] {
+      cursor: text;
+    }
+
+    .subparagraph.is-active {
+      outline: 2px solid var(--active-subparagraph);
+      outline-offset: 0;
+    }
+
+
+    .subparagraph.is-move-mode,
+    .subparagraph.is-move-mode[contenteditable="true"],
+    .subparagraph.is-move-mode * {
+      cursor: move;
+    }
+
+    .subparagraph.is-moving,
+    .subparagraph.is-moving[contenteditable="true"],
+    .subparagraph.is-moving * {
+      cursor: grabbing;
+    }
+
+    .main-object.is-dragging-object,
+    .main-object.is-dragging-object *,
+    .textbox.is-dragging-object,
+    .textbox.is-dragging-object * {
+      cursor: grabbing !important;
+    }
+
+    .main-object.is-table-edit-mode,
+    .main-object.is-table-edit-mode *,
+    .wordex-table.is-table-edit-mode,
+    .wordex-table.is-table-edit-mode * {
+      cursor: move !important;
+      user-select: none;
+    }
+
+    .main-object.is-table-edit-mode.is-dragging-object,
+    .main-object.is-table-edit-mode.is-dragging-object * {
+      cursor: grabbing !important;
+    }
+
+    .subparagraph[data-content-kind="Empty"]:empty::before {
+      content: "Subparágrafo vazio";
+      color: #aaa;
+      pointer-events: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .subparagraph[data-content-kind="Empty"]:empty[contenteditable="true"]:focus::before {
+      content: "";
+    }
+
+    .subparagraph[data-content-kind="Object"] {
+      padding: 0;
+      background: #f9fbff;
+      white-space: normal;
+    }
+
+

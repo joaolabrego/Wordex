@@ -1,0 +1,63 @@
+    .side-panel {
+      min-width: 0;
+      border-left: 1px solid #aebdcd;
+      background: #f6f8fb;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .panel-card {
+      border: 1px solid #d6dde7;
+      border-radius: 7px;
+      background: #fff;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+
+    .panel-card h2,
+    .panel-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #38516d;
+    }
+
+    .panel-card p,
+    .panel-card li {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .state-line {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 6px;
+      font-size: 12px;
+      margin: 4px 0;
+    }
+
+    .state-line strong {
+      color: #4a5d73;
+    }
+
+    .json-output {
+      width: 100%;
+      min-height: 240px;
+      resize: vertical;
+      border: 1px solid #ccd4df;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 11px;
+      line-height: 1.35;
+      background: #fbfdff;
+    }
+
+    .muted {
+      color: #68798b;
+    }
+
+    .error {
+      color: #a40000;
+      font-weight: 700;
+    }
+

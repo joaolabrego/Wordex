@@ -1,0 +1,65 @@
+    .section-frame {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-width: 0;
+      overflow: visible;
+    }
+
+    .section {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--section-border);
+      border-radius: 5px;
+      padding: 8px;
+      background: #fff;
+    }
+
+    .section[data-section-kind="Body"] {
+      min-height: 190mm;
+    }
+
+    .section.is-active {
+      outline: 3px solid var(--active-section);
+      outline-offset: 2px;
+    }
+
+    .section.is-enabled {
+      border-color: #9fc6f8;
+      background: #fbfdff;
+    }
+
+
+    .section-label-row {
+      position: relative;
+      z-index: 3;
+      height: 0;
+      margin-left: 10px;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .section-label {
+      position: relative;
+      top: -20px;
+      display: inline-block;
+      padding: 1px 6px;
+      border: 1px solid var(--section-border);
+      border-radius: 999px;
+      background: #f8fbff;
+      color: #48617c;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .section-frame.is-active .section-label {
+      border-color: var(--active-section);
+      color: #285d9f;
+    }
+

@@ -1,0 +1,10 @@
+
+
+    .wordex-table td.wordex-range-selected {
+      outline: 2px solid #1d70d8 !important;
+      outline-offset: -2px;
+      background-image: linear-gradient(rgba(29, 112, 216, .12), rgba(29, 112, 216, .12));
+    }
+
+
+

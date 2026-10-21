@@ -1,0 +1,21 @@
+    .toolbar .html-render-button {
+      min-width: 34px;
+      padding: 2px;
+      background: #f5f9ff;
+      border-color: #9ebbe8;
+    }
+
+    .toolbar .html-render-button img {
+      display: block;
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .toolbar .table-merge-button {
+      min-width: 28px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
