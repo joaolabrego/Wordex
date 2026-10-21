@@ -1,25 +1,6 @@
 "use strict";
 
 Object.assign(wordex, {
-  toggleDataPreviewMode() {
-    if (!this.previewMode) {
-      this.syncAllEditableDomToDocument?.();
-    }
-
-    this.previewMode = !this.previewMode;
-    this.activeTableCellRangeSelection = null;
-    this.render(this.previewMode ? "Preview dos dados ativado." : "Modo design restaurado.", false);
-  },
-
-  updateDataPreviewToolbar() {
-    const button = document.getElementById("btnDataPreview");
-    if (!button) return;
-    button.classList.toggle("is-active", Boolean(this.previewMode));
-    button.textContent = this.previewMode ? "Design" : "Preview";
-    button.title = this.previewMode ? "Voltar ao design" : "Preview dos dados";
-    button.setAttribute("aria-pressed", this.previewMode ? "true" : "false");
-  },
-
   createDataPreviewTableClone(table) {
     if (!table || table.kind !== KINDS.TABLE) return table;
 

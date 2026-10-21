@@ -11,7 +11,6 @@ bindToolbar() {
         newObjectButton.addEventListener("pointerdown", event => this.captureTextInsertionCaret?.(event));
         document.getElementById("btnRemoveObject").addEventListener("click", () => this.removeSelectedObject());
         document.getElementById("btnLoadDataJson")?.addEventListener("click", () => this.openDataJsonFileDialog());
-        document.getElementById("btnDataPreview")?.addEventListener("click", () => this.toggleDataPreviewMode?.());
         document.getElementById("btnRenderReportHtml")?.addEventListener("click", () => this.renderReportHtml?.());
         document.getElementById("dataJsonFileInput")?.addEventListener("change", event => this.onDataJsonFileSelected(event));
         document.getElementById("dataFieldSelect")?.addEventListener("change", event => this.onDataFieldChanged(event));
@@ -782,7 +781,6 @@ updateToolbarState() {
         this.updateDataSourceContextSelectors?.();
         this.updateTableMergeToolbarButtons?.();
         this.updateTableRowVisibilityToolbar?.();
-        this.updateDataPreviewToolbar?.();
 
         const selectedKind = document.getElementById("objectKindSelect")?.value;
         const newObjectButton = document.getElementById("btnNewObject");
