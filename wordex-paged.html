@@ -2065,66 +2065,18 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
       }
 
       async function openPdfViewerTab() {
-        var pdfUrl = new URL("wordex-pdf.html", window.location.href);
-        var pdfWindow = null;
-        var timeoutId = null;
-        var isBuilding = false;
+        try {
+          var html = await buildPdfViewerHtml();
+          var blob = new Blob([html], { type: "text/html;charset=utf-8" });
+          var url = URL.createObjectURL(blob);
+          var opened = window.open(url, "_blank");
 
-        return new Promise(function (resolve, reject) {
-          function finish(error) {
-            window.removeEventListener("message", onPdfPageMessage);
-            if (timeoutId) clearTimeout(timeoutId);
-            if (error) reject(error);
-            else resolve();
+          if (!opened) {
+            window.location.href = url;
           }
-
-          async function onPdfPageMessage(event) {
-            if (!pdfWindow || event.source !== pdfWindow) return;
-            if (event.data?.type !== "wordex-pdf-ready" || isBuilding) return;
-
-            isBuilding = true;
-            try {
-              var html = await buildPdfViewerHtml();
-              if (pdfWindow.closed) {
-                throw new Error("A página de PDF foi fechada antes de receber o relatório.");
-              }
-
-              pdfWindow.postMessage({
-                type: "wordex-pdf-document",
-                html: html
-              }, "*");
-              finish();
-            } catch (error) {
-              if (pdfWindow && !pdfWindow.closed) {
-                pdfWindow.postMessage({
-                  type: "wordex-pdf-error",
-                  message: error.message || String(error)
-                }, "*");
-              }
-              finish(error);
-            }
-          }
-
-          // Abrir a página durante o gesto do usuário evita o bloqueio de popup.
-          window.addEventListener("message", onPdfPageMessage);
-          pdfWindow = window.open(pdfUrl.href, "_blank");
-
-          if (!pdfWindow) {
-            finish(new Error("O navegador bloqueou a abertura de wordex-pdf."));
-            return;
-          }
-
-          timeoutId = setTimeout(function () {
-            var error = new Error("wordex-pdf não respondeu. Verifique se a página está na pasta do Wordex.");
-            if (pdfWindow && !pdfWindow.closed) {
-              pdfWindow.postMessage({
-                type: "wordex-pdf-error",
-                message: error.message
-              }, "*");
-            }
-            finish(error);
-          }, 20000);
-        });
+        } catch (error) {
+          alert(error.message);
+        }
       }
 
       window.wordexBuildPdfHtml = buildPdfViewerHtml;

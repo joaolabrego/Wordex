@@ -11,6 +11,7 @@ bindToolbar() {
         newObjectButton.addEventListener("pointerdown", event => this.captureTextInsertionCaret?.(event));
         document.getElementById("btnRemoveObject").addEventListener("click", () => this.removeSelectedObject());
         document.getElementById("btnLoadDataJson")?.addEventListener("click", () => this.openDataJsonFileDialog());
+        document.getElementById("btnSaveTemplate")?.addEventListener("click", () => this.saveTemplateHtml?.());
         document.getElementById("btnRenderReportHtml")?.addEventListener("click", () => this.renderReportHtml?.());
         document.getElementById("dataJsonFileInput")?.addEventListener("change", event => this.onDataJsonFileSelected(event));
         document.getElementById("dataFieldSelect")?.addEventListener("change", event => this.onDataFieldChanged(event));

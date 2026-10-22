@@ -23,7 +23,7 @@ function inlineStyles(html) {
     if (!href || /^(?:https?:)?\/\//i.test(href)) return tag;
 
     const css = readLocalAsset(href);
-    return `<style>\n${css}\n  </style>`;
+    return `<style data-wordex-embedded-asset="${href}">\n${css}\n  </style>`;
   });
 }
 
@@ -32,14 +32,44 @@ function inlineScripts(html) {
     if (/^(?:https?:)?\/\//i.test(sourcePath)) return tag;
 
     const js = readLocalAsset(sourcePath);
-    return `<script>\n${js}\n  </script>`;
+    return `<script data-wordex-embedded-asset="${sourcePath}">\n${js.replace(/<\/script/gi, "<\\/script")}\n  </script>`;
+  });
+}
+
+function inlineTemplateRuntime(html) {
+  const pagedTemplate = readLocalAsset("js/wordex-paged-template.js")
+    .replace(/<\/script/gi, "<\\/script");
+  const pdfTemplate = readLocalAsset("js/wordex-pdf-template.js")
+    .replace(/<\/script/gi, "<\\/script");
+  const runtime = [
+    '<script>window.WORDEX_STANDALONE = true;</script>',
+    `<script data-wordex-embedded-asset="js/wordex-paged-template.js">\n${pagedTemplate}\n</script>`,
+    `<script data-wordex-embedded-asset="js/wordex-pdf-template.js">\n${pdfTemplate}\n</script>`
+  ].join("\n");
+
+  return html.replace(
+    /(<script\s+data-wordex-embedded-asset="js\/bootstrap\.js">)/i,
+    (_, bootstrapTag) => `${runtime}\n${bootstrapTag}`
+  );
+}
+
+function inlineLocalImages(html) {
+  return html.replace(/(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi, (tag, before, source, after) => {
+    if (/^(?:data:|https?:|blob:|\/\/)/i.test(source)) return tag;
+    const assetPath = source.replace(/^\.\//, "");
+    const fullPath = path.join(projectRoot, assetPath);
+    if (!fs.existsSync(fullPath)) return tag;
+    const extension = path.extname(fullPath).toLowerCase();
+    const mimeType = extension === ".svg" ? "image/svg+xml" : extension === ".jpg" || extension === ".jpeg" ? "image/jpeg" : "image/png";
+    const dataUrl = `data:${mimeType};base64,${fs.readFileSync(fullPath).toString("base64")}`;
+    return `${before}${dataUrl}${after}`;
   });
 }
 
 function buildSingleHtml(outputPath = defaultOutputPath) {
   const indexPath = path.join(projectRoot, "wordex.html");
   const input = readUtf8(indexPath);
-  const output = inlineScripts(inlineStyles(input));
+  const output = inlineLocalImages(inlineTemplateRuntime(inlineScripts(inlineStyles(input))));
 
   fs.writeFileSync(outputPath, output, "utf8");
   return outputPath;

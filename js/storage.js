@@ -1,6 +1,29 @@
 "use strict";
 
 Object.assign(wordex, {
+loadEmbeddedTemplate() {
+        const node = document.getElementById("wordexSavedDocument");
+        if (!node) return false;
+
+        try {
+          const state = JSON.parse(node.textContent || "{}");
+          if (!state.document || !Array.isArray(state.document.sections))
+            throw new Error("O arquivo não contém um template Wordex válido.");
+
+          this.document = state.document;
+          this.dataSource = state.dataSource ?? null;
+          this.dataSourceFileName = String(state.dataSourceFileName || "");
+          document.title = String(this.document.title || "Wordex");
+          this.rebuildCountersFromDocument();
+          this.migrateTextHtmlToRuns?.();
+          window.WORDEX_STANDALONE = true;
+          return true;
+        } catch (error) {
+          console.error("Não foi possível carregar o template Wordex incorporado.", error);
+          return false;
+        }
+      },
+
 saveLocal() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.document));
         this.render("Template salvo no localStorage.");

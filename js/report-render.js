@@ -10,7 +10,18 @@ Object.assign(wordex, {
       this.syncAllEditableDomToDocument?.();
 
       const payload = this.buildWordexPagedPayload();
-      const rendererUrl = new URL("wordex-paged.html", window.location.href);
+      let rendererUrl;
+      let revokeRendererUrl = false;
+
+      if (window.WORDEX_STANDALONE && window.WORDEX_PAGED_TEMPLATE) {
+        rendererUrl = URL.createObjectURL(new Blob(
+          [this.buildEmbeddedPagedTemplateHtml()],
+          { type: "text/html;charset=utf-8" }
+        ));
+        revokeRendererUrl = true;
+      } else {
+        rendererUrl = new URL("wordex-paged.html", window.location.href).href;
+      }
 
       const onRendererMessage = event => {
         if (event.source !== rendererWindow || event.data?.type !== "wordex-paged-ready")
@@ -36,7 +47,7 @@ Object.assign(wordex, {
 
       // O listener é instalado antes da abertura para não perder o primeiro aviso.
       window.addEventListener("message", onRendererMessage);
-      rendererWindow = window.open(rendererUrl.href, "_blank");
+      rendererWindow = window.open(rendererUrl, "_blank");
 
       if (!rendererWindow) {
         window.removeEventListener("message", onRendererMessage);
@@ -49,11 +60,53 @@ Object.assign(wordex, {
         if (!rendererWindow.closed)
           this.renderStatePanel?.("wordex-paged não respondeu. Verifique se a página está na pasta do Wordex.", true);
       }, 15000);
+
+      if (revokeRendererUrl) {
+        setTimeout(() => URL.revokeObjectURL(rendererUrl), 60000);
+      }
     } catch (error) {
       if (timeoutId) clearTimeout(timeoutId);
       this.renderStatePanel?.(`Erro ao renderizar relatório: ${error.message}`, true);
       alert(`Erro ao renderizar relatório: ${error.message}`);
     }
+  },
+
+  buildEmbeddedPagedTemplateHtml() {
+    const template = String(window.WORDEX_PAGED_TEMPLATE || "");
+    if (!template) throw new Error("O renderizador paginado não está incorporado neste template.");
+
+    const pdfBootSource = String(window.WORDEX_PDF_TEMPLATE_BOOT_SOURCE || "");
+    const pdfBoot = `<script id="wordex-pdf-template-loader"></script>
+    <script>(function(){
+      window.WORDEX_PDF_TEMPLATE_BOOT_SOURCE = ${JSON.stringify(pdfBootSource).replace(/<\//g, "<\\/")};
+      var loader = document.getElementById("wordex-pdf-template-loader");
+      var source = String(window.WORDEX_PDF_TEMPLATE_BOOT_SOURCE || "");
+      if (!loader || !source) return;
+      var boot = document.createElement("script");
+      boot.id = "wordex-pdf-template-boot";
+      boot.textContent = source;
+      loader.replaceWith(boot);
+    }());</script>`;
+
+    const replacements = {
+      WORDEX_TITLE: this.escapeHtmlText(this.document?.title || "Relatório Wordex"),
+      WORDEX_SOURCE_HTML: "",
+      WORDEX_PAGEX_CONFIG: "{}",
+      WORDEX_PDF_TEMPLATE_BOOT: pdfBoot
+    };
+
+    return Object.entries(replacements).reduce(
+      (html, [key, value]) => html.split(`@@${key}@@`).join(value),
+      template
+    );
+  },
+
+  escapeHtmlText(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   },
 
   buildWordexPagedPayload() {

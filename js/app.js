@@ -71,6 +71,7 @@ suppressNextDocumentClick: false,
 suppressSubparagraphClickAfterDrag: false,
 
 init() {
+        const loadedTemplate = this.loadEmbeddedTemplate?.() === true;
         const bodySection = this.findSectionByKind(SECTION_KIND.BODY);
         const firstParagraph = this.getFirstParagraph(bodySection);
         const firstSubparagraph = firstParagraph.subparagraphs[0];
@@ -80,7 +81,11 @@ init() {
         this.activeSubparagraph = firstSubparagraph.id;
 
         this.populatePaperFormatSelect();
-        this.syncDocumentDefaultsFromToolbar();
+        if (loadedTemplate && this.document?.textDefaults) {
+          this.setTypingTextDefaults(this.document.textDefaults, { updateControls: true });
+        } else {
+          this.syncDocumentDefaultsFromToolbar();
+        }
         this.applyPageFormat();
         this.bindToolbar();
         this.updateDataSourceContextSelectors?.();
