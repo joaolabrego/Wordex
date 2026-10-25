@@ -332,6 +332,11 @@ insertInlineListAtTextCaret(list) {
         anchor.contentEditable = "false";
         const insertionRange = this.getEndOfVisualLineRange?.(insertion) || insertion.range;
         insertionRange.insertNode(anchor);
+        const ZWSP = "\u200B";
+        if (!anchor.previousSibling || anchor.previousSibling.nodeType !== Node.TEXT_NODE || anchor.previousSibling.nodeValue !== ZWSP)
+          anchor.before(document.createTextNode(ZWSP));
+        if (!anchor.nextSibling || anchor.nextSibling.nodeType !== Node.TEXT_NODE || anchor.nextSibling.nodeValue !== ZWSP)
+          anchor.after(document.createTextNode(ZWSP));
 
         this.activeSection = owner.section.id;
         this.activeParagraph = owner.paragraph.id;

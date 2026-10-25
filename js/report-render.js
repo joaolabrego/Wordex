@@ -192,6 +192,13 @@ Object.assign(wordex, {
       node.classList.remove("is-table-edit-mode");
       node.classList.add("wordex-paginable-table");
     });
+    // Moldura de edição das listas não deve ir para o relatório.
+    template.content.querySelectorAll(".wordex-inline-list").forEach(node => {
+      node.style.border = "0";
+      node.style.borderRadius = "0";
+      node.style.background = "transparent";
+      node.style.padding = "0";
+    });
 
     return template.innerHTML;
   },

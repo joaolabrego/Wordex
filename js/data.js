@@ -216,12 +216,17 @@ Object.assign(wordex, {
     return this.isPlainObject(node) && String(node.Kind || "").toLowerCase() === "collection" && Array.isArray(node.Items);
   },
 
+  isGraphNode(node) {
+    return this.isPlainObject(node) && String(node.Kind || "").toLowerCase() === "graph" && Array.isArray(node.Items);
+  },
+
   isObjectNode(node) {
     return this.isPlainObject(node) && String(node.Kind || "").toLowerCase() === "object" && this.isPlainObject(node.Value);
   },
 
   getDataFieldKindSuffix(node) {
     if (this.isCollectionNode(node)) return " [collection]";
+    if (this.isGraphNode(node)) return " [graph]";
     if (this.isObjectNode(node)) return " [object]";
     return "";
   },
@@ -382,6 +387,15 @@ Object.assign(wordex, {
     return options;
   },
 
+  getChartDataSourceOptions() {
+    if (this.dataSource == null) return [];
+
+    const options = [];
+    const rootSample = this.getCollectionSample(this.dataSource);
+    this.collectChartGraphOptions(rootSample, "$", "Root", options);
+    return options;
+  },
+
   collectTableCollectionOptions(node, basePath, baseLabel, result) {
     if (!this.isPlainObject(node)) return;
 
@@ -393,6 +407,25 @@ Object.assign(wordex, {
 
       const sample = this.getCollectionSample(value);
       this.collectTableCollectionOptions(sample, path, label.replace(/ \[collection\]$/, ""), result);
+    });
+  },
+
+  collectChartGraphOptions(node, basePath, baseLabel, result) {
+    if (!this.isPlainObject(node)) return;
+
+    Object.entries(node).forEach(([key, value]) => {
+      if (this.isGraphNode(value)) {
+        const path = `${basePath}.${key}`;
+        const label = `${baseLabel === "Root" ? key : `${baseLabel} > ${key}`} [graph]`;
+        result.push({ path, label, kind: "graph" });
+        return;
+      }
+
+      if (!this.isCollectionNode(value)) return;
+      const path = `${basePath}.${key}`;
+      const label = baseLabel === "Root" ? key : `${baseLabel} > ${key}`;
+      const sample = this.getCollectionSample(value);
+      this.collectChartGraphOptions(sample, path, label, result);
     });
   },
 
@@ -448,6 +481,20 @@ Object.assign(wordex, {
       .map(([key]) => ({ path: `${collectionPath}.${key}`, label: `${prefix} > ${key} [totals]` }));
   },
 
+  getTotalsAggregateSuffixes(footerPath) {
+    const suffixes = ["Sum", "Avg", "Min", "Max", "Count"];
+    const fields = this.getScalarFieldsForDataPath(footerPath);
+    if (!fields.length) return [];
+
+    const found = new Set();
+    fields.forEach(field => {
+      const name = String(field.label || field.macro || "");
+      suffixes.forEach(suffix => {
+        if (name.endsWith(suffix)) found.add(suffix);
+      });
+    });
+    return suffixes.filter(suffix => found.has(suffix));
+  },
 
   isTotalsNode(node) {
     return this.isPlainObject(node) && String(node.Kind || "").toLowerCase() === "totals" && Array.isArray(node.Items);

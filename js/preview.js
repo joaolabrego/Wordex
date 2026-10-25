@@ -300,7 +300,7 @@ Object.assign(wordex, {
   },
 
   getDataPreviewSingleSource(node) {
-    if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node) || Array.isArray(node)) {
+    if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node) || this.isGraphNode?.(node) || Array.isArray(node)) {
       const items = this.extractDataPreviewItems(node);
       return items[0] || null;
     }
@@ -319,7 +319,7 @@ Object.assign(wordex, {
       const nextItems = [];
       currentItems.forEach(item => {
         const node = this.getDataPreviewChildNode(item, part);
-        if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node) || Array.isArray(node)) {
+        if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node) || this.isGraphNode?.(node) || Array.isArray(node)) {
           nextItems.push(...this.extractDataPreviewItems(node));
         } else if (node != null) {
           nextItems.push(this.unwrapDataPreviewNode(node));
@@ -342,7 +342,8 @@ Object.assign(wordex, {
 
   extractDataPreviewItems(node) {
     if (Array.isArray(node)) return node.map(item => this.unwrapDataPreviewNode(item));
-    if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node)) return (node.Items || []).map(item => this.unwrapDataPreviewNode(item));
+    if (this.isCollectionNode?.(node) || this.isTotalsNode?.(node) || this.isGraphNode?.(node))
+      return (node.Items || []).map(item => this.unwrapDataPreviewNode(item));
     const unwrapped = this.unwrapDataPreviewNode(node);
     return unwrapped == null ? [] : [unwrapped];
   },

@@ -226,13 +226,44 @@
       padding: 0;
     }
 
+    .wordex-table-group-field,
+    .wordex-table-footer-field {
+      display: grid;
+      gap: 4px;
+      margin-bottom: 9px;
+      font-size: 12px;
+      color: #4a4a4a;
+    }
+
+    .wordex-table-group-field-line,
+    .wordex-table-footer-field-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .wordex-table-group-field-line select,
+    .wordex-table-footer-field-line select {
+      min-height: 28px;
+      padding: 3px 7px;
+      border: 1px solid #bfcbd9;
+      border-radius: 4px;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .wordex-table-footer-field-line select[data-table-parent-footer-aggregate] {
+      min-width: 78px;
+    }
+
     .wordex-table-group-option {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 9px;
+      margin: 0;
       font-size: 12px;
       color: #4a4a4a;
+      white-space: nowrap;
     }
 
     .wordex-table-group-option input[type="checkbox"] {

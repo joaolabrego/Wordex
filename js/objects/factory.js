@@ -79,7 +79,10 @@ function createListObject(options = {}) {
         : options.placement === "aligned"
           ? options.floatSide === "left" ? "left" : "right"
           : "left";
-      const markerStyle = String(options.markerStyle || (listType === "bullet" ? "disc" : "decimal"));
+      let markerStyle = String(options.markerStyle || (listType === "bullet" ? "disc" : "decimal"));
+      // Marcador legado "outline" virou o checkbox hierarchicalNumbering.
+      const legacyOutline = markerStyle === "outline";
+      if (legacyOutline) markerStyle = "decimal";
       const allowedStyles = listType === "bullet"
         ? ["disc", "circle", "square"]
         : ["decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman"];
@@ -103,6 +106,7 @@ function createListObject(options = {}) {
         wrapText: options.wrapText === true,
         sortAlphabetically: options.sortAlphabetically === true,
         justify: options.justify === true,
+        hierarchicalNumbering: listType === "ordered" && (options.hierarchicalNumbering === true || legacyOutline),
         width: options.width !== null && options.width !== undefined && Number.isFinite(Number(options.width))
           ? Math.max(0, Number(options.width))
           : null,

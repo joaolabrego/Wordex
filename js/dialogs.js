@@ -217,11 +217,15 @@ renderListDialogBody(listTarget = null, options = {}) {
         const markerOptions = listType === "bullet"
           ? [["disc", "Disco"], ["circle", "Círculo"], ["square", "Quadrado"]]
           : [["decimal", "1, 2, 3"], ["lower-alpha", "a, b, c"], ["upper-alpha", "A, B, C"], ["lower-roman", "i, ii, iii"], ["upper-roman", "I, II, III"]];
-        const markerStyle = listTarget?.markerStyle || markerOptions[0][0];
+        const markerStyle = listTarget?.markerStyle === "outline"
+          ? "decimal"
+          : (listTarget?.markerStyle || markerOptions[0][0]);
         const values = Array.isArray(listTarget?.items) ? listTarget.items.join("\n") : "";
         const subparagraph = options.subparagraph || null;
         const parentOptions = this.getListParentOptions(subparagraph, listTarget);
         const parentItemId = listTarget?.parentItemId || "";
+        const hierarchicalChecked = !parentItemId && listType === "ordered"
+          && (listTarget?.hierarchicalNumbering === true || listTarget?.markerStyle === "outline");
 
         return `
           <div class="wordex-object-form-grid">
@@ -242,6 +246,10 @@ renderListDialogBody(listTarget = null, options = {}) {
             <label class="wordex-list-option" data-list-wrap-option ${parentItemId ? "hidden" : ""}>
               <input type="checkbox" data-list-wrap-text${!parentItemId && listTarget?.wrapText === true ? " checked" : ""}>
               Texto envolvendo a lista
+            </label>
+            <label class="wordex-list-option" data-list-hierarchical-option ${parentItemId || listType !== "ordered" ? "hidden" : ""}>
+              <input type="checkbox" data-list-hierarchical-numbering${hierarchicalChecked ? " checked" : ""}>
+              Numeração hierárquica
             </label>
             <label class="wordex-list-option">
               <input type="checkbox" data-list-sort-alphabetically${listTarget?.sortAlphabetically === true ? " checked" : ""}>
@@ -362,21 +370,32 @@ bindListDialog(body, listTarget = null, subparagraph = null) {
         const confirmButton = this.objectDialogBackdrop?.querySelector("[data-object-dialog-confirm]");
         const lists = Array.isArray(subparagraph?.inlineLists) ? subparagraph.inlineLists : [];
 
+        const hierarchicalOption = body.querySelector("[data-list-hierarchical-option]");
+        const hierarchicalCheckbox = body.querySelector("[data-list-hierarchical-numbering]");
+        const justifyCheckbox = body.querySelector("[data-list-justify]");
+        const syncHierarchicalVisibility = () => {
+          const hide = Boolean(parentSelect?.value) || typeSelect?.value !== "ordered";
+          if (hierarchicalOption) hierarchicalOption.hidden = hide;
+          if (hide && hierarchicalCheckbox) hierarchicalCheckbox.checked = false;
+        };
         const refreshMarkers = preferred => {
           const options = typeSelect?.value === "bullet"
             ? [["disc", "Disco"], ["circle", "Círculo"], ["square", "Quadrado"]]
             : [["decimal", "1, 2, 3"], ["lower-alpha", "a, b, c"], ["upper-alpha", "A, B, C"], ["lower-roman", "i, ii, iii"], ["upper-roman", "I, II, III"]];
-          const current = preferred || markerSelect?.value || options[0][0];
+          const current = preferred === "outline" ? "decimal" : (preferred || markerSelect?.value || options[0][0]);
           if (markerSelect) {
             markerSelect.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
             markerSelect.value = options.some(([value]) => value === current) ? current : options[0][0];
           }
+          syncHierarchicalVisibility();
         };
         const readConfiguration = () => ({
           listType: typeSelect?.value || "ordered",
           markerStyle: markerSelect?.value || "decimal",
           wrapText: wrapCheckbox?.checked === true,
+          hierarchicalNumbering: hierarchicalCheckbox?.checked === true,
           sortAlphabetically: sortCheckbox?.checked === true,
+          justify: justifyCheckbox?.checked === true,
           values: valuesInput?.value || ""
         });
         const drafts = new Map();
@@ -392,15 +411,19 @@ bindListDialog(body, listTarget = null, subparagraph = null) {
         };
         const configurationForList = target => target ? ({
           listType: target.listType,
-          markerStyle: target.markerStyle,
+          markerStyle: target.markerStyle === "outline" ? "decimal" : target.markerStyle,
           wrapText: target.wrapText,
+          hierarchicalNumbering: target.hierarchicalNumbering === true || target.markerStyle === "outline",
           sortAlphabetically: target.sortAlphabetically,
+          justify: target.justify === true,
           values: Array.isArray(target.items) ? target.items.join("\n") : ""
         }) : ({
           listType: "ordered",
           markerStyle: "decimal",
           wrapText: false,
+          hierarchicalNumbering: false,
           sortAlphabetically: false,
+          justify: false,
           values: ""
         });
         const loadSelection = parentItemId => {
@@ -410,7 +433,11 @@ bindListDialog(body, listTarget = null, subparagraph = null) {
           refreshMarkers(configuration.markerStyle);
           if (wrapCheckbox) wrapCheckbox.checked = !parentItemId && configuration.wrapText === true;
           if (wrapOption) wrapOption.hidden = Boolean(parentItemId);
+          if (hierarchicalCheckbox)
+            hierarchicalCheckbox.checked = !parentItemId && configuration.listType !== "bullet" && configuration.hierarchicalNumbering === true;
+          syncHierarchicalVisibility();
           if (sortCheckbox) sortCheckbox.checked = configuration.sortAlphabetically === true;
+          if (justifyCheckbox) justifyCheckbox.checked = configuration.justify === true;
           if (valuesInput) valuesInput.value = configuration.values || "";
           this.pendingListTarget = target;
           if (dialogTitle) dialogTitle.textContent = target
@@ -429,6 +456,7 @@ bindListDialog(body, listTarget = null, subparagraph = null) {
         this.pendingListTarget = listTarget;
         refreshMarkers(listTarget?.markerStyle);
         if (wrapOption) wrapOption.hidden = Boolean(currentParentItemId);
+        syncHierarchicalVisibility();
         if (insertionError) insertionError.hidden = true;
       },
 
@@ -655,53 +683,56 @@ renderTableParentChainOptions(body, detailPath) {
           const totals = Array.isArray(level.totals) ? level.totals : [];
           const isRoot = level.path === "$";
           const labelText = isRoot ? "Root" : level.label;
+          const footerTitle = isRoot
+            ? "Total geral (total)"
+            : `Footer do grupo ${escapeHtml(labelText)} (total)`;
+          const footerHtml = totals.length
+            ? `<div class="wordex-table-footer-field">
+                <span class="wordex-table-footer-field-label">${footerTitle}</span>
+                <div class="wordex-table-footer-field-line">
+                  <select data-table-parent-footer-source data-parent-path="${escapeHtml(level.path)}">
+                    ${totals.map((item, itemIndex) => `<option value="${escapeHtml(item.path)}"${itemIndex === 0 ? " selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
+                    <option value="">(não renderizar)</option>
+                  </select>
+                  <select data-table-parent-footer-aggregate data-parent-path="${escapeHtml(level.path)}" title="Valor exibido no total" aria-label="Valor exibido no total"></select>
+                </div>
+              </div>`
+            : `<div class="wordex-object-form-row wordex-table-parent-no-total">Sem total no grupo ${escapeHtml(labelText)}</div>`;
+
+          if (isRoot) {
+            if (!totals.length) return;
+            rootRows.push(`
+              <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
+                ${footerHtml}
+              </div>
+            `);
+            return;
+          }
+
           const groupFields = this.getScalarFieldsForDataPath(level.path);
           const groupFieldSelect = `<div class="wordex-table-group-field">
-              <label class="wordex-object-form-row">${isRoot ? "Grupo geral" : `Campo do grupo ${escapeHtml(labelText)}`}
+              <span class="wordex-table-group-field-label">Campo do grupo ${escapeHtml(labelText)}</span>
+              <div class="wordex-table-group-field-line">
                 <select data-table-group-field data-parent-path="${escapeHtml(level.path)}">
                   <option value="" selected>(não agrupar)</option>
                   ${groupFields.map(field => `<option value="${escapeHtml(field.macro)}" data-field-label="${escapeHtml(field.label)}">${escapeHtml(field.label)}</option>`).join("")}
                 </select>
-              </label>
-              <label class="wordex-table-group-option">
-                <input type="checkbox" data-table-group-page-break data-parent-path="${escapeHtml(level.path)}" disabled>
-                Saltar página
-              </label>
+                <label class="wordex-table-group-option">
+                  <input type="checkbox" data-table-group-page-break data-parent-path="${escapeHtml(level.path)}" disabled>
+                  Saltar página
+                </label>
+              </div>
             </div>`;
 
-          if (!totals.length && !groupFields.length && isRoot) {
-            return;
-          }
-
-          const footerHtml = totals.length
-            ? `<label class="wordex-object-form-row">${isRoot ? "Total geral (total)" : "Footer do grupo (total)"}
-                <select data-table-parent-footer-source data-parent-path="${escapeHtml(level.path)}">
-                  ${totals.map((item, itemIndex) => `<option value="${escapeHtml(item.path)}"${itemIndex === 0 ? " selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
-                  <option value="">(não renderizar)</option>
-                </select>
-              </label>`
-            : `<div class="wordex-object-form-row wordex-table-parent-no-total">Sem total neste nível</div>`;
-
-          const row = `
+          rows.push(`
             <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
-              <label class="wordex-object-form-row">${isRoot ? "Grupo geral" : `Grupo ${index + 1}`}
+              <label class="wordex-object-form-row">Grupo ${index + 1}
                 <input type="text" value="${escapeHtml(labelText)}" data-table-parent-display readonly>
               </label>
               ${groupFieldSelect}
             </div>
-          `;
-
-          if (isRoot) {
-            rootRows.push(`
-              <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
-                ${groupFieldSelect}
-                ${totals.length ? footerHtml : ""}
-              </div>
-            `);
-          } else {
-            rows.push(row);
-            groupFooterRows.push(`<div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">${footerHtml}</div>`);
-          }
+          `);
+          groupFooterRows.push(`<div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">${footerHtml}</div>`);
         });
 
         container.innerHTML = rows.join("");
@@ -730,6 +761,36 @@ renderTableParentChainOptions(body, detailPath) {
           select.addEventListener("change", apply);
           apply();
         });
+
+        body.querySelectorAll("[data-table-parent-footer-source]").forEach(select => {
+          const refreshAggregates = () => this.refreshTableFooterAggregateOptions(body, select);
+          select.addEventListener("change", refreshAggregates);
+          refreshAggregates();
+        });
+      },
+
+refreshTableFooterAggregateOptions(body, sourceSelect, preferredAggregate = "") {
+        if (!body || !sourceSelect) return;
+
+        const path = sourceSelect.getAttribute("data-parent-path") || "";
+        const aggregateSelect = Array.from(body.querySelectorAll("[data-table-parent-footer-aggregate]"))
+          .find(select => (select.getAttribute("data-parent-path") || "") === path);
+        if (!aggregateSelect) return;
+
+        const footerPath = sourceSelect.value || "";
+        const previous = preferredAggregate || aggregateSelect.value || "";
+        const suffixes = footerPath ? (this.getTotalsAggregateSuffixes?.(footerPath) || []) : [];
+
+        aggregateSelect.innerHTML = suffixes.length
+          ? suffixes.map(suffix => `<option value="${escapeHtml(suffix)}">${escapeHtml(suffix)}</option>`).join("")
+          : `<option value="">(sem valor)</option>`;
+
+        const preferred = previous && suffixes.includes(previous)
+          ? previous
+          : (suffixes.includes("Sum") ? "Sum" : (suffixes[0] || ""));
+        aggregateSelect.value = preferred;
+        aggregateSelect.disabled = !footerPath || !suffixes.length;
+        this.resizeSelectToLargestOption(aggregateSelect);
       },
 
 populateDialogSelect(row, select, items, emptyLabel = "") {
@@ -816,15 +877,27 @@ applyTableInsertDialogState(body, table) {
         const footerByPath = new Map(
           (Array.isArray(binding.parentLevels) ? binding.parentLevels : [])
             .filter(level => level?.path)
-            .map(level => [level.path, level.footerPath || ""])
+            .map(level => [level.path, {
+              footerPath: level.footerPath || "",
+              footerAggregate: level.footerAggregate || ""
+            }])
         );
-        if (Object.prototype.hasOwnProperty.call(binding, "tableFooterPath"))
-          footerByPath.set("$", binding.tableFooterPath || "");
+        if (Object.prototype.hasOwnProperty.call(binding, "tableFooterPath")) {
+          footerByPath.set("$", {
+            footerPath: binding.tableFooterPath || "",
+            footerAggregate: binding.tableFooterAggregate || footerByPath.get("$")?.footerAggregate || ""
+          });
+        }
         body.querySelectorAll("[data-table-parent-footer-source]").forEach(select => {
           const path = select.getAttribute("data-parent-path") || "";
-          if (!footerByPath.has(path)) return;
-          const value = footerByPath.get(path) || "";
+          if (!footerByPath.has(path)) {
+            this.refreshTableFooterAggregateOptions(body, select);
+            return;
+          }
+          const saved = footerByPath.get(path);
+          const value = saved.footerPath || "";
           if ([...select.options].some(option => option.value === value)) select.value = value;
+          this.refreshTableFooterAggregateOptions(body, select, saved.footerAggregate || "");
         });
       },
 
@@ -858,6 +931,12 @@ createTableObjectFromDialog(body) {
             select.value || ""
           ])
         );
+        const selectedFooterAggregateByParentPath = new Map(
+          Array.from(body.querySelectorAll("[data-table-parent-footer-aggregate]")).map(select => [
+            select.getAttribute("data-parent-path") || "",
+            select.value || ""
+          ])
+        );
         const pageBreakByParentPath = new Map(
           Array.from(body.querySelectorAll("[data-table-group-page-break]")).map(input => [
             input.getAttribute("data-parent-path") || "",
@@ -880,11 +959,12 @@ createTableObjectFromDialog(body) {
         const parentLevels = chainClosestFirst.map(level => ({
           path: level.path,
           label: level.label,
-          footerPath: selectedFooterByParentPath.get(level.path) || ""
+          footerPath: selectedFooterByParentPath.get(level.path) || "",
+          footerAggregate: selectedFooterAggregateByParentPath.get(level.path) || ""
         }));
 
         const groupedParentsClosestFirst = parentLevels
-          .filter(item => item.path && selectedGroupFieldByParentPath.get(item.path))
+          .filter(item => item.path && item.path !== "$" && selectedGroupFieldByParentPath.get(item.path))
           .map(item => {
             const field = selectedGroupFieldByParentPath.get(item.path);
             return {
@@ -895,7 +975,7 @@ createTableObjectFromDialog(body) {
             };
           });
         const groupedParentsRootFirst = [...groupedParentsClosestFirst].reverse();
-        const rootLevel = parentLevels.find(item => item.path === "$") || { path: "$", footerPath: "" };
+        const rootLevel = parentLevels.find(item => item.path === "$") || { path: "$", footerPath: "", footerAggregate: "" };
 
         /*
           Tabela dinâmica do Wordex:
@@ -914,14 +994,20 @@ createTableObjectFromDialog(body) {
           rows.push(cells);
         };
 
-        const buildFooterCells = (ownerPath, footerPath, fallbackLabel) => {
+        const buildFooterCells = (ownerPath, footerPath, fallbackLabel, footerAggregate = "") => {
           if (!footerPath) return blankCells();
           const footerFields = this.getScalarFieldsForDataPath(footerPath);
           const macroByLabel = new Map(footerFields.map(field => [field.label, field.macro]));
           const ownerName = ownerPath === "$" ? "GERAL" : this.getDataPathLastName(ownerPath).toUpperCase();
+          const preferredSuffix = String(footerAggregate || "").trim();
+          const aggregateSuffixes = preferredSuffix
+            ? [preferredSuffix]
+            : ["Sum", "Avg", "Min", "Max", "Count"];
           return safeFields.map((field, col) => {
             if (col === 0) return fallbackLabel || (ownerPath === "$" ? "TOTAL GERAL:" : `TOTAL ${ownerName}:`);
-            const macro = macroByLabel.get(field.label) || macroByLabel.get(`${field.label}Sum`) || "";
+            const macro = macroByLabel.get(field.label)
+              || aggregateSuffixes.map(suffix => macroByLabel.get(`${field.label}${suffix}`)).find(Boolean)
+              || "";
             return macro ? `{{${macro}}}` : "";
           });
         };
@@ -965,22 +1051,26 @@ createTableObjectFromDialog(body) {
               kind: "groupFooter",
               contextPath: item.path,
               footerPath: item.footerPath || "",
+              footerAggregate: item.footerAggregate || "",
               fieldContextPath: item.footerPath || item.path
             },
-            buildFooterCells(item.path, item.footerPath, "")
+            buildFooterCells(item.path, item.footerPath, "", item.footerAggregate || "")
           );
         });
 
-        // 6) Footer da tabela: contexto ROOT.
-        pushRow(
-          {
-            kind: "tableFooter",
-            contextPath: "$",
-            footerPath: rootLevel.footerPath || "",
-            fieldContextPath: rootLevel.footerPath || "$"
-          },
-          buildFooterCells("$", rootLevel.footerPath, "TOTAL GERAL:")
-        );
+        // 6) Footer da tabela: só quando o total geral foi escolhido.
+        if (rootLevel.footerPath) {
+          pushRow(
+            {
+              kind: "tableFooter",
+              contextPath: "$",
+              footerPath: rootLevel.footerPath,
+              footerAggregate: rootLevel.footerAggregate || "",
+              fieldContextPath: rootLevel.footerPath
+            },
+            buildFooterCells("$", rootLevel.footerPath, "TOTAL GERAL:", rootLevel.footerAggregate || "")
+          );
+        }
 
         const table = createTableObject(rows.length, safeFields.length);
         table.cellColspans = Array.from(
@@ -1048,7 +1138,8 @@ createTableObjectFromDialog(body) {
             pageBreak: item.pageBreak === true
           })),
           tableHeaderPath: "$",
-          tableFooterPath: rootLevel.footerPath || ""
+          tableFooterPath: rootLevel.footerPath || "",
+          tableFooterAggregate: rootLevel.footerAggregate || ""
         };
         table.rowContexts = contexts;
         table.cells = rows;
@@ -1120,6 +1211,9 @@ confirmObjectDialog() {
               ? target.floatSide === "left" ? "left" : "right"
               : "left"),
             wrapText: !parentItemId && body.querySelector("[data-list-wrap-text]")?.checked === true,
+            hierarchicalNumbering: !parentItemId
+              && body.querySelector("[data-list-type]")?.value !== "bullet"
+              && body.querySelector("[data-list-hierarchical-numbering]")?.checked === true,
             sortAlphabetically: body.querySelector("[data-list-sort-alphabetically]")?.checked === true,
             justify: body.querySelector("[data-list-justify]")?.checked === true,
             width: target?.width ?? null,

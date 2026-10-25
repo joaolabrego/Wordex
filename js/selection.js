@@ -500,11 +500,52 @@ onSubparagraphContextMenu(event, element) {
         this.enterSubparagraphEditMode(element.dataset.subparagraphId);
       },
 
+onEditableSubparagraphKeydown(event, element) {
+        if (!event || event.defaultPrevented || event.isComposing) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (!element || element.getAttribute?.("contenteditable") !== "true") return;
+
+        if (event.key === "Enter") {
+          if (event.shiftKey) {
+            event.preventDefault();
+            document.execCommand("insertLineBreak");
+            this.syncActiveEditableAfterTextCommand(element);
+            this.updateTextCommandButtonsVisibility?.();
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          this.navigateOrInsertParagraphFromSubparagraph(element);
+          return;
+        }
+
+        if (event.key.length !== 1 && event.key !== "Backspace" && event.key !== "Delete")
+          return;
+
+        const selection = window.getSelection();
+        const caretInside = selection?.anchorNode && element.contains(selection.anchorNode);
+        if (caretInside) return;
+
+        const activeList = this.activeObject
+          ? element.querySelector(`.wordex-inline-list[data-inline-list-id="${CSS.escape(this.activeObject)}"]`)
+          : null;
+        const rootList = activeList || element.querySelector(".wordex-inline-list[data-inline-list-id]:not(.wordex-sub-list)");
+        if (rootList) this.placeCaretAfterInlineList(rootList);
+      },
+
 onEditableBeforeInput(event, element) {
         if (!event || event.defaultPrevented || event.isComposing) return;
+        if (!element || element.getAttribute?.("contenteditable") !== "true") return;
+
+        if (event.inputType === "insertParagraph") {
+          event.preventDefault();
+          this.navigateOrInsertParagraphFromSubparagraph(element);
+          return;
+        }
+
         if (event.inputType !== "insertText") return;
         if (event.data === null || event.data === undefined || event.data === "") return;
-        if (!element || element.getAttribute?.("contenteditable") !== "true") return;
 
         const styles = this.getCurrentToolbarTextStyles?.() || this.getTypingTextDefaults?.() || {};
         const inserted = window.WordexRichText?.insertTextWithStyle?.(element, event.data, styles);
@@ -580,6 +621,8 @@ onSubparagraphInput(event, element) {
           anchor.contentEditable = "false";
           listElement.replaceWith(anchor);
         });
+
+        this.ensureInlineListCaretHosts?.(editableCopy);
 
         editableCopy.querySelectorAll("[data-inline-line-id]").forEach(lineElement => {
           const lineId = lineElement.dataset.inlineLineId;
@@ -697,18 +740,42 @@ onInlineListClick(event, element) {
         if (event.ctrlKey || event.metaKey) {
           this.activeEditTargetKind = KINDS.LIST;
           this.objectEditMode = true;
+          this.clearNativeCaretAndSelection?.();
         } else {
           this.activeEditTargetKind = null;
           this.objectEditMode = false;
           this.hideObjectEditOverlay?.();
+          // Mantém o caret no texto do subparágrafo (depois da lista-raiz)
+          // para permitir digitar ao redor da lista sem precisar clicar de novo.
+          this.placeCaretAfterInlineList?.(element);
         }
         this.refreshActiveClasses?.();
         this.positionObjectEditOverlay?.();
         this.renderStatePanel?.(event.ctrlKey || event.metaKey
           ? "Lista selecionada para redimensionamento. Dê duplo-clique para editar os itens."
-          : "Lista selecionada. Dê duplo-clique para editar os itens.");
+          : "Lista selecionada. Digite para inserir texto ao redor ou dê duplo-clique para editar os itens.");
         this.updateToolbarState?.();
         this.updateJsonOutput?.();
+      },
+
+placeCaretAfterInlineList(listElement) {
+        const editable = listElement?.closest?.("[data-text-subparagraph-id]");
+        if (!editable || editable.getAttribute("contenteditable") !== "true") return;
+
+        const rootList = listElement.classList?.contains("wordex-sub-list")
+          ? (listElement.closest(".wordex-inline-list[data-inline-list-id]:not(.wordex-sub-list)") || listElement)
+          : listElement;
+
+        this.ensureInlineListCaretHosts?.(editable);
+
+        const selection = window.getSelection();
+        if (!selection) return;
+        editable.focus();
+        const range = document.createRange();
+        range.setStartAfter(rootList);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
       },
 
 onInlineLineClick(event, element) {

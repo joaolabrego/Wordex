@@ -151,7 +151,38 @@ body.wordex-generated-report .document > .region::before {
   overflow-wrap: anywhere;
 }
 
+.wordex-list-items.is-outline {
+  list-style: none;
+  padding-left: 4px;
+}
+
+.wordex-list-items.is-outline > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.35em;
+  align-items: start;
+}
+
+.wordex-list-items.is-outline > li > .wordex-list-marker {
+  grid-column: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.wordex-list-items.is-outline > li > .wordex-list-item-text {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.wordex-list-items.is-outline > li > .wordex-inline-list {
+  grid-column: 2;
+}
+
 .wordex-inline-list[data-justify="true"] > .wordex-list-items > li {
+  text-align: justify;
+}
+
+.wordex-inline-list[data-justify="true"] > .wordex-list-items.is-outline > li > .wordex-list-item-text {
   text-align: justify;
 }
 
@@ -175,11 +206,23 @@ body.wordex-generated-report .document > .region::before {
   min-width: 0;
   max-width: 100%;
   margin: 0 8px 8px 0;
-  padding: 2px;
-  border: 1px solid #bfd4ef;
-  border-radius: 4px;
-  background: #fff;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #222;
+}
+
+.wordex-inline-list.wordex-sub-list {
+  position: static;
+  float: none;
+  clear: none;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .wordex-inline-list[data-alignment="left"] {

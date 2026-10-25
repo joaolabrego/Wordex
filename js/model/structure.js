@@ -235,7 +235,60 @@ addParagraphToActiveSection() {
         this.activeParagraph = paragraph.id;
         this.activeSubparagraph = paragraph.subparagraphs[0].id;
         this.activeTextbox = null;
-        this.render("Novo parágrafo criado.", false, { focusActiveEditableSubparagraph: true });
+        this.render("Novo parágrafo criado.", false, {
+          focusActiveEditableSubparagraph: true,
+          focusCaretAtStart: true
+        });
+      },
+
+insertParagraphAfterIndex(section, paragraphIndex) {
+        if (!section || !Array.isArray(section.paragraphs)) return null;
+        if (!Number.isInteger(paragraphIndex) || paragraphIndex < 0) return null;
+
+        const paragraph = createParagraph();
+        const insertAt = Math.min(paragraphIndex + 1, section.paragraphs.length);
+        section.paragraphs.splice(insertAt, 0, paragraph);
+        this.activeSection = section.id;
+        this.activeParagraph = paragraph.id;
+        this.activeSubparagraph = paragraph.subparagraphs[0].id;
+        this.activeObject = null;
+        this.activeTextbox = null;
+        return paragraph;
+      },
+
+navigateOrInsertParagraphFromSubparagraph(element) {
+        if (this._navigatingFromSubparagraphEnter) return;
+        this._navigatingFromSubparagraphEnter = true;
+
+        try {
+          if (element) this.syncActiveEditableAfterTextCommand?.(element);
+
+          const subparagraphId = element?.dataset?.textSubparagraphId || this.activeSubparagraph;
+          const owner = this.findSubparagraphOwnerById(subparagraphId);
+          if (!owner || !this.isSectionEnabled(owner.section)) return;
+
+          const following = owner.paragraph.subparagraphs.slice(owner.subparagraphIndex + 1);
+          const nextEditable = following.find(sp => sp.contentKind !== CONTENT_KIND.OBJECT);
+          if (nextEditable) {
+            this.activeSection = owner.section.id;
+            this.activeParagraph = owner.paragraph.id;
+            this.activeSubparagraph = nextEditable.id;
+            this.activeObject = null;
+            this.activeTextbox = null;
+            this.render("", false, { focusActiveEditableSubparagraph: true, focusCaretAtStart: true });
+            return;
+          }
+
+          const paragraphIndex = owner.section.paragraphs.indexOf(owner.paragraph);
+          if (paragraphIndex < 0) return;
+
+          this.insertParagraphAfterIndex(owner.section, paragraphIndex);
+          this.render("", false, { focusActiveEditableSubparagraph: true, focusCaretAtStart: true });
+        } finally {
+          queueMicrotask(() => {
+            this._navigatingFromSubparagraphEnter = false;
+          });
+        }
       },
 
 addSubparagraphToActiveParagraph() {

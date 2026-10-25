@@ -26,6 +26,7 @@ render(message = "", isError = false, options = {}) {
 
         page.querySelectorAll("[data-text-subparagraph-id]").forEach(element => {
           element.addEventListener("beforeinput", event => this.onEditableBeforeInput(event, element));
+          element.addEventListener("keydown", event => this.onEditableSubparagraphKeydown?.(event, element));
           element.addEventListener("input", event => this.onSubparagraphInput(event, element));
           element.addEventListener("blur", event => this.onSubparagraphInput(event, element));
         });
@@ -168,7 +169,9 @@ render(message = "", isError = false, options = {}) {
         this.updateTextCommandButtonsVisibility();
 
         if (options.focusActiveEditableSubparagraph) {
-          this.focusActiveEditableSubparagraph(options.restoreTextSelection || null);
+          this.focusActiveEditableSubparagraph(options.restoreTextSelection || null, {
+            atStart: Boolean(options.focusCaretAtStart)
+          });
         }
 
         if (options.focusFirstTableCell) {
@@ -176,24 +179,45 @@ render(message = "", isError = false, options = {}) {
         }
       },
 
-focusActiveEditableSubparagraph(restoreTextSelection = null) {
-        const subparagraph = this.findSubparagraphById(this.activeSubparagraph);
+focusActiveEditableSubparagraph(restoreTextSelection = null, focusOptions = null) {
+        const subparagraphId = this.activeSubparagraph;
+        const subparagraph = this.findSubparagraphById(subparagraphId);
         if (!subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return;
 
-        const element = document.querySelector(`[data-text-subparagraph-id="${this.activeSubparagraph}"]`);
-        if (!element || element.getAttribute("contenteditable") !== "true") return;
-
-        const savedSelection = restoreTextSelection?.subparagraphId === element.dataset.textSubparagraphId
+        const atStart = Boolean(focusOptions?.atStart);
+        const savedSelection = restoreTextSelection?.subparagraphId === subparagraphId
           ? restoreTextSelection
           : null;
 
-        // O foco precisa ocorrer depois que o browser assentou o DOM recém-renderizado.
-        // Assim, ao abrir/carregar o template, o usuário já pode digitar sem clicar.
-        window.requestAnimationFrame(() => {
-          element.focus();
+        const applyFocus = () => {
+          if (this.activeSubparagraph !== subparagraphId) return;
+          const element = document.querySelector(`[data-text-subparagraph-id="${CSS.escape(subparagraphId)}"]`);
+          if (!element || element.getAttribute("contenteditable") !== "true") return;
+
+          element.scrollIntoView?.({ block: "nearest" });
+          element.focus({ preventScroll: true });
           if (savedSelection && this.restoreEditableSelectionOffsets(element, savedSelection)) return;
-          this.placeCaretAtEnd(element);
+          if (atStart) this.placeCaretAtStart(element);
+          else this.placeCaretAtEnd(element);
+        };
+
+        // Após re-render (Enter ou botão da toolbar), o caret precisa vencer o
+        // blur do contenteditable antigo e o foco residual de botões.
+        window.requestAnimationFrame(() => {
+          applyFocus();
+          window.setTimeout(applyFocus, 0);
         });
+      },
+
+placeCaretAtStart(element) {
+        const selection = window.getSelection();
+        if (!selection) return;
+
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
       },
 
 focusFirstTableCell(tableId) {
@@ -398,6 +422,18 @@ renderInlineTextbox(textbox, isEditableSection = true) {
         return `<span class="textbox textbox-inline${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" data-inline-textbox="true" data-alignment="${alignment}" contenteditable="false" style="${inlineStyle}"><span class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textbox.html || ""}</span></span>`;
       },
 
+ensureInlineListCaretHosts(root) {
+        if (!root) return;
+        const ZWSP = "\u200B";
+        const isZwsp = node => node?.nodeType === Node.TEXT_NODE && node.nodeValue === ZWSP;
+        root.querySelectorAll(".wordex-inline-list[data-inline-list-id]:not(.wordex-sub-list), [data-inline-list-anchor]").forEach(listNode => {
+          if (!isZwsp(listNode.previousSibling))
+            listNode.before(document.createTextNode(ZWSP));
+          if (!isZwsp(listNode.nextSibling))
+            listNode.after(document.createTextNode(ZWSP));
+        });
+      },
+
 renderInlineListAnchors(html, subparagraph) {
         const container = document.createElement("div");
         container.innerHTML = String(html ?? "");
@@ -417,6 +453,7 @@ renderInlineListAnchors(html, subparagraph) {
           else anchor.remove();
         });
 
+        this.ensureInlineListCaretHosts(container);
         return container.innerHTML;
       },
 
@@ -444,28 +481,44 @@ renderInlineLine(line) {
         return `<span class="wordex-inline-line${activeClass}" data-wordex-kind="${KINDS.LINE}" data-inline-line-id="${escapeHtml(line.id)}" contenteditable="false">${escapeHtml(line.text || "______________________________")}</span>`;
       },
 
-      renderListContent(list, inline = false, inlineLists = []) {
+      renderListContent(list, inline = false, inlineLists = [], numberPath = [], hierarchicalMode = false) {
         const listType = list?.listType === "bullet" ? "bullet" : "ordered";
         const allowedStyles = listType === "bullet"
           ? ["disc", "circle", "square"]
           : ["decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman"];
-        const markerStyle = allowedStyles.includes(list?.markerStyle) ? list.markerStyle : allowedStyles[0];
+        const rawMarker = list?.markerStyle === "outline" ? "decimal" : list?.markerStyle;
+        const markerStyle = allowedStyles.includes(rawMarker) ? rawMarker : allowedStyles[0];
+        const useHierarchical = listType === "ordered" && (
+          hierarchicalMode
+          || list?.hierarchicalNumbering === true
+          || list?.markerStyle === "outline"
+        );
         const tag = listType === "bullet" ? "ul" : "ol";
         const itemIds = ensureListItemIds(list);
         const items = (Array.isArray(list?.items) ? list.items : [])
           .map((text, index) => ({ text, id: itemIds[index] }));
         if (list?.sortAlphabetically === true)
           items.sort((left, right) => String(left.text).localeCompare(String(right.text), "pt-BR", { sensitivity: "base" }));
-        const itemHtml = items.map(item => {
+        const itemHtml = items.map((item, index) => {
           const children = inlineLists.filter(child =>
             child.parentListId === list.id && child.parentItemId === item.id
           );
-          return `<li data-inline-list-item-id="${escapeHtml(item.id)}">${escapeHtml(item.text)}${children.map(child => this.renderInlineList(child, inlineLists, true)).join("")}</li>`;
+          const path = useHierarchical ? [...numberPath, index + 1] : [];
+          const marker = useHierarchical ? `${path.join(".")}.` : "";
+          const markerHtml = useHierarchical
+            ? `<span class="wordex-list-marker" aria-hidden="true">${escapeHtml(marker)}</span><span class="wordex-list-item-text">${escapeHtml(item.text)}</span>`
+            : escapeHtml(item.text);
+          const childHtml = children.map(child =>
+            this.renderInlineList(child, inlineLists, true, path, useHierarchical)
+          ).join("");
+          return `<li data-inline-list-item-id="${escapeHtml(item.id)}"${useHierarchical ? ` data-list-marker="${escapeHtml(marker)}"` : ""}>${markerHtml}${childHtml}</li>`;
         }).join("");
-        return `<${tag} class="wordex-list-items" style="list-style-type:${markerStyle}">${itemHtml}</${tag}>`;
+        const listClass = `wordex-list-items${useHierarchical ? " is-outline" : ""}`;
+        const listStyle = useHierarchical ? "list-style:none" : `list-style-type:${markerStyle}`;
+        return `<${tag} class="${listClass}" style="${listStyle}">${itemHtml}</${tag}>`;
       },
 
-renderInlineList(list, inlineLists = [], nested = false) {
+renderInlineList(list, inlineLists = [], nested = false, numberPath = [], hierarchicalMode = false) {
         ensureListItemIds(list);
         const activeClass = list.id === this.activeObject ? " is-active" : "";
         const alignment = ["left", "center", "right"].includes(list.alignment)
@@ -484,7 +537,10 @@ renderInlineList(list, inlineLists = [], nested = false) {
           ? `height:${Math.max(0, Number(list.height))}px;overflow:hidden;`
           : "";
         const style = width || height ? ` style="${width}${height}"` : "";
-        return `<span class="wordex-inline-list${nestedClass}${activeClass}" data-wordex-kind="${KINDS.LIST}" data-inline-list-id="${escapeHtml(list.id)}" data-alignment="${effectiveAlignment}" data-wrap-text="${wrapText}" data-justify="${justify}"${style} contenteditable="false">${this.renderListContent(list, true, inlineLists)}</span>`;
+        const useHierarchical = hierarchicalMode
+          || list?.hierarchicalNumbering === true
+          || list?.markerStyle === "outline";
+        return `<span class="wordex-inline-list${nestedClass}${activeClass}" data-wordex-kind="${KINDS.LIST}" data-inline-list-id="${escapeHtml(list.id)}" data-alignment="${effectiveAlignment}" data-wrap-text="${wrapText}" data-justify="${justify}"${style} contenteditable="false">${this.renderListContent(list, true, inlineLists, numberPath, useHierarchical)}</span>`;
       },
 
 renderObjectSubparagraph(section, subparagraph) {
