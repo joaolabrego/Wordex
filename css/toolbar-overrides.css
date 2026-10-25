@@ -51,6 +51,33 @@
       pointer-events: none;
     }
 
+    .toolbar .template-load-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 29px;
+      min-width: 32px;
+      min-height: 29px;
+      padding: 0;
+      background: #f5f9ff;
+      border-color: #9ebbe8;
+    }
+
+    .toolbar .template-load-button img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: block;
+      width: 24px;
+      height: 24px;
+      margin: 0;
+      transform: translate(-50%, -50%);
+      object-fit: contain;
+      pointer-events: none;
+    }
+
     .toolbar .table-merge-button {
       min-width: 28px;
       font-size: 13px;

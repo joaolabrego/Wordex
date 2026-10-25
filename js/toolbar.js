@@ -11,9 +11,11 @@ bindToolbar() {
         newObjectButton.addEventListener("pointerdown", event => this.captureTextInsertionCaret?.(event));
         document.getElementById("btnRemoveObject").addEventListener("click", () => this.removeSelectedObject());
         document.getElementById("btnLoadDataJson")?.addEventListener("click", () => this.openDataJsonFileDialog());
+        document.getElementById("btnLoadTemplate")?.addEventListener("click", () => this.openTemplateHtmlFileDialog?.());
         document.getElementById("btnSaveTemplate")?.addEventListener("click", () => this.saveTemplateHtml?.());
         document.getElementById("btnRenderReportHtml")?.addEventListener("click", () => this.renderReportHtml?.());
         document.getElementById("dataJsonFileInput")?.addEventListener("change", event => this.onDataJsonFileSelected(event));
+        document.getElementById("templateHtmlFileInput")?.addEventListener("change", event => this.onTemplateHtmlFileSelected?.(event));
         document.getElementById("dataFieldSelect")?.addEventListener("change", event => this.onDataFieldChanged(event));
         document.getElementById("btnMergeTableCells")?.addEventListener("click", () => this.mergeSelectedTableCells?.());
         document.getElementById("btnUnmergeTableRow")?.addEventListener("click", () => this.unmergeCurrentTableRow?.());

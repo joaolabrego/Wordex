@@ -1,6 +1,81 @@
 "use strict";
 
 Object.assign(wordex, {
+  openTemplateHtmlFileDialog() {
+    const input = document.getElementById("templateHtmlFileInput");
+    if (!input) return;
+    input.value = "";
+    input.click();
+  },
+
+  onTemplateHtmlFileSelected(event) {
+    const input = event.currentTarget;
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        this.applyLoadedTemplateHtml(String(reader.result || ""), file.name);
+      } catch (error) {
+        this.renderStatePanel?.(`Erro ao carregar template: ${error.message}`, true);
+      } finally {
+        input.value = "";
+      }
+    };
+    reader.onerror = () => {
+      this.renderStatePanel?.("Erro ao ler o arquivo de template.", true);
+      input.value = "";
+    };
+    reader.readAsText(file, "utf-8");
+  },
+
+  applyLoadedTemplateHtml(html, fileName = "") {
+    const parsed = new DOMParser().parseFromString(String(html || ""), "text/html");
+    const node = parsed.getElementById("wordexSavedDocument");
+    if (!node) throw new Error("O arquivo não contém um template Wordex válido.");
+
+    const state = JSON.parse(node.textContent || "{}");
+    if (!state.document || !Array.isArray(state.document.sections))
+      throw new Error("O arquivo não contém um template Wordex válido.");
+
+    this.document = state.document;
+    this.dataSource = state.dataSource ?? null;
+    this.dataSourceFileName = String(state.dataSourceFileName || "");
+    this.savedTemplateFileHandle = null;
+    this.objectEditMode = false;
+    this.activeEditTargetKind = null;
+    this.activeObject = null;
+    this.activeTextbox = null;
+    this.activeTableSelection = null;
+    this.dragging = null;
+    this.hideObjectEditOverlay?.();
+
+    if (!Object.prototype.hasOwnProperty.call(this.document, "watermark")) this.document.watermark = null;
+    document.title = String(this.document.title || "Wordex");
+
+    this.rebuildCountersFromDocument?.();
+    this.migrateTextHtmlToRuns?.();
+
+    if (this.document?.textDefaults) {
+      this.setTypingTextDefaults?.(this.document.textDefaults, { updateControls: true });
+    } else {
+      this.syncDocumentDefaultsFromToolbar?.();
+    }
+    this.applyPageFormat?.();
+
+    const bodySection = this.findSectionByKind(SECTION_KIND.BODY) || this.document.sections[0];
+    const paragraph = this.getFirstParagraph(bodySection);
+    const subparagraph = paragraph?.subparagraphs?.[0];
+    this.activeSection = bodySection?.id || null;
+    this.activeParagraph = paragraph?.id || null;
+    this.activeSubparagraph = subparagraph?.id || null;
+
+    this.populateDataSourceSelectors?.();
+    const label = fileName ? `Template carregado: ${fileName}` : "Template carregado.";
+    this.render(label, false, { focusActiveEditableSubparagraph: true });
+  },
+
   async saveTemplateHtml() {
     let fileHandle = null;
     let openedPicker = false;
