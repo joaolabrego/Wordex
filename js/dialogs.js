@@ -30,6 +30,7 @@ showObjectDialog(objectKind, targetObject = null) {
         const dialog = this.ensureObjectDialog();
         this.pendingObjectKind = objectKind;
         this.pendingChartTarget = objectKind === KINDS.CHART ? targetObject : null;
+        this.pendingTableTarget = objectKind === KINDS.TABLE ? targetObject : null;
         this.pendingListTarget = objectKind === KINDS.LIST ? targetObject : null;
         const listOwner = objectKind === KINDS.LIST && targetObject
           ? this.findObjectOwnerById?.(targetObject.id)
@@ -68,7 +69,7 @@ showObjectDialog(objectKind, targetObject = null) {
         const title = dialog.querySelector("[data-object-dialog-title]");
         const body = dialog.querySelector("[data-object-dialog-body]");
         const confirmButton = dialog.querySelector("[data-object-dialog-confirm]");
-        title.textContent = objectKind === KINDS.TABLE ? "Inserir tabela" : objectKind === KINDS.LIST ? (initialListTarget ? (initialListTarget.parentListId ? "Editar sublista" : "Editar lista") : "Inserir lista") : objectKind === KINDS.IMAGE ? "Dados da imagem" : objectKind === KINDS.CHART ? (targetObject ? "Editar gráfico" : "Inserir gráfico") : "Marca d'água";
+        title.textContent = objectKind === KINDS.TABLE ? (targetObject ? "Editar tabela" : "Inserir tabela") : objectKind === KINDS.LIST ? (initialListTarget ? (initialListTarget.parentListId ? "Editar sublista" : "Editar lista") : "Inserir lista") : objectKind === KINDS.IMAGE ? "Dados da imagem" : objectKind === KINDS.CHART ? (targetObject ? "Editar gráfico" : "Inserir gráfico") : "Marca d'água";
         if (confirmButton) {
           confirmButton.textContent = objectKind === KINDS.TABLE || objectKind === KINDS.CHART || objectKind === KINDS.LIST ? (initialListTarget || targetObject ? "Atualizar" : "Inserir") : "Confirmar";
         }
@@ -76,6 +77,7 @@ showObjectDialog(objectKind, targetObject = null) {
         if (objectKind === KINDS.TABLE) {
           body.innerHTML = this.renderTableInsertDialogBody();
           this.bindTableInsertDialog(body);
+          if (targetObject) this.applyTableInsertDialogState(body, targetObject);
         } else if (objectKind === KINDS.LIST) {
           body.innerHTML = this.renderListDialogBody(initialListTarget, { subparagraph: listSubparagraph });
           this.bindListDialog(body, initialListTarget, listSubparagraph);
@@ -200,6 +202,7 @@ hideObjectDialog() {
         this.objectDialogBackdrop?.querySelector(".wordex-object-dialog")?.classList.remove("is-chart-dialog");
         this.pendingObjectKind = null;
         this.pendingChartTarget = null;
+        this.pendingTableTarget = null;
         this.pendingListTarget = null;
         this.pendingListRootTarget = null;
         this.pendingListSubparagraphId = null;
@@ -446,7 +449,7 @@ setListRootAnchor(subparagraph, listId, isRoot) {
         subparagraph.textHtml = holder.innerHTML;
         subparagraph.contentKind = subparagraph.textHtml ? CONTENT_KIND.TEXT : CONTENT_KIND.EMPTY;
         subparagraph.runs = window.WordexRuns?.htmlToRuns
-          ? window.WordexRuns.htmlToRuns(subparagraph.textHtml, this.document.textDefaults || this.getCurrentToolbarTextStyles?.() || {})
+          ? window.WordexRuns.htmlToRuns(subparagraph.textHtml, subparagraph.textStyle || this.document.textDefaults || this.getTypingTextDefaults?.() || {})
           : [];
       },
 
@@ -652,9 +655,21 @@ renderTableParentChainOptions(body, detailPath) {
           const totals = Array.isArray(level.totals) ? level.totals : [];
           const isRoot = level.path === "$";
           const labelText = isRoot ? "Root" : level.label;
-          const groupFields = isRoot ? [] : this.getScalarFieldsForDataPath(level.path);
+          const groupFields = this.getScalarFieldsForDataPath(level.path);
+          const groupFieldSelect = `<div class="wordex-table-group-field">
+              <label class="wordex-object-form-row">${isRoot ? "Grupo geral" : `Campo do grupo ${escapeHtml(labelText)}`}
+                <select data-table-group-field data-parent-path="${escapeHtml(level.path)}">
+                  <option value="" selected>(não agrupar)</option>
+                  ${groupFields.map(field => `<option value="${escapeHtml(field.macro)}" data-field-label="${escapeHtml(field.label)}">${escapeHtml(field.label)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="wordex-table-group-option">
+                <input type="checkbox" data-table-group-page-break data-parent-path="${escapeHtml(level.path)}" disabled>
+                Saltar página
+              </label>
+            </div>`;
 
-          if (!totals.length && isRoot) {
+          if (!totals.length && !groupFields.length && isRoot) {
             return;
           }
 
@@ -672,26 +687,17 @@ renderTableParentChainOptions(body, detailPath) {
               <label class="wordex-object-form-row">${isRoot ? "Grupo geral" : `Grupo ${index + 1}`}
                 <input type="text" value="${escapeHtml(labelText)}" data-table-parent-display readonly>
               </label>
-              ${!isRoot ? `<label class="wordex-object-form-row">Campo do grupo ${escapeHtml(labelText)}
-                <select data-table-group-field data-parent-path="${escapeHtml(level.path)}">
-                  <option value="" selected>(não agrupar)</option>
-                  ${groupFields.map(field => `<option value="${escapeHtml(field.macro)}" data-field-label="${escapeHtml(field.label)}">${escapeHtml(field.label)}</option>`).join("")}
-                </select>
-              </label>` : ""}
+              ${groupFieldSelect}
             </div>
           `;
 
           if (isRoot) {
-            if (totals.length) {
-              rootRows.push(`
-                <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
-                  <label class="wordex-object-form-row">Grupo geral
-                    <input type="text" value="${escapeHtml(labelText)}" data-table-parent-display readonly>
-                  </label>
-                  ${footerHtml}
-                </div>
-              `);
-            }
+            rootRows.push(`
+              <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
+                ${groupFieldSelect}
+                ${totals.length ? footerHtml : ""}
+              </div>
+            `);
           } else {
             rows.push(row);
             groupFooterRows.push(`<div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">${footerHtml}</div>`);
@@ -708,6 +714,22 @@ renderTableParentChainOptions(body, detailPath) {
           rootFooterContainer.innerHTML = rootRows.join("");
           rootFooterContainer.querySelectorAll("select").forEach(select => this.resizeSelectToLargestOption(select));
         }
+
+        body.querySelectorAll("[data-table-group-field]").forEach(select => {
+          const path = select.getAttribute("data-parent-path") || "";
+          const checkbox = Array.from(body.querySelectorAll("[data-table-group-page-break]"))
+            .find(input => (input.getAttribute("data-parent-path") || "") === path);
+          if (!checkbox) return;
+
+          const apply = () => {
+            const enabled = Boolean(select.value);
+            checkbox.disabled = !enabled;
+            if (!enabled) checkbox.checked = false;
+          };
+
+          select.addEventListener("change", apply);
+          apply();
+        });
       },
 
 populateDialogSelect(row, select, items, emptyLabel = "") {
@@ -735,6 +757,75 @@ populateDialogSelect(row, select, items, emptyLabel = "") {
 
         select.innerHTML = options.join("");
         this.resizeSelectToLargestOption(select);
+      },
+
+decodeDialogText(value) {
+        const node = document.createElement("textarea");
+        node.innerHTML = String(value ?? "");
+        return node.value;
+      },
+
+applyTableInsertDialogState(body, table) {
+        if (!body || !table) return;
+
+        const detailSelect = body.querySelector("[data-table-detail-source]");
+        const binding = table.dataBinding;
+        const detailPath = binding?.detailPath || "$";
+        const savedPathExists = detailSelect
+          && [...detailSelect.options].some(option => option.value === detailPath);
+
+        if (detailSelect && savedPathExists) detailSelect.value = detailPath;
+        if (detailSelect) this.refreshTableInsertDialog(body);
+
+        const rowsInput = body.querySelector("[data-object-table-rows]");
+        const colsInput = body.querySelector("[data-object-table-cols]");
+        if (!binding || !detailSelect || detailSelect.value === "$") {
+          if (rowsInput) rowsInput.value = String(Math.max(1, Number(table.rows) || 2));
+          if (colsInput) colsInput.value = String(Math.max(1, Number(table.cols) || 3));
+          return;
+        }
+
+        const headerRow = (table.rowContexts || []).findIndex(context => context?.kind === "tableHeader");
+        const headerInput = body.querySelector("[data-table-header-text]");
+        if (headerInput && headerRow >= 0)
+          headerInput.value = this.decodeDialogText(table.cells?.[headerRow]?.[0] || "");
+
+        const savedFields = Array.isArray(binding.detailFields) ? binding.detailFields.filter(Boolean) : [];
+        const fieldsContainer = body.querySelector("[data-table-detail-fields]");
+        if (fieldsContainer && savedFields.length) {
+          fieldsContainer.dataset.detailPath = detailSelect.value;
+          fieldsContainer.dataset.fieldOrder = JSON.stringify(savedFields);
+          fieldsContainer.querySelectorAll("[data-table-detail-field]").forEach(input => {
+            input.checked = savedFields.includes(input.value);
+          });
+          this.renderTableDetailFieldOptions(body, detailSelect.value);
+        }
+
+        const groups = Array.isArray(binding.groups) ? binding.groups : [];
+        body.querySelectorAll("[data-table-group-field]").forEach(select => {
+          const path = select.getAttribute("data-parent-path") || "";
+          const group = groups.find(item => item?.path === path);
+          const macro = group?.fieldMacro || "";
+          if ([...select.options].some(option => option.value === macro)) select.value = macro;
+          select.dispatchEvent(new Event("change"));
+          const checkbox = Array.from(body.querySelectorAll("[data-table-group-page-break]"))
+            .find(input => (input.getAttribute("data-parent-path") || "") === path);
+          if (checkbox && select.value) checkbox.checked = group?.pageBreak === true;
+        });
+
+        const footerByPath = new Map(
+          (Array.isArray(binding.parentLevels) ? binding.parentLevels : [])
+            .filter(level => level?.path)
+            .map(level => [level.path, level.footerPath || ""])
+        );
+        if (Object.prototype.hasOwnProperty.call(binding, "tableFooterPath"))
+          footerByPath.set("$", binding.tableFooterPath || "");
+        body.querySelectorAll("[data-table-parent-footer-source]").forEach(select => {
+          const path = select.getAttribute("data-parent-path") || "";
+          if (!footerByPath.has(path)) return;
+          const value = footerByPath.get(path) || "";
+          if ([...select.options].some(option => option.value === value)) select.value = value;
+        });
       },
 
 createTableObjectFromDialog(body) {
@@ -767,6 +858,12 @@ createTableObjectFromDialog(body) {
             select.value || ""
           ])
         );
+        const pageBreakByParentPath = new Map(
+          Array.from(body.querySelectorAll("[data-table-group-page-break]")).map(input => [
+            input.getAttribute("data-parent-path") || "",
+            Boolean(input.checked)
+          ])
+        );
         const selectedGroupFieldByParentPath = new Map(
           Array.from(body.querySelectorAll("[data-table-group-field]")).map(select => [
             select.getAttribute("data-parent-path") || "",
@@ -786,12 +883,16 @@ createTableObjectFromDialog(body) {
           footerPath: selectedFooterByParentPath.get(level.path) || ""
         }));
 
-        const nonRootParentsClosestFirst = parentLevels.filter(item => item.path && item.path !== "$");
-        const groupedParentsClosestFirst = nonRootParentsClosestFirst
-          .filter(item => selectedGroupFieldByParentPath.get(item.path))
+        const groupedParentsClosestFirst = parentLevels
+          .filter(item => item.path && selectedGroupFieldByParentPath.get(item.path))
           .map(item => {
             const field = selectedGroupFieldByParentPath.get(item.path);
-            return { ...item, fieldMacro: field.macro, fieldLabel: field.label };
+            return {
+              ...item,
+              fieldMacro: field.macro,
+              fieldLabel: field.label,
+              pageBreak: pageBreakByParentPath.get(item.path) === true
+            };
           });
         const groupedParentsRootFirst = [...groupedParentsClosestFirst].reverse();
         const rootLevel = parentLevels.find(item => item.path === "$") || { path: "$", footerPath: "" };
@@ -843,9 +944,9 @@ createTableObjectFromDialog(body) {
         groupedParentsRootFirst.forEach(item => {
           const rowIndex = rows.length;
           pushRow(
-            { kind: "groupHeader", contextPath: item.path, fieldContextPath: item.path },
+            { kind: "groupHeader", contextPath: item.path, fieldContextPath: item.path, pageBreak: item.pageBreak === true },
             safeFields.map((_, col) => col === 0
-              ? `${escapeHtml(item.label || this.getDataPathLastName(item.path))}: {{${item.fieldMacro}}}`
+              ? `${escapeHtml(item.fieldLabel || item.label || this.getDataPathLastName(item.path))}: {{${item.fieldMacro}}}`
               : "")
           );
           contexts[ rowIndex ].mergeAcrossColumns = true;
@@ -858,7 +959,7 @@ createTableObjectFromDialog(body) {
         );
 
         // 5) Footers: somente grupos selecionados com total configurado.
-        groupedParentsClosestFirst.filter(item => item.footerPath).forEach(item => {
+        groupedParentsClosestFirst.filter(item => item.path !== "$" && item.footerPath).forEach(item => {
           pushRow(
             {
               kind: "groupFooter",
@@ -943,7 +1044,8 @@ createTableObjectFromDialog(body) {
             path: item.path,
             label: item.label || this.getDataPathLastName(item.path),
             fieldMacro: item.fieldMacro,
-            fieldLabel: item.fieldLabel
+            fieldLabel: item.fieldLabel,
+            pageBreak: item.pageBreak === true
           })),
           tableHeaderPath: "$",
           tableFooterPath: rootLevel.footerPath || ""
@@ -1095,6 +1197,25 @@ confirmObjectDialog() {
           fieldsError?.setAttribute("hidden", "");
           headerInput?.setCustomValidity("");
           const table = this.createTableObjectFromDialog(body);
+          const target = this.pendingTableTarget;
+          if (target) {
+            const preserved = {
+              id: target.id,
+              x: target.x,
+              y: target.y,
+              width: target.width,
+              height: target.height
+            };
+            Object.keys(target).forEach(key => {
+              if (!Object.prototype.hasOwnProperty.call(table, key) && !Object.prototype.hasOwnProperty.call(preserved, key))
+                delete target[key];
+            });
+            Object.assign(target, table, preserved);
+            this.activeObject = target.id;
+            this.hideObjectDialog();
+            this.render("Tabela atualizada.");
+            return;
+          }
           this.hideObjectDialog();
           this.insertObjectIntoActiveSubparagraph(table);
           return;
@@ -1250,9 +1371,9 @@ applyMarginToElement(target) {
         if (!target?.element || !target?.item || target.kind !== KINDS.PARAGRAPH) return;
         const margin = this.getTargetMargin(target);
         target.element.style.marginTop = `${margin.top}px`;
-        target.element.style.marginRight = "";
+        target.element.style.marginRight = margin.right == null ? "" : `${margin.right}px`;
         target.element.style.marginBottom = `${margin.bottom}px`;
-        target.element.style.marginLeft = "";
+        target.element.style.marginLeft = margin.left == null ? "" : `${margin.left}px`;
         target.element.style.width = "";
         target.element.style.maxWidth = "";
         target.element.style.boxSizing = "";
@@ -1271,7 +1392,10 @@ positionMarginDialogBackdrop() {
 
 cloneMarginForDialog(margin, kind) {
         const value = normalizeMargin(margin, kind);
-        return createMargin(value.top, value.bottom);
+        const copy = createMargin(value.top, value.bottom);
+        if (value.left != null) copy.left = value.left;
+        if (value.right != null) copy.right = value.right;
+        return copy;
       },
 
 saveMarginDialogOriginal(target) {

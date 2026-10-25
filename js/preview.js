@@ -59,20 +59,17 @@ Object.assign(wordex, {
     const context = table.rowContexts?.[rowIndex] ? { ...table.rowContexts[rowIndex] } : null;
     const alignments = JSON.parse(JSON.stringify(table.cellTextAlign?.[rowIndex] || Array.from({ length: table.cols }, () => "left")));
 
-    // Na prévia, valores numéricos do registro ficam alinhados à direita.
-    // Alinhamentos diferentes do padrão (por exemplo, centro) são mantidos.
-    if (context?.kind === "detail") {
-      sourceCells.forEach((cell, columnIndex) => {
-        if (alignments[columnIndex] !== "left") return;
+    // Na renderização, o valor cujo kind é number fica sempre à direita.
+    sourceCells.forEach((cell, columnIndex) => {
+      const source = String(cell ?? "").trim();
+      const macros = [...source.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)];
+      if (macros.length !== 1) return;
+      if (source.replace(macros[0][0], "").trim()) return;
 
-        const macros = [...String(cell ?? "").matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)];
-        if (macros.length !== 1) return;
-
-        const node = this.getDataPreviewMacroNode(sourceItem, macros[0][1]);
-        if (this.isNumericDataNode?.(node))
-          alignments[columnIndex] = "right";
-      });
-    }
+      const node = this.getDataPreviewMacroNode(sourceItem, macros[0][1]);
+      if (this.isNumericDataNode?.(node))
+        alignments[columnIndex] = "right";
+    });
 
     build.rows.push(sourceCells.map(cell => this.replaceDataPreviewMacros(cell, sourceItem)));
     build.contexts.push(context);
@@ -401,9 +398,16 @@ Object.assign(wordex, {
     for (const part of parts) {
       const child = this.getDataPreviewChildNode(current, part);
       if (child == null) return "";
-      current = this.unwrapDataPreviewNode(child);
+      current = child;
     }
-    return current;
+
+    // Text é o valor exibido na planilha (1.100,00). Value segue numérico para gráfico e alinhamento.
+    if (this.isPlainObject?.(current)) {
+      const text = current.Text ?? current.text;
+      if (typeof text === "string" && text !== "") return text;
+    }
+
+    return this.unwrapDataPreviewNode(current);
   },
 
   resolveSystemDataPreviewMacro(macro) {

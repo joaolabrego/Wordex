@@ -1,15 +1,53 @@
     .toolbar .html-render-button {
-      min-width: 34px;
-      padding: 2px;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 29px;
+      min-width: 32px;
+      min-height: 29px;
+      padding: 0;
       background: #f5f9ff;
       border-color: #9ebbe8;
     }
 
     .toolbar .html-render-button img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
       display: block;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
+      margin: 0;
+      transform: translate(-50%, -50%);
       object-fit: contain;
+      pointer-events: none;
+    }
+
+    .toolbar .json-load-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      width: 32px;
+      height: 29px;
+      min-width: 32px;
+      min-height: 29px;
+      padding: 0;
+    }
+
+    .toolbar .json-load-button img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: block;
+      width: 56px;
+      height: 56px;
+      margin: 0;
+      transform: translate(-50%, -50%);
+      object-fit: fill;
       pointer-events: none;
     }
 

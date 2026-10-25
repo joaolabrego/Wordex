@@ -86,17 +86,54 @@ render(message = "", isError = false, options = {}) {
           element.addEventListener("input", event => this.onTableCellInput(event, element));
         });
 
+        const doubleClickSelectedTableText = (tableElement, clientX, clientY) => {
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+          if (!selection.toString()) return false;
+
+          const anchor = selection.anchorNode;
+          const anchorElement = anchor?.nodeType === Node.ELEMENT_NODE ? anchor : anchor?.parentElement;
+          if (!anchorElement || !tableElement.contains(anchorElement)) return false;
+
+          const range = selection.getRangeAt(0);
+          for (const rect of range.getClientRects()) {
+            if (clientX >= rect.left - 2 && clientX <= rect.right + 2 && clientY >= rect.top - 2 && clientY <= rect.bottom + 2)
+              return true;
+          }
+
+          const hit = document.elementFromPoint(clientX, clientY);
+          const cell = hit?.closest?.("[data-table-cell]");
+          return Boolean(cell && tableElement.contains(cell) && cell.contains(anchorElement));
+        };
+
         page.querySelectorAll("[data-main-object-id]").forEach(element => {
           element.addEventListener("click", event => this.onMainObjectClick(event, element));
           element.addEventListener("pointerdown", event => this.onMainObjectPointerDown(event, element));
           element.addEventListener("dblclick", event => {
-            if (![KINDS.CHART, KINDS.LIST].includes(element.dataset.objectKind)) return;
-            event.preventDefault();
-            event.stopPropagation();
-            const owner = this.findObjectOwnerById(element.dataset.mainObjectId);
-            if (!owner?.object) return;
-            if (owner.object.kind === KINDS.CHART) this.showChartDialog(owner.object);
-            else this.showObjectDialog(KINDS.LIST, owner.object);
+            const kind = element.dataset.objectKind;
+            if (![KINDS.CHART, KINDS.LIST, KINDS.TABLE].includes(kind)) return;
+
+            const openDialog = () => {
+              const owner = this.findObjectOwnerById(element.dataset.mainObjectId);
+              if (!owner?.object) return;
+              if (owner.object.kind === KINDS.CHART) this.showChartDialog(owner.object);
+              else this.showObjectDialog(owner.object.kind, owner.object);
+            };
+
+            if (kind !== KINDS.TABLE) {
+              event.preventDefault();
+              event.stopPropagation();
+              openDialog();
+              return;
+            }
+
+            // O navegador seleciona a palavra no duplo-clique depois deste evento.
+            const clientX = event.clientX;
+            const clientY = event.clientY;
+            setTimeout(() => {
+              if (doubleClickSelectedTableText(element, clientX, clientY)) return;
+              openDialog();
+            }, 0);
           });
         });
 
@@ -124,13 +161,14 @@ render(message = "", isError = false, options = {}) {
           element.addEventListener("input", event => this.onTextboxInput(event, element));
         });
 
+        this.syncSubparagraphWidthLayout?.();
         this.renderStatePanel(message, isError);
         this.updateToolbarState();
         this.updateJsonOutput();
         this.updateTextCommandButtonsVisibility();
 
         if (options.focusActiveEditableSubparagraph) {
-          this.focusActiveEditableSubparagraph();
+          this.focusActiveEditableSubparagraph(options.restoreTextSelection || null);
         }
 
         if (options.focusFirstTableCell) {
@@ -138,17 +176,22 @@ render(message = "", isError = false, options = {}) {
         }
       },
 
-focusActiveEditableSubparagraph() {
+focusActiveEditableSubparagraph(restoreTextSelection = null) {
         const subparagraph = this.findSubparagraphById(this.activeSubparagraph);
         if (!subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return;
 
         const element = document.querySelector(`[data-text-subparagraph-id="${this.activeSubparagraph}"]`);
         if (!element || element.getAttribute("contenteditable") !== "true") return;
 
+        const savedSelection = restoreTextSelection?.subparagraphId === element.dataset.textSubparagraphId
+          ? restoreTextSelection
+          : null;
+
         // O foco precisa ocorrer depois que o browser assentou o DOM recém-renderizado.
         // Assim, ao abrir/carregar o template, o usuário já pode digitar sem clicar.
         window.requestAnimationFrame(() => {
           element.focus();
+          if (savedSelection && this.restoreEditableSelectionOffsets(element, savedSelection)) return;
           this.placeCaretAtEnd(element);
         });
       },
@@ -186,8 +229,20 @@ renderWatermark() {
         `;
       },
 
+renderSectionInlineStyle(section) {
+        const styles = [];
+        const marginStyle = renderBoxEdgesInlineStyle("margin", section?.margin);
+        if (marginStyle) styles.push(marginStyle);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", section?.padding);
+        if (paddingStyle) styles.push(paddingStyle);
+        const textStyle = renderTextStyleInlineStyle(section?.textStyle);
+        if (textStyle) styles.push(textStyle);
+        return styles.length ? ` style="${styles.join(";")}"` : "";
+      },
+
 renderSection(section) {
         const activeClass = section.id === this.activeSection ? " is-active" : "";
+        const inlineStyle = this.renderSectionInlineStyle(section);
         let paragraphNumber = 0;
         const content = section.paragraphs.map((entry, index) => {
           if (entry === PAGE_BREAK_CHARACTER) return this.renderPageBreakCharacter();
@@ -198,7 +253,7 @@ renderSection(section) {
         return `
           <div class="section-frame${activeClass} is-enabled" data-section-frame-kind="${section.sectionKind}">
             <div class="section-label-row"><span class="section-label">${section.sectionKind}</span></div>
-            <section class="section${activeClass} is-enabled" data-wordex-kind="${KINDS.SECTION}" data-section-kind="${section.sectionKind}" data-section-id="${section.id}">
+            <section class="section${activeClass} is-enabled" data-wordex-kind="${KINDS.SECTION}" data-section-kind="${section.sectionKind}" data-section-id="${section.id}"${inlineStyle}>
               ${content}
             </section>
           </div>
@@ -215,6 +270,10 @@ renderParagraphInlineStyle(paragraph) {
         const styles = [];
         const marginStyle = renderMarginInlineStyle(paragraph.margin, KINDS.PARAGRAPH);
         if (marginStyle) styles.push(marginStyle);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", paragraph.padding);
+        if (paddingStyle) styles.push(paddingStyle);
+        const textStyle = renderTextStyleInlineStyle(paragraph.textStyle);
+        if (textStyle) styles.push(textStyle);
 
         return styles.length ? ` style="${styles.join(";")}"` : "";
       },
@@ -230,21 +289,22 @@ renderParagraph(section, paragraph, index) {
         `;
       },
 
-renderSubparagraphInlineStyle(subparagraph) {
+renderSubparagraphInlineStyle(paragraph, subparagraph) {
         const styles = [];
-        const width = Number(subparagraph.width);
         const height = Number(subparagraph.height);
         const y = Number(subparagraph.y);
         const textAlign = subparagraph.textAlign || "left";
+        const share = paragraph?.subparagraphs?.length > 1
+          ? this.subparagraphWidthShare?.(paragraph, subparagraph)
+          : null;
 
-        // Subparagraph não tem margens próprias. Margens são exclusivas de Paragraph.
-        // Quando redimensionado estruturalmente, ele passa a ter largura explícita
-        // dentro do flex do parágrafo. Sem width, continua flexível como antes.
-        if (Number.isFinite(width) && width > 0) {
-          const roundedWidth = Math.round(width);
-          styles.push(`flex:0 0 ${roundedWidth}px`);
-          styles.push(`width:${roundedWidth}px`);
-          styles.push(`max-width:${roundedWidth}px`);
+        // A largura é uma fração do parágrafo. Assim os subparágrafos
+        // continuam preenchendo a faixa inteira quando o parágrafo muda de tamanho.
+        if (share != null) {
+          styles.push(`flex:${share} 1 0px`);
+          styles.push("width:auto");
+          styles.push("max-width:none");
+          styles.push("min-width:0");
         }
 
         if (Number.isFinite(height) && height > 0) {
@@ -261,6 +321,12 @@ renderSubparagraphInlineStyle(subparagraph) {
 
         const borderStyle = renderBorderInlineStyle(subparagraph.border);
         if (borderStyle) styles.push(borderStyle);
+        const marginStyle = renderBoxEdgesInlineStyle("margin", subparagraph.margin);
+        if (marginStyle) styles.push(marginStyle);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", subparagraph.padding);
+        if (paddingStyle) styles.push(paddingStyle);
+        const textStyle = renderTextStyleInlineStyle(subparagraph.textStyle);
+        if (textStyle) styles.push(textStyle);
 
         return styles.length ? ` style="${styles.join(";")}"` : "";
       },
@@ -274,7 +340,7 @@ renderSubparagraph(section, paragraph, subparagraph) {
           paragraph.subparagraphs.length > 1
             ? " is-move-mode"
             : "";
-        const inlineStyle = this.renderSubparagraphInlineStyle(subparagraph);
+        const inlineStyle = this.renderSubparagraphInlineStyle(paragraph, subparagraph);
         const baseAttributes = `class="subparagraph${activeClass}${moveModeClass}" data-wordex-kind="${KINDS.SUBPARAGRAPH}" data-section-id="${section.id}" data-paragraph-id="${paragraph.id}" data-subparagraph-id="${subparagraph.id}" data-content-kind="${subparagraph.contentKind}"${inlineStyle}`;
 
         const isEditableSection = this.isSectionEnabled(section);
@@ -325,11 +391,11 @@ renderInlineTextbox(textbox, isEditableSection = true) {
           ? textbox.alignment
           : textbox.floatSide === "left" ? "left" : "right";
         const borderStyle = renderBorderInlineStyle(textbox.border);
-        const inlineStyle = [`width:${width}px`, `height:${height}px`, borderStyle].filter(Boolean).join(";");
-        const textAlign = SUBPARAGRAPH_TEXT_ALIGNMENTS.includes(textbox.textAlign)
-          ? ` style="text-align:${textbox.textAlign}"`
-          : "";
-        return `<span class="textbox textbox-inline${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" data-inline-textbox="true" data-alignment="${alignment}" contenteditable="false" style="${inlineStyle}"><span class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${textAlign}>${textbox.html || ""}</span></span>`;
+        const marginStyle = renderBoxEdgesInlineStyle("margin", textbox.margin);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", textbox.padding);
+        const inlineStyle = [`width:${width}px`, `height:${height}px`, borderStyle, marginStyle, paddingStyle].filter(Boolean).join(";");
+        const contentStyle = this.renderTextboxContentStyleAttr(textbox);
+        return `<span class="textbox textbox-inline${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" data-inline-textbox="true" data-alignment="${alignment}" contenteditable="false" style="${inlineStyle}"><span class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textbox.html || ""}</span></span>`;
       },
 
 renderInlineListAnchors(html, subparagraph) {
@@ -513,6 +579,30 @@ ensureTableBorderState(table) {
         }
       },
 
+ensureTableSpacingState(table) {
+        if (!table || table.kind !== KINDS.TABLE) return;
+        ["cellMargins", "cellPaddings"].forEach(key => {
+          if (!Array.isArray(table[key])) table[key] = [];
+          for (let row = 0; row < table.rows; row += 1) {
+            if (!Array.isArray(table[key][row])) table[key][row] = [];
+            for (let col = 0; col < table.cols; col += 1) {
+              if (typeof table[key][row][col] === "undefined") table[key][row][col] = null;
+            }
+          }
+        });
+      },
+
+ensureTableCellTextStyleState(table) {
+        if (!table || table.kind !== KINDS.TABLE) return;
+        if (!Array.isArray(table.cellTextStyles)) table.cellTextStyles = [];
+        for (let row = 0; row < table.rows; row += 1) {
+          if (!Array.isArray(table.cellTextStyles[row])) table.cellTextStyles[row] = [];
+          for (let col = 0; col < table.cols; col += 1) {
+            if (typeof table.cellTextStyles[row][col] === "undefined") table.cellTextStyles[row][col] = null;
+          }
+        }
+      },
+
 ensureTableCellObjectState(table) {
         if (!table || table.kind !== KINDS.TABLE) return;
         if (!Array.isArray(table.cellObjects)) table.cellObjects = [];
@@ -542,6 +632,12 @@ renderTableCellInlineStyle(table, row, col) {
         const styles = [];
         const borderStyle = renderBorderInlineStyle(table?.cellBorders?.[row]?.[col]);
         if (borderStyle) styles.push(borderStyle);
+        const marginStyle = renderBoxEdgesInlineStyle("margin", table?.cellMargins?.[row]?.[col]);
+        if (marginStyle) styles.push(marginStyle);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", table?.cellPaddings?.[row]?.[col]);
+        if (paddingStyle) styles.push(paddingStyle);
+        const textStyle = renderTextStyleInlineStyle(table?.cellTextStyles?.[row]?.[col]);
+        if (textStyle) styles.push(textStyle);
         const textAlign = table?.cellTextAlign?.[row]?.[col];
         if (SUBPARAGRAPH_TEXT_ALIGNMENTS.includes(textAlign)) styles.push(`text-align:${textAlign}`);
         return styles.length ? ` style="${styles.join(";")}"` : "";
@@ -565,6 +661,8 @@ getTableCellColspan(table, row, col) {
 renderTable(table, isEditableSection = true) {
         this.ensureTableSizeState(table);
         this.ensureTableBorderState(table);
+        this.ensureTableSpacingState(table);
+        this.ensureTableCellTextStyleState(table);
         this.ensureTableCellObjectState(table);
         const tableEditMode = this.isTableInEditMode(table.id);
         const isCellEditable = isEditableSection && !tableEditMode;
@@ -624,8 +722,11 @@ renderTable(table, isEditableSection = true) {
 
           const rowContext = table.rowContexts?.[row] || null;
           const effectiveRowContextPath = this.getEffectiveTableRowFieldContextPath?.(table, row) || rowContext?.fieldContextPath || rowContext?.contextPath || rowContext?.footerPath || "";
+          const pageBreakAttr = rowContext?.kind === "groupHeader" && rowContext.pageBreak
+            ? ` data-page-break-before="true"`
+            : "";
           const rowContextAttrs = rowContext
-            ? ` data-row-kind="${escapeHtml(rowContext.kind || "")}" data-row-context-path="${escapeHtml(effectiveRowContextPath)}"`
+            ? ` data-row-kind="${escapeHtml(rowContext.kind || "")}" data-row-context-path="${escapeHtml(effectiveRowContextPath)}"${pageBreakAttr}`
             : "";
           const rowVisible = table.rowReportVisibility?.[row] !== false && table.rowVisibility?.[row] !== false;
           const rowClass = rowVisible ? "" : ' class="wordex-table-row-hidden"';
@@ -639,14 +740,23 @@ renderTable(table, isEditableSection = true) {
 renderTextbox(textbox, isEditableSection = true) {
         const activeClass = textbox.id === this.activeTextbox ? " is-active" : "";
         const borderStyle = renderBorderInlineStyle(textbox.border);
-        const textAlign = SUBPARAGRAPH_TEXT_ALIGNMENTS.includes(textbox.textAlign)
-          ? ` style="text-align:${textbox.textAlign}"`
-          : "";
+        const marginStyle = renderBoxEdgesInlineStyle("margin", textbox.margin);
+        const paddingStyle = renderBoxEdgesInlineStyle("padding", textbox.padding);
+        const boxStyle = [borderStyle, marginStyle, paddingStyle].filter(Boolean).join(";");
+        const contentStyle = this.renderTextboxContentStyleAttr(textbox);
         return `
-          <div class="textbox${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" style="left:${textbox.x}px; top:${textbox.y}px; width:${textbox.width}px; height:${textbox.height}px;${borderStyle ? ` ${borderStyle};` : ""}">
-            <div class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${textAlign}>${textbox.html}</div>
+          <div class="textbox${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" style="left:${textbox.x}px; top:${textbox.y}px; width:${textbox.width}px; height:${textbox.height}px;${boxStyle ? ` ${boxStyle};` : ""}">
+            <div class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textbox.html}</div>
           </div>
         `;
+      },
+
+renderTextboxContentStyleAttr(textbox) {
+        const styles = [];
+        if (SUBPARAGRAPH_TEXT_ALIGNMENTS.includes(textbox?.textAlign)) styles.push(`text-align:${textbox.textAlign}`);
+        const textStyle = renderTextStyleInlineStyle(textbox?.textStyle);
+        if (textStyle) styles.push(textStyle);
+        return styles.length ? ` style="${styles.join(";")}"` : "";
       },
 
 refreshActiveClasses() {

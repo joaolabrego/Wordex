@@ -48,6 +48,8 @@ pendingObjectKind: null,
 
 pendingChartTarget: null,
 
+pendingTableTarget: null,
+
 pendingListTarget: null,
 
 pendingListRootTarget: null,
@@ -95,6 +97,7 @@ init() {
       },
 
 bindGlobalPointerEvents() {
+        document.getElementById("page")?.addEventListener("click", event => this.onPageBackgroundClick(event));
         window.addEventListener("pointermove", event => this.onPointerMove(event));
         window.addEventListener("pointerup", event => this.onPointerUp(event));
         window.addEventListener("resize", () => this.positionObjectEditOverlay());

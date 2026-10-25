@@ -15,16 +15,57 @@ function createMargin(top = 0, bottom = 0) {
     function normalizeMargin(margin, kind) {
       const fallback = getDefaultMarginForKind(kind);
       const source = margin && typeof margin === "object" ? margin : fallback;
-      return createMargin(
+      const normalized = createMargin(
         source.top ?? fallback.top,
         source.bottom ?? fallback.bottom
       );
+      ["left", "right"].forEach(side => {
+        if (source[side] == null || source[side] === "") return;
+        const amount = Math.round(Number(source[side]));
+        if (Number.isFinite(amount)) normalized[side] = Math.max(0, amount);
+      });
+      return normalized;
     }
 
     function renderMarginInlineStyle(margin, kind) {
       if (!margin || typeof margin !== "object") return "";
       const value = normalizeMargin(margin, kind);
-      return `margin:${value.top}px 0 ${value.bottom}px 0`;
+      if (value.left == null && value.right == null) {
+        return `margin:${value.top}px 0 ${value.bottom}px 0`;
+      }
+      return ["top", "right", "bottom", "left"].flatMap(side => (
+        value[side] == null ? [] : [`margin-${side}:${value[side]}px`]
+      )).join(";");
+    }
+
+    function applyParagraphMarginAction(margin, action, px) {
+      const current = normalizeMargin(margin, KINDS.PARAGRAPH);
+      if (action === "none") return createMargin(7, 7);
+      const amount = Math.max(0, Math.round(Number(px) || 0));
+      const next = { top: current.top, bottom: current.bottom };
+      if (current.left != null) next.left = current.left;
+      if (current.right != null) next.right = current.right;
+      const sides = action === "all" ? ["top", "right", "bottom", "left"] : [action];
+      sides.forEach(side => {
+        if (["top", "right", "bottom", "left"].includes(side)) next[side] = amount;
+      });
+      return next;
+    }
+
+    function readMarginSide(edgesList, kind, side) {
+      if (!["top", "right", "bottom", "left"].includes(side)) return "";
+      const items = Array.isArray(edgesList) ? edgesList : [edgesList];
+      const values = items.map(edges => {
+        if (kind === KINDS.PARAGRAPH) {
+          const margin = normalizeMargin(edges, KINDS.PARAGRAPH);
+          if (side === "left" || side === "right") return margin[side] == null ? 0 : margin[side];
+          return margin[side];
+        }
+        const margin = normalizeBoxEdges(edges);
+        return margin[side] == null ? 0 : margin[side];
+      });
+      if (!values.length || values.some(value => value !== values[0])) return "";
+      return String(values[0]);
     }
 
 
@@ -72,6 +113,49 @@ function createBorderSide(color = "#000000", width = "1px", style = "solid") {
       return styles.join(";");
     }
 
+    function createEmptyBoxEdges() {
+      return { top: null, right: null, bottom: null, left: null };
+    }
+
+    function normalizeBoxEdges(edges) {
+      const source = edges && typeof edges === "object" ? edges : {};
+      const normalized = createEmptyBoxEdges();
+      ["top", "right", "bottom", "left"].forEach(side => {
+        if (source[side] == null || source[side] === "") return;
+        const value = Math.round(Number(source[side]));
+        if (Number.isFinite(value)) normalized[side] = Math.max(0, value);
+      });
+      return normalized;
+    }
+
+    function renderTextStyleInlineStyle(textStyle) {
+      if (!textStyle || typeof textStyle !== "object") return "";
+      const styles = [];
+      if (textStyle.fontFamily) styles.push(`font-family:${textStyle.fontFamily}`);
+      if (textStyle.fontSize) styles.push(`font-size:${textStyle.fontSize}`);
+      if (textStyle.color) styles.push(`color:${textStyle.color}`);
+      return styles.join(";");
+    }
+
+    function renderBoxEdgesInlineStyle(property, edges) {
+      if (!edges || typeof edges !== "object") return "";
+      const value = normalizeBoxEdges(edges);
+      return ["top", "right", "bottom", "left"].flatMap(side => (
+        value[side] == null ? [] : [`${property}-${side}:${value[side]}px`]
+      )).join(";");
+    }
+
+    function applyBoxEdgesAction(edges, action, px) {
+      if (action === "none") return createEmptyBoxEdges();
+      const next = normalizeBoxEdges(edges);
+      const amount = Math.max(0, Math.round(Number(px) || 0));
+      const sides = action === "all" ? ["top", "right", "bottom", "left"] : [action];
+      sides.forEach(side => {
+        if (["top", "right", "bottom", "left"].includes(side)) next[side] = amount;
+      });
+      return next;
+    }
+
     function createSubparagraph() {
       return {
         id: nextId("sp"),
@@ -87,7 +171,10 @@ function createBorderSide(color = "#000000", width = "1px", style = "solid") {
         width: null,
         height: null,
         textAlign: "left",
-        border: createEmptyBorder()
+        textStyle: null,
+        border: createEmptyBorder(),
+        margin: createEmptyBoxEdges(),
+        padding: createEmptyBoxEdges()
       };
     }
 
@@ -96,6 +183,7 @@ function createBorderSide(color = "#000000", width = "1px", style = "solid") {
         id: nextId("p"),
         kind: KINDS.PARAGRAPH,
         margin: createMargin(7, 7),
+        padding: createEmptyBoxEdges(),
         subparagraphs: [createSubparagraph()]
       };
     }
@@ -105,6 +193,9 @@ function createBorderSide(color = "#000000", width = "1px", style = "solid") {
         id: sectionKind.toLowerCase(),
         kind: KINDS.SECTION,
         sectionKind,
+        margin: createEmptyBoxEdges(),
+        padding: createEmptyBoxEdges(),
+        textStyle: null,
         paragraphs: [createParagraph()]
       };
     }

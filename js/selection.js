@@ -100,6 +100,84 @@ syncActiveEditableAfterTextCommand(explicitEditable = null) {
         }
       },
 
+captureEditableSelectionOffsets(editable) {
+        const selection = window.getSelection?.();
+        if (!editable || !selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+
+        const range = selection.getRangeAt(0);
+        if (!editable.contains(range.startContainer) || !editable.contains(range.endContainer)) return null;
+
+        const offsetWithin = (container, offset) => {
+          const probe = document.createRange();
+          probe.selectNodeContents(editable);
+          probe.setEnd(container, offset);
+          return probe.toString().length;
+        };
+
+        let start = offsetWithin(range.startContainer, range.startOffset);
+        let end = offsetWithin(range.endContainer, range.endOffset);
+        if (end < start) [start, end] = [end, start];
+        if (start === end) return null;
+
+        return {
+          subparagraphId: editable.dataset.textSubparagraphId || "",
+          start,
+          end
+        };
+      },
+
+captureCurrentEditableSelection() {
+        const selection = window.getSelection?.();
+        const node = selection?.anchorNode;
+        const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+        const editable = element?.closest?.("[data-text-subparagraph-id]");
+        return this.captureEditableSelectionOffsets(editable);
+      },
+
+restoreEditableSelectionOffsets(editable, savedSelection) {
+        if (!editable || !savedSelection) return false;
+        const startOffset = Number(savedSelection.start);
+        const endOffset = Number(savedSelection.end);
+        if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset) || endOffset <= startOffset) return false;
+
+        const selection = window.getSelection?.();
+        if (!selection) return false;
+
+        const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+        let index = 0;
+        let startNode = null;
+        let startNodeOffset = 0;
+        let endNode = null;
+        let endNodeOffset = 0;
+
+        while (walker.nextNode()) {
+          const textNode = walker.currentNode;
+          const length = textNode.nodeValue.length;
+
+          if (!startNode && startOffset <= index + length) {
+            startNode = textNode;
+            startNodeOffset = Math.max(0, Math.min(length, startOffset - index));
+          }
+
+          if (!endNode && endOffset <= index + length) {
+            endNode = textNode;
+            endNodeOffset = Math.max(0, Math.min(length, endOffset - index));
+            break;
+          }
+
+          index += length;
+        }
+
+        if (!startNode || !endNode) return false;
+
+        const range = document.createRange();
+        range.setStart(startNode, startNodeOffset);
+        range.setEnd(endNode, endNodeOffset);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return !selection.isCollapsed && selection.toString().length > 0;
+      },
+
 clearNativeCaretAndSelection() {
         const activeElement = document.activeElement;
         if (activeElement?.getAttribute?.("contenteditable") === "true") {
@@ -150,23 +228,60 @@ setActive(sectionId, paragraphId, subparagraphId, textboxId = null, options = {}
           // Não recria o DOM quando o usuário clica novamente no mesmo item.
           // Recriar o DOM durante a seleção nativa do navegador desfaz ações
           // como duplo-clique para selecionar uma palavra dentro do subparágrafo.
-          this.renderStatePanel();
+          this.renderStatePanel(options.message || "");
           this.updateToolbarState();
           this.updateJsonOutput();
           return;
         }
 
-        this.render("", false, options);
+        this.render(options.message || "", false, options);
+      },
+
+deselectActiveSubparagraph() {
+        if (!this.activeSubparagraph && !this.activeTextbox && !this.activeObject) return;
+
+        this.activeSubparagraph = null;
+        this.activeTextbox = null;
+        this.activeObject = null;
+        this.activeTableSelection = null;
+        this.activeEditTargetKind = null;
+        this.objectEditMode = false;
+        this.hideObjectEditOverlay?.();
+        this.clearNativeCaretAndSelection?.();
+        this.render("Subparágrafo desmarcado.", false);
+      },
+
+onPageBackgroundClick(event) {
+        if (event.target.closest(".paragraph, .subparagraph")) return;
+        this.deselectActiveSubparagraph();
       },
 
 onSectionClick(event, element) {
         event.stopPropagation();
         const section = this.findSectionById(element.dataset.sectionId);
         if (!section) return;
+        if (event.target.closest(".paragraph, .subparagraph, .page-break-character")) return;
 
-        const paragraph = this.getFirstParagraph(section);
-        const subparagraph = paragraph.subparagraphs[0];
-        this.setActive(section.id, paragraph.id, subparagraph.id);
+        const alreadySectionOnly =
+          this.activeSection === section.id &&
+          !this.activeParagraph &&
+          !this.activeSubparagraph &&
+          !this.activeTextbox &&
+          !this.activeObject;
+        if (alreadySectionOnly) return;
+
+        this.activeSection = section.id;
+        this.activeParagraph = null;
+        this.activeSubparagraph = null;
+        this.activeTextbox = null;
+        this.activeObject = null;
+        this.activeTableSelection = null;
+        this.activeEditTargetKind = null;
+        this.objectEditMode = false;
+        this.hideObjectEditOverlay?.();
+        this.hideMarginDialog?.();
+        this.clearNativeCaretAndSelection?.();
+        this.render("Seção selecionada.", false);
       },
 
 onParagraphClick(event, element) {
@@ -182,8 +297,7 @@ onParagraphClick(event, element) {
         const paragraph = this.findParagraphById(element.dataset.paragraphId);
         if (!section || !paragraph) return;
 
-        const subparagraph = paragraph.subparagraphs[0];
-        this.setActive(section.id, paragraph.id, subparagraph.id);
+        this.setActive(section.id, paragraph.id, null, null, { message: "Parágrafo selecionado." });
       },
 
 onSubparagraphPointerDown(event, element) {
@@ -392,7 +506,7 @@ onEditableBeforeInput(event, element) {
         if (event.data === null || event.data === undefined || event.data === "") return;
         if (!element || element.getAttribute?.("contenteditable") !== "true") return;
 
-        const styles = this.getTypingTextDefaults?.() || this.getCurrentToolbarTextStyles?.() || {};
+        const styles = this.getCurrentToolbarTextStyles?.() || this.getTypingTextDefaults?.() || {};
         const inserted = window.WordexRichText?.insertTextWithStyle?.(element, event.data, styles);
         if (!inserted) return;
 
@@ -490,8 +604,9 @@ onSubparagraphInput(event, element) {
         // não o valor atual da toolbar. A toolbar representa o próximo texto
         // a ser digitado; ela não pode repintar texto sem estilo quando uma
         // seleção recebe cor/fonte/tamanho.
+        const textDefaults = subparagraph.textStyle || this.document.textDefaults || this.getTypingTextDefaults?.() || {};
         subparagraph.runs = window.WordexRuns?.htmlToRuns
-          ? window.WordexRuns.htmlToRuns(html, this.document.textDefaults || this.getCurrentToolbarTextStyles?.() || {})
+          ? window.WordexRuns.htmlToRuns(html, textDefaults)
           : [];
         subparagraph.contentKind = html === "" ? CONTENT_KIND.EMPTY : CONTENT_KIND.TEXT;
         this.renderStatePanel();

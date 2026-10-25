@@ -63,7 +63,7 @@ migrateTextHtmlToRuns() {
             paragraph.subparagraphs?.forEach(subparagraph => {
               if (!Array.isArray(subparagraph.runs)) subparagraph.runs = [];
               if (subparagraph.contentKind === CONTENT_KIND.TEXT && subparagraph.textHtml && subparagraph.runs.length === 0) {
-                subparagraph.runs = WordexRuns.htmlToRuns(subparagraph.textHtml, defaults);
+                subparagraph.runs = WordexRuns.htmlToRuns(subparagraph.textHtml, subparagraph.textStyle || defaults);
               }
             });
           });

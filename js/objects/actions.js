@@ -6,8 +6,13 @@ insertObjectIntoActiveSubparagraph(object) {
           return;
         }
 
-        const owner = this.findSubparagraphOwnerById(this.activeSubparagraph);
-        if (!owner) return;
+        let owner = this.findSubparagraphOwnerById(this.activeSubparagraph);
+        if (!owner) {
+          const paragraphOwner = this.findParagraphOwnerById(this.activeParagraph);
+          const subparagraph = paragraphOwner?.paragraph?.subparagraphs?.[0];
+          if (!paragraphOwner || !subparagraph) return;
+          owner = { ...paragraphOwner, subparagraph, subparagraphIndex: 0 };
+        }
 
         let targetSubparagraph = owner.subparagraph;
         let createdSubparagraph = false;

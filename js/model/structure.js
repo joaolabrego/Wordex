@@ -148,13 +148,35 @@ findObjectOwnerById(objectId) {
 
 ensureValidSelection() {
         let section = this.findSectionById(this.activeSection) || this.findSectionByKind(SECTION_KIND.BODY) || this.document.sections[0];
-        let paragraph = section.paragraphs.find(item => this.isParagraphEntry(item) && item.id === this.activeParagraph) || this.getFirstParagraph(section);
-        if (!paragraph) throw new Error("A seção não contém parágrafo para seleção.");
-        let subparagraph = paragraph.subparagraphs.find(item => item.id === this.activeSubparagraph) || paragraph.subparagraphs[0];
+        if (!this.activeParagraph) {
+          this.activeSection = section.id;
+          this.activeParagraph = null;
+          this.activeSubparagraph = null;
+          this.activeTextbox = null;
+          this.activeObject = null;
+          return;
+        }
 
+        let paragraph = section.paragraphs.find(item => this.isParagraphEntry(item) && item.id === this.activeParagraph);
+        if (!paragraph) {
+          const owner = this.findParagraphOwnerById(this.activeParagraph);
+          if (owner) {
+            section = owner.section;
+            paragraph = owner.paragraph;
+          } else {
+            paragraph = this.getFirstParagraph(section);
+          }
+        }
+        if (!paragraph) throw new Error("A seção não contém parágrafo para seleção.");
+
+        const subparagraph = paragraph.subparagraphs.find(item => item.id === this.activeSubparagraph) || null;
         this.activeSection = section.id;
         this.activeParagraph = paragraph.id;
-        this.activeSubparagraph = subparagraph.id;
+        this.activeSubparagraph = subparagraph ? subparagraph.id : null;
+        if (!subparagraph) {
+          this.activeTextbox = null;
+          this.activeObject = null;
+        }
       },
 
 escapeTestParagraphText(value) {
@@ -222,6 +244,7 @@ addSubparagraphToActiveParagraph() {
 
         const subparagraph = createSubparagraph();
         paragraph.subparagraphs.push(subparagraph);
+        this.balanceSubparagraphSharesAfterInsert?.(paragraph);
         this.activeSubparagraph = subparagraph.id;
         this.activeTextbox = null;
         this.render("Novo subparágrafo criado.", false, { focusActiveEditableSubparagraph: true });
@@ -266,6 +289,10 @@ removeActiveSubparagraph() {
         if (!owner) return;
 
         owner.paragraph.subparagraphs.splice(owner.subparagraphIndex, 1);
+
+        if (owner.paragraph.subparagraphs.length === 1) {
+          owner.paragraph.subparagraphs[0].width = null;
+        }
 
         if (
           owner.paragraph.subparagraphs.length <= 1 &&

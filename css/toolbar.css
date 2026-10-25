@@ -41,8 +41,8 @@
     .paper-format-select,
     .data-source-select,
     .text-font-select,
-    .text-size-select,
-    .border-width-select,
+    .text-size-input,
+    .border-width-input,
     .border-style-select,
     .border-radius-input,
     .border-apply-select,
@@ -60,8 +60,14 @@
       min-width: 165px;
     }
 
-    .text-size-select {
-      width: 56px;
+    .text-size-input {
+      width: 64px;
+      font: inherit;
+      text-align: right;
+    }
+
+    ::highlight(wordex-pending-text) {
+      background-color: #accef7;
     }
 
 
@@ -76,15 +82,29 @@
       cursor: pointer;
     }
 
-    .border-width-select { width: 56px; }
-    .border-style-select { width: 74px; }
+    .border-width-input,
     .border-radius-input {
-      box-sizing: border-box;
-      width: 72px;
-      min-width: 72px;
+      width: 58px;
+      min-width: 58px;
       font: inherit;
+      text-align: right;
     }
+    .border-style-select { width: 74px; }
     .border-apply-select { width: 88px; }
+
+    .box-edge-input {
+      box-sizing: border-box;
+      width: 58px;
+      min-width: 58px;
+      min-height: 29px;
+      border: 1px solid #aab7c7;
+      border-radius: 4px;
+      background: #fff;
+      padding: 4px 6px;
+      color: #222;
+      font: inherit;
+      text-align: right;
+    }
 
 
     .data-source-select {

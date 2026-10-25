@@ -23,27 +23,76 @@ bindToolbar() {
         this.bindSubparagraphAlignmentButton("btnAlignSubparagraphRight", "right");
         this.bindSubparagraphAlignmentButton("btnAlignSubparagraphJustify", "justify");
         const borderApplySelect = document.getElementById("borderApplySelect");
-        if (borderApplySelect) {
-          // Preserve a seleção ativa da tabela ao abrir/usar o combo de bordas.
+        const borderWidthInput = document.getElementById("borderWidthInput");
+        const borderStyleSelect = document.getElementById("borderStyleSelect");
+        const borderRadiusInput = document.getElementById("borderRadiusInput");
+        const borderColorInput = document.getElementById("borderColorInput");
+        const borderApplyButton = document.getElementById("btnApplyBorder");
+        [borderApplySelect, borderWidthInput, borderStyleSelect, borderRadiusInput, borderColorInput, borderApplyButton].forEach(control => {
+          if (!control) return;
           ["pointerdown", "mousedown", "click"].forEach(eventName => {
-            borderApplySelect.addEventListener(eventName, event => event.stopPropagation());
+            control.addEventListener(eventName, event => event.stopPropagation());
           });
-          borderApplySelect.addEventListener("change", event => this.applySelectedBorder(event.currentTarget));
-        }
+        });
+        borderApplySelect?.addEventListener("change", () => this.syncBorderControls(true));
+        borderApplyButton?.addEventListener("mousedown", event => event.preventDefault());
+        borderApplyButton?.addEventListener("click", () => this.applySelectedBorder(borderApplySelect));
+        ["margin", "padding"].forEach(kind => {
+          const applySelect = document.getElementById(kind === "margin" ? "marginApplySelect" : "paddingApplySelect");
+          const sizeInput = document.getElementById(kind === "margin" ? "marginSizeInput" : "paddingSizeInput");
+          const applyButton = document.getElementById(kind === "margin" ? "btnApplyMargin" : "btnApplyPadding");
+          [applySelect, sizeInput, applyButton].forEach(control => {
+            if (!control) return;
+            ["pointerdown", "mousedown", "click"].forEach(eventName => {
+              control.addEventListener(eventName, event => event.stopPropagation());
+            });
+          });
+          applySelect?.addEventListener("change", () => {
+            if (kind === "margin") this.syncMarginSizeInput(true);
+            else this.syncPaddingSizeInput(true);
+          });
+          applyButton?.addEventListener("mousedown", event => event.preventDefault());
+          applyButton?.addEventListener("click", () => this.applySelectedSpacing(kind, applySelect));
+        });
         document.getElementById("paperFormatSelect").addEventListener("change", event => this.setPaperFormat(event.currentTarget.value));
         document.getElementById("pageOrientationSelect").addEventListener("change", event => this.setPageOrientation(event.currentTarget.value));
-        document.getElementById("textFontSelect").addEventListener("change", event => {
-          this.applyTextStyle("fontName", event.currentTarget.value);
+        const textFontSelect = document.getElementById("textFontSelect");
+        const textSizeInput = document.getElementById("textSizeInput");
+        const applyTextStyleButton = document.getElementById("btnApplyTextStyle");
+        [textFontSelect, textSizeInput, applyTextStyleButton].forEach(control => {
+          if (!control) return;
+          control.addEventListener("pointerdown", () => this.capturePendingTextStyleRange());
+          ["pointerdown", "mousedown", "click"].forEach(eventName => {
+            control.addEventListener(eventName, event => event.stopPropagation());
+          });
         });
-        document.getElementById("textSizeSelect").addEventListener("change", event => {
-          this.applyTextSize(event.currentTarget.value);
+        applyTextStyleButton?.addEventListener("mousedown", event => event.preventDefault());
+        applyTextStyleButton?.addEventListener("click", () => this.applySelectedControlTextStyle());
+        document.addEventListener("pointerdown", event => {
+          const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+          if (this.isToolbarNumberInput(target) || target?.closest?.("#btnApplyBorder, #btnApplyMargin, #btnApplyPadding, #btnApplyTextStyle, #btnAlignSubparagraphLeft, #btnAlignSubparagraphCenter, #btnAlignSubparagraphRight, #btnAlignSubparagraphJustify")) {
+            this.capturePreservedTextRange();
+          }
+          if (!this.isToolbarNumberInput(target)) return;
+          this.capturePendingTextStyleRange();
+          requestAnimationFrame(() => this.paintPendingTextHighlight());
+        }, true);
+        document.addEventListener("focusin", event => {
+          if (!this.isToolbarNumberInput(event.target)) return;
+          this.capturePendingTextStyleRange();
+          this.paintPendingTextHighlight();
         });
+        document.getElementById("page")?.addEventListener("pointerdown", () => {
+          this.releasePendingTextStyleRange();
+          this.preservedTextRange = null;
+        }, true);
         this.bindTextCommandButton("btnTextBold", () => this.applySelectedTextCommand("bold"));
         this.bindTextCommandButton("btnTextItalic", () => this.applySelectedTextCommand("italic"));
         this.bindTextCommandButton("btnTextUnderline", () => this.applySelectedTextCommand("underline"));
         this.bindTextCommandButton("btnTextCase", () => this.clearSelectedTextFormatting());
         this.bindTextColorInput(document.getElementById("textColorInput"));
         document.addEventListener("selectionchange", () => {
+          this.rememberEditableTextRange();
           this.updateTextCommandButtonsVisibility();
           this.syncSubparagraphAlignmentControls?.();
         });
@@ -55,6 +104,7 @@ bindSubparagraphAlignmentButton(buttonId, alignment) {
         const button = document.getElementById(buttonId);
         if (!button) return;
         let pendingTextboxId = null;
+        let pendingSelection = null;
         button.addEventListener("pointerdown", () => {
           const activeTextbox = document.querySelector(".textbox.is-active[data-textbox-id]")
             || document.activeElement?.closest?.("[data-textbox-id]")
@@ -65,12 +115,15 @@ bindSubparagraphAlignmentButton(buttonId, alignment) {
               return element?.closest?.("[data-textbox-id]") || null;
             })();
           pendingTextboxId = activeTextbox?.dataset.textboxId || this.activeTextbox || null;
+          pendingSelection = this.captureCurrentEditableSelection?.() || null;
         });
         button.addEventListener("mousedown", event => event.preventDefault());
         button.addEventListener("click", () => {
           const textboxId = pendingTextboxId;
+          const savedSelection = pendingSelection;
           pendingTextboxId = null;
-          this.setActiveSubparagraphTextAlignment(alignment, textboxId);
+          pendingSelection = null;
+          this.setActiveSubparagraphTextAlignment(alignment, textboxId, savedSelection);
         });
       },
 
@@ -85,7 +138,7 @@ getActiveSubparagraphObjectAlignmentTarget() {
         return owner;
       },
 
-setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null) {
+setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null, savedSelection = null) {
         if (!SUBPARAGRAPH_TEXT_ALIGNMENTS.includes(alignment)) return;
 
         const selection = window.getSelection?.();
@@ -143,9 +196,9 @@ setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null) {
               : alignment === "center" ? remainingWidth / 2 : 0;
           }
 
-          this.render(alignment === "center"
+          this.renderKeepingTextRange(alignment === "center"
             ? (textboxOwner.inline ? "Caixa de texto centralizada em linha própria." : "Caixa de texto centralizada no subparágrafo.")
-            : (textboxOwner.inline ? "Caixa de texto alinhada com o texto fluindo ao lado oposto." : "Caixa de texto alinhada no subparágrafo."), false);
+            : (textboxOwner.inline ? "Caixa de texto alinhada com o texto fluindo ao lado oposto." : "Caixa de texto alinhada no subparágrafo."));
           this.positionObjectEditOverlay?.();
           this.syncSubparagraphAlignmentControls?.();
           this.updateJsonOutput?.();
@@ -165,7 +218,7 @@ setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null) {
             delete objectOwner.object.floatSide;
             delete objectOwner.object.x;
             delete objectOwner.object.y;
-            this.render("Alinhamento da lista atualizado.", false);
+            this.renderKeepingTextRange("Alinhamento da lista atualizado.");
             this.syncSubparagraphAlignmentControls?.();
             this.updateJsonOutput?.();
             return;
@@ -176,7 +229,7 @@ setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null) {
           if (area) area.dataset.objectAlign = alignment;
           const element = document.querySelector(`[data-main-object-id="${objectOwner.object.id}"]`);
           if (element) element.style.transform = `translate(0px, ${Number(objectOwner.object.y) || 0}px)`;
-          this.render("Alinhamento do objeto atualizado.", false);
+          this.renderKeepingTextRange("Alinhamento do objeto atualizado.");
           this.positionObjectEditOverlay?.();
           this.updateJsonOutput?.();
           this.syncSubparagraphAlignmentControls?.();
@@ -197,7 +250,7 @@ setActiveSubparagraphTextAlignment(alignment, selectedTextboxId = null) {
         if (!subparagraph) return;
 
         subparagraph.textAlign = alignment;
-        this.render("Alinhamento do subparágrafo atualizado.", false, { focusActiveEditableSubparagraph: true });
+        this.renderKeepingTextRange("Alinhamento do subparágrafo atualizado.");
         this.updateJsonOutput?.();
         this.syncSubparagraphAlignmentControls?.();
       },
@@ -449,19 +502,196 @@ syncSubparagraphAlignmentControls() {
 
 getCurrentBorderToolbarStyles() {
         const color = document.getElementById("borderColorInput")?.value || "#000000";
-        const width = document.getElementById("borderWidthSelect")?.value || "1px";
+        const width = Math.max(0, Math.round(Number(document.getElementById("borderWidthInput")?.value) || 0));
         const style = document.getElementById("borderStyleSelect")?.value || "solid";
-        const radiusInput = document.getElementById("borderRadiusInput");
-        const radius = radiusInput?.value.trim() || "4px";
+        const radius = Math.max(0, Math.round(Number(document.getElementById("borderRadiusInput")?.value) || 0));
+        return { color, width: `${width}px`, style, radius: `${radius}%` };
+      },
 
-        if (typeof CSS !== "undefined" && !CSS.supports("border-radius", radius)) {
-          radiusInput?.setCustomValidity("Informe um valor CSS válido, como 3.5px ou 50%.");
-          radiusInput?.reportValidity();
-          return null;
+borderRadiusPercent(radius) {
+        const match = String(radius || "").trim().match(/^(\d+(?:\.\d+)?)%$/);
+        return match ? String(Math.round(Number(match[1]))) : "0";
+      },
+
+getSelectedBorders() {
+        const textbox = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)?.textbox
+          : null;
+        if (textbox) return [textbox.border];
+
+        const table = this.getActiveTableForBorder?.()?.table;
+        if (table) {
+          this.ensureTableBorderState?.(table);
+          const cells = this.getTableBorderTargetCells?.(table) || [];
+          return cells.map(({ row, col }) => table.cellBorders?.[row]?.[col]);
         }
 
-        radiusInput?.setCustomValidity("");
-        return { color, width, style, radius };
+        const subparagraph = this.findSubparagraphOwnerById?.(this.activeSubparagraph)?.subparagraph;
+        if (subparagraph) return [subparagraph.border];
+        return null;
+      },
+
+syncBorderControls(force = false) {
+        const widthInput = document.getElementById("borderWidthInput");
+        const radiusInput = document.getElementById("borderRadiusInput");
+        const styleSelect = document.getElementById("borderStyleSelect");
+        const colorInput = document.getElementById("borderColorInput");
+        if (!widthInput || !radiusInput) return;
+        if (!force && (document.activeElement === widthInput || document.activeElement === radiusInput)) return;
+
+        const side = document.getElementById("borderApplySelect")?.value || "top";
+        const borders = this.getSelectedBorders();
+        if (!borders?.length) {
+          widthInput.value = "0";
+          radiusInput.value = "0";
+          if (styleSelect) styleSelect.value = "none";
+          if (colorInput) colorInput.value = "#000000";
+          return;
+        }
+
+        const sides = borders.map(border => normalizeBorder(border)[side]);
+        const widths = sides.map(item => item ? Math.max(0, Math.round(parseFloat(item.width) || 0)) : 0);
+        const styles = sides.map(item => item?.style || "none");
+        const colors = sides.map(item => this.cssColorToHex(item?.color || "#000000"));
+        const radii = borders.map(border => this.borderRadiusPercent(border?.radius));
+
+        widthInput.value = widths.every(value => value === widths[0]) ? String(widths[0]) : "";
+        radiusInput.value = radii.every(value => value === radii[0]) ? radii[0] : "";
+        if (styleSelect && styles.every(value => value === styles[0]) && [...styleSelect.options].some(option => option.value === styles[0])) {
+          styleSelect.value = styles[0];
+        }
+        if (colorInput && colors.every(value => value === colors[0])) colorInput.value = colors[0];
+      },
+
+describeEditable(editable) {
+        if (editable?.dataset?.textSubparagraphId) return { kind: "sub", id: editable.dataset.textSubparagraphId };
+        if (editable?.dataset?.textboxContent) return { kind: "textbox", id: editable.dataset.textboxContent };
+        if (editable?.dataset?.tableCell) {
+          return {
+            kind: "cell",
+            id: editable.dataset.tableCell,
+            row: editable.dataset.row,
+            col: editable.dataset.col
+          };
+        }
+        return null;
+      },
+
+findDescribedEditable(saved) {
+        if (saved?.kind === "sub") return document.querySelector(`[data-text-subparagraph-id="${saved.id}"]`);
+        if (saved?.kind === "textbox") return document.querySelector(`[data-textbox-content="${saved.id}"]`);
+        if (saved?.kind === "cell") {
+          return document.querySelector(`[data-table-cell="${saved.id}"][data-row="${saved.row}"][data-col="${saved.col}"]`);
+        }
+        return null;
+      },
+
+offsetsForRange(editable, range) {
+        if (!editable?.isConnected || !range) return null;
+        if (!editable.contains(range.startContainer) || !editable.contains(range.endContainer)) return null;
+        const point = (container, offset) => {
+          const probe = document.createRange();
+          probe.selectNodeContents(editable);
+          probe.setEnd(container, offset);
+          return probe.toString().length;
+        };
+        let start = point(range.startContainer, range.startOffset);
+        let end = point(range.endContainer, range.endOffset);
+        if (end < start) [start, end] = [end, start];
+        const described = this.describeEditable(editable);
+        if (!described) return null;
+        return { ...described, start, end };
+      },
+
+capturePreservedTextRange() {
+        const selection = window.getSelection?.();
+        if (selection?.rangeCount) {
+          const range = selection.getRangeAt(0);
+          const node = range.startContainer;
+          const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+          const editable = element?.closest?.("[contenteditable='true']");
+          const saved = this.offsetsForRange(editable, range);
+          if (saved) {
+            this.preservedTextRange = saved;
+            return saved;
+          }
+        }
+
+        const held = [this.pendingTextStyleRange, this.lastEditableTextRange];
+        for (const item of held) {
+          const saved = this.offsetsForRange(item?.editable, item?.range);
+          if (saved && saved.end > saved.start) {
+            this.preservedTextRange = saved;
+            return saved;
+          }
+        }
+
+        return this.preservedTextRange || null;
+      },
+
+restorePreservedTextRange() {
+        const saved = this.preservedTextRange;
+        const editable = this.findDescribedEditable(saved);
+        if (!editable || !Number.isFinite(saved?.start) || !Number.isFinite(saved?.end) || saved.end < saved.start) return false;
+
+        const selection = window.getSelection?.();
+        if (!selection) return false;
+
+        const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+        let index = 0;
+        let startNode = null;
+        let startOffset = 0;
+        let endNode = null;
+        let endOffset = 0;
+
+        while (walker.nextNode()) {
+          const textNode = walker.currentNode;
+          const length = textNode.nodeValue.length;
+          if (!startNode && saved.start <= index + length) {
+            startNode = textNode;
+            startOffset = Math.max(0, Math.min(length, saved.start - index));
+          }
+          if (!endNode && saved.end <= index + length) {
+            endNode = textNode;
+            endOffset = Math.max(0, Math.min(length, saved.end - index));
+            break;
+          }
+          index += length;
+        }
+
+        const range = document.createRange();
+        if (!startNode || !endNode) {
+          if (saved.start !== 0 || saved.end !== 0) return false;
+          range.setStart(editable, 0);
+          range.collapse(true);
+        } else {
+          range.setStart(startNode, startOffset);
+          range.setEnd(endNode, endOffset);
+        }
+
+        editable.focus({ preventScroll: true });
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        if (saved.end > saved.start) {
+          const kept = range.cloneRange();
+          this.pendingTextStyleRange = { editable, range: kept };
+          this.lastEditableTextRange = { editable, range: kept.cloneRange() };
+          if (document.activeElement !== editable) this.paintPendingTextHighlight();
+          else window.CSS?.highlights?.delete("wordex-pending-text");
+        } else {
+          this.releasePendingTextStyleRange();
+        }
+        this.updateTextCommandButtonsVisibility?.();
+        return true;
+      },
+
+renderKeepingTextRange(message) {
+        if (!this.preservedTextRange) this.capturePreservedTextRange();
+        const snapshot = this.preservedTextRange;
+        this.render(message, false);
+        this.preservedTextRange = snapshot;
+        this.restorePreservedTextRange();
       },
 
 applySelectedBorder(select) {
@@ -494,8 +724,7 @@ applySelectedBorder(select) {
             textbox.border = border;
           }
 
-          if (select) select.value = "";
-          this.render("Borda da caixa de texto atualizada.", false);
+          this.renderKeepingTextRange("Borda da caixa de texto atualizada.");
           this.updateJsonOutput?.();
           return;
         }
@@ -504,18 +733,14 @@ applySelectedBorder(select) {
         // ou à parte da tabela atualmente selecionada (tabela/linha/coluna/célula),
         // nunca ao contêiner do subparágrafo.
         if (this.applySelectedTableBorder?.(action, styles)) {
-          if (select) select.value = "";
-          this.render("Borda da tabela atualizada.", false);
+          this.renderKeepingTextRange("Borda da tabela atualizada.");
           this.updateJsonOutput?.();
           return;
         }
 
         const owner = this.findSubparagraphOwnerById?.(this.activeSubparagraph);
         const subparagraph = owner?.subparagraph;
-        if (!subparagraph) {
-          if (select) select.value = "";
-          return;
-        }
+        if (!subparagraph) return;
 
         const border = normalizeBorder(subparagraph.border);
 
@@ -531,9 +756,143 @@ applySelectedBorder(select) {
           subparagraph.border = border;
         }
 
-        if (select) select.value = "";
-        this.render("Borda do subparágrafo atualizada.", false, { focusActiveEditableSubparagraph: true });
+        this.renderKeepingTextRange("Borda do subparágrafo atualizada.");
         this.updateJsonOutput?.();
+      },
+
+applySelectedSpacing(kind, select) {
+        const action = select?.value || "";
+        if (!action) return;
+
+        const property = kind === "margin" ? "margin" : "padding";
+        const input = document.getElementById(property === "margin" ? "marginSizeInput" : "paddingSizeInput");
+        const px = Math.max(0, Math.round(Number(input?.value) || 0));
+        const label = property === "margin" ? "Margem" : "Padding";
+
+        const textboxOwner = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)
+          : null;
+        if (textboxOwner?.textbox) {
+          textboxOwner.textbox[property] = applyBoxEdgesAction(textboxOwner.textbox[property], action, px);
+          this.renderKeepingTextRange(`${label} da caixa de texto atualizada.`);
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        if (this.applySelectedTableSpacing?.(property, action, px)) {
+          this.renderKeepingTextRange(`${label} da tabela atualizada.`);
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const owner = this.findSubparagraphOwnerById?.(this.activeSubparagraph);
+        const subparagraph = owner?.subparagraph;
+        if (subparagraph) {
+          subparagraph[property] = applyBoxEdgesAction(subparagraph[property], action, px);
+          this.renderKeepingTextRange(`${label} do subparágrafo atualizada.`);
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const paragraph = this.findParagraphById?.(this.activeParagraph);
+        if (paragraph && paragraph !== PAGE_BREAK_CHARACTER) {
+          paragraph[property] = property === "margin"
+            ? applyParagraphMarginAction(paragraph.margin, action, px)
+            : applyBoxEdgesAction(paragraph.padding, action, px);
+          this.renderKeepingTextRange(`${label} do parágrafo atualizada.`);
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const section = this.findSectionById?.(this.activeSection);
+        if (!section) return;
+        if (!section[property] || typeof section[property] !== "object") section[property] = createEmptyBoxEdges();
+        section[property] = applyBoxEdgesAction(section[property], action, px);
+        this.renderKeepingTextRange(`${label} da seção atualizada.`);
+        this.updateJsonOutput?.();
+      },
+
+sectionSpacingEdges(section, property) {
+        const fallback = property === "padding" ? 8 : 0;
+        const normalized = normalizeBoxEdges(section?.[property]);
+        return ["top", "right", "bottom", "left"].reduce((edges, side) => {
+          edges[side] = normalized[side] == null ? fallback : normalized[side];
+          return edges;
+        }, {});
+      },
+
+getMarginTargetEdges() {
+        const textbox = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)?.textbox
+          : null;
+        if (textbox) return { kind: "box", edges: [textbox.margin] };
+
+        const table = this.getActiveTableForBorder?.()?.table;
+        if (table) {
+          this.ensureTableSpacingState?.(table);
+          const cells = this.getTableBorderTargetCells?.(table) || [];
+          return {
+            kind: "box",
+            edges: cells.map(({ row, col }) => table.cellMargins?.[row]?.[col])
+          };
+        }
+
+        const subparagraph = this.findSubparagraphOwnerById?.(this.activeSubparagraph)?.subparagraph;
+        if (subparagraph) return { kind: "box", edges: [subparagraph.margin] };
+
+        const paragraph = this.findParagraphById?.(this.activeParagraph);
+        if (paragraph && paragraph !== PAGE_BREAK_CHARACTER) {
+          return { kind: KINDS.PARAGRAPH, edges: [paragraph.margin] };
+        }
+
+        const section = this.findSectionById?.(this.activeSection);
+        if (section) return { kind: "box", edges: [this.sectionSpacingEdges(section, "margin")] };
+        return null;
+      },
+
+syncMarginSizeInput(force = false) {
+        const input = document.getElementById("marginSizeInput");
+        if (!input || (!force && document.activeElement === input)) return;
+        const side = document.getElementById("marginApplySelect")?.value || "top";
+        const target = this.getMarginTargetEdges?.();
+        input.value = target ? readMarginSide(target.edges, target.kind, side) : "";
+      },
+
+getPaddingTargetEdges() {
+        const textbox = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)?.textbox
+          : null;
+        if (textbox) return { kind: "box", edges: [textbox.padding] };
+
+        const table = this.getActiveTableForBorder?.()?.table;
+        if (table) {
+          this.ensureTableSpacingState?.(table);
+          const cells = this.getTableBorderTargetCells?.(table) || [];
+          return {
+            kind: "box",
+            edges: cells.map(({ row, col }) => table.cellPaddings?.[row]?.[col])
+          };
+        }
+
+        const subparagraph = this.findSubparagraphOwnerById?.(this.activeSubparagraph)?.subparagraph;
+        if (subparagraph) return { kind: "box", edges: [subparagraph.padding] };
+
+        const paragraph = this.findParagraphById?.(this.activeParagraph);
+        if (paragraph && paragraph !== PAGE_BREAK_CHARACTER) {
+          return { kind: "box", edges: [paragraph.padding] };
+        }
+
+        const section = this.findSectionById?.(this.activeSection);
+        if (section) return { kind: "box", edges: [this.sectionSpacingEdges(section, "padding")] };
+        return null;
+      },
+
+syncPaddingSizeInput(force = false) {
+        const input = document.getElementById("paddingSizeInput");
+        if (!input || (!force && document.activeElement === input)) return;
+        const side = document.getElementById("paddingApplySelect")?.value || "top";
+        const target = this.getPaddingTargetEdges?.();
+        input.value = target ? readMarginSide(target.edges, "box", side) : "";
       },
 
 bindTextColorInput(textColorInput) {
@@ -541,17 +900,12 @@ bindTextColorInput(textColorInput) {
 
         textColorInput.addEventListener("pointerdown", () => {
           textColorInput.dataset.openedByPointer = "true";
-        });
-
-        textColorInput.addEventListener("input", event => {
-          this.applyTextStyle("foreColor", event.currentTarget.value);
+          this.capturePendingTextStyleRange();
         });
 
         textColorInput.addEventListener("change", event => {
           const input = event.currentTarget;
           const pickedByMouse = input.dataset.openedByPointer === "true";
-          this.applyTextStyle("foreColor", input.value);
-
           if (!pickedByMouse) return;
 
           // O popup nativo do input type=color nao e fechado de forma
@@ -565,7 +919,6 @@ bindTextColorInput(textColorInput) {
             input.replaceWith(replacement);
             this.bindTextColorInput(replacement);
             replacement.blur();
-            this.focusActiveEditableForTextCommand();
           }, 0);
         });
       },
@@ -632,16 +985,51 @@ setTypingTextDefaults(styles, options = {}) {
 setToolbarTextControls(styles) {
         const normalized = this.normalizeTextStyles(styles);
         const fontSelect = document.getElementById("textFontSelect");
-        const sizeSelect = document.getElementById("textSizeSelect");
+        const sizeInput = document.getElementById("textSizeInput");
         const colorInput = document.getElementById("textColorInput");
 
-        if (fontSelect) fontSelect.value = normalized.fontFamily;
-        if (sizeSelect) sizeSelect.value = String(Math.max(1, Math.round(Number(normalized.fontSize.replace("px", "")) || 12)));
+        if (fontSelect) {
+          const match = [...fontSelect.options].find(option => option.value.toLowerCase() === normalized.fontFamily.toLowerCase());
+          if (match) fontSelect.value = match.value;
+        }
+        if (sizeInput) sizeInput.value = String(Math.max(1, Math.round(Number(normalized.fontSize.replace("px", "")) || 12)));
         if (colorInput) colorInput.value = normalized.color;
       },
 
+isToolbarNumberInput(target) {
+        const element = target?.nodeType === Node.ELEMENT_NODE ? target : target?.parentElement;
+        return Boolean(element?.closest?.(".toolbar") && element.matches?.("input[type='number']"));
+      },
+
+releasePendingTextStyleRange() {
+        this.pendingTextStyleRange = null;
+        this.lastEditableTextRange = null;
+        window.CSS?.highlights?.delete("wordex-pending-text");
+      },
+
+rememberEditableTextRange() {
+        const selected = this.getSelectedEditableRange?.();
+        if (!selected?.editable?.isConnected || !selected.range || selected.range.toString() === "") return;
+        this.lastEditableTextRange = {
+          editable: selected.editable,
+          range: selected.range.cloneRange()
+        };
+      },
+
+paintPendingTextHighlight() {
+        if (!window.CSS?.highlights || typeof Highlight !== "function") return;
+        const name = "wordex-pending-text";
+        CSS.highlights.delete(name);
+        const pending = this.pendingTextStyleRange;
+        if (!pending?.editable?.isConnected || !pending.range) return;
+        if (!pending.editable.contains(pending.range.startContainer) || !pending.editable.contains(pending.range.endContainer)) return;
+        if (pending.range.toString() === "") return;
+        CSS.highlights.set(name, new Highlight(pending.range));
+      },
+
 updateTextCommandButtonsVisibility() {
-        const hasSelectedEditableText = Boolean(this.getSelectedEditableRange());
+        const hasSelectedEditableText = Boolean(this.getSelectedEditableRange())
+          || Boolean(this.pendingTextStyleRange?.range?.toString());
         ["btnTextBold", "btnTextItalic", "btnTextUnderline", "btnTextCase"].forEach(buttonId => {
           const button = document.getElementById(buttonId);
           if (button) button.hidden = !hasSelectedEditableText;
@@ -674,11 +1062,11 @@ clearSelectedTextFormatting() {
 
 getCurrentToolbarTextStyles() {
         const fontSelect = document.getElementById("textFontSelect");
-        const sizeSelect = document.getElementById("textSizeSelect");
+        const sizeInput = document.getElementById("textSizeInput");
         const colorInput = document.getElementById("textColorInput");
 
         const fontFamily = fontSelect?.value || "Arial";
-        const fontSize = Math.max(1, Math.round(Number(sizeSelect?.value) || 12));
+        const fontSize = Math.max(1, Math.round(Number(sizeInput?.value) || 12));
         const color = colorInput?.value || "#000000";
 
         return {
@@ -688,35 +1076,201 @@ getCurrentToolbarTextStyles() {
         };
       },
 
+capturePendingTextStyleRange() {
+        const selected = this.getSelectedEditableRange?.();
+        const source = selected?.range?.toString()
+          ? selected
+          : (this.pendingTextStyleRange?.range?.toString() ? this.pendingTextStyleRange : this.lastEditableTextRange);
+        if (!source?.editable?.isConnected || !source.range || source.range.toString() === "") return;
+        if (!source.editable.contains(source.range.startContainer) || !source.editable.contains(source.range.endContainer)) return;
+        this.pendingTextStyleRange = {
+          editable: source.editable,
+          range: source.range.cloneRange()
+        };
+      },
+
+cssColorToHex(color) {
+        const match = String(color || "").match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+        if (!match) {
+          const hex = String(color || "").trim();
+          return /^#[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "#000000";
+        }
+        return `#${match.slice(1, 4).map(part => Number(part).toString(16).padStart(2, "0")).join("")}`;
+      },
+
+primaryFontFamily(fontFamily) {
+        return String(fontFamily || "Arial").split(",")[0].trim().replace(/^["']|["']$/g, "") || "Arial";
+      },
+
+readElementTextStyles(element) {
+        const computed = window.getComputedStyle(element);
+        return this.normalizeTextStyles({
+          fontFamily: this.primaryFontFamily(computed.fontFamily),
+          fontSize: `${Math.round(parseFloat(computed.fontSize) || 0) || 12}px`,
+          color: this.cssColorToHex(computed.color)
+        });
+      },
+
+stylesForControl(textStyle) {
+        if (textStyle && typeof textStyle === "object") return this.normalizeTextStyles(textStyle);
+        return this.getTypingTextDefaults();
+      },
+
+getSelectedTextStyleControl() {
+        const textbox = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)?.textbox
+          : null;
+        if (textbox) return { key: `textbox:${textbox.id}`, styles: this.stylesForControl(textbox.textStyle) };
+
+        const table = this.getActiveTableForBorder?.()?.table;
+        if (table) {
+          this.ensureTableCellTextStyleState?.(table);
+          const cells = this.getTableBorderTargetCells?.(table) || [];
+          const styles = cells.map(({ row, col }) => this.stylesForControl(table.cellTextStyles?.[row]?.[col]));
+          const uniform = styles.length > 0 && styles.every(item => (
+            item.fontFamily === styles[0].fontFamily
+            && item.fontSize === styles[0].fontSize
+            && item.color === styles[0].color
+          ));
+          return {
+            key: `table:${table.id}:${cells.map(cell => `${cell.row}.${cell.col}`).join(",")}`,
+            styles: uniform ? styles[0] : this.getTypingTextDefaults()
+          };
+        }
+
+        const subparagraph = this.findSubparagraphOwnerById?.(this.activeSubparagraph)?.subparagraph;
+        if (subparagraph) return { key: `sub:${subparagraph.id}`, styles: this.stylesForControl(subparagraph.textStyle) };
+
+        const paragraph = this.findParagraphById?.(this.activeParagraph);
+        if (paragraph && paragraph !== PAGE_BREAK_CHARACTER) {
+          return { key: `paragraph:${paragraph.id}`, styles: this.stylesForControl(paragraph.textStyle) };
+        }
+
+        const section = this.findSectionById?.(this.activeSection);
+        if (section) return { key: `section:${section.id}`, styles: this.stylesForControl(section.textStyle) };
+        return { key: "none", styles: this.getTypingTextDefaults() };
+      },
+
+syncTextStyleControls(force = false) {
+        const sizeInput = document.getElementById("textSizeInput");
+        const fontSelect = document.getElementById("textFontSelect");
+        const colorInput = document.getElementById("textColorInput");
+        if (!force && [sizeInput, fontSelect, colorInput].includes(document.activeElement)) return;
+        const control = this.getSelectedTextStyleControl();
+        if (!force && control.key === this.textStyleControlKey) return;
+        this.textStyleControlKey = control.key;
+        this.setToolbarTextControls(control.styles);
+      },
+
+takePendingTextStyleRange() {
+        const pending = this.pendingTextStyleRange;
+        this.releasePendingTextStyleRange();
+        const live = this.getSelectedEditableRange?.();
+        const chosen = live?.range?.toString() ? live : pending;
+        if (!chosen?.editable?.isConnected || !chosen.range || chosen.range.toString() === "") return null;
+        if (!chosen.editable.contains(chosen.range.startContainer) || !chosen.editable.contains(chosen.range.endContainer)) return null;
+        if (chosen !== live) {
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(chosen.range);
+        }
+        return chosen;
+      },
+
+applySelectedControlTextStyle() {
+        const styles = { ...this.normalizeTextStyles(this.getCurrentToolbarTextStyles()) };
+        const selectedText = this.takePendingTextStyleRange();
+        if (selectedText && window.WordexRichText?.applyInlineStyle) {
+          const applied = window.WordexRichText.applyInlineStyle(selectedText.editable, {
+            fontFamily: styles.fontFamily,
+            fontSize: styles.fontSize,
+            color: styles.color
+          });
+          if (applied) this.syncActiveEditableAfterTextCommand(selectedText.editable);
+          this.syncTextStyleControls(true);
+          this.updateTextCommandButtonsVisibility?.();
+          return;
+        }
+
+        const textbox = this.activeTextbox
+          ? this.findTextboxOwnerById?.(this.activeTextbox)?.textbox
+          : null;
+        if (textbox) {
+          textbox.textStyle = styles;
+          this.renderKeepingTextRange("Fonte da caixa de texto atualizada.");
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const table = this.getActiveTableForBorder?.()?.table;
+        if (table) {
+          this.ensureTableCellTextStyleState?.(table);
+          const cells = this.getTableBorderTargetCells?.(table) || [];
+          if (!cells.length) return;
+          cells.forEach(({ row, col }) => {
+            table.cellTextStyles[row][col] = { ...styles };
+          });
+          this.renderKeepingTextRange("Fonte da tabela atualizada.");
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const subparagraph = this.findSubparagraphOwnerById?.(this.activeSubparagraph)?.subparagraph;
+        if (subparagraph) {
+          subparagraph.textStyle = styles;
+          this.renderKeepingTextRange("Fonte do subparágrafo atualizada.");
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const paragraph = this.findParagraphById?.(this.activeParagraph);
+        if (paragraph && paragraph !== PAGE_BREAK_CHARACTER) {
+          paragraph.textStyle = styles;
+          this.renderKeepingTextRange("Fonte do parágrafo atualizada.");
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        const section = this.findSectionById?.(this.activeSection);
+        if (!section) return;
+        section.textStyle = styles;
+        this.renderKeepingTextRange("Fonte da seção atualizada.");
+        this.updateJsonOutput?.();
+      },
+
 applyToolbarTextFormatting(command, value = null) {
-        // A decisao de restaurar ou nao os combos depende da existencia de
-        // texto selecionado ANTES do comando mexer no foco. Sem selecao, o
-        // valor escolhido no combo passa a ser o default dos proximos caracteres.
-        const selectedRangeBeforeFocus = this.getSelectedEditableRange();
+        const pending = this.pendingTextStyleRange;
+        this.releasePendingTextStyleRange();
+        const liveSelection = this.getSelectedEditableRange();
 
         if (!this.focusActiveEditableForTextCommand()) return;
         const editable = this.getActiveEditableElement();
         if (!editable) return;
 
-        const selectedRange =
-          selectedRangeBeforeFocus?.editable === editable && selectedRangeBeforeFocus.range.toString() !== ""
-            ? selectedRangeBeforeFocus
-            : null;
+        const pendingMatches = pending?.editable === editable
+          && pending.range
+          && editable.contains(pending.range.startContainer)
+          && pending.range.toString() !== "";
+        if (pendingMatches) {
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(pending.range);
+        }
+
+        const selectedRange = pendingMatches
+          ? pending
+          : (liveSelection?.editable === editable && liveSelection.range.toString() !== "" ? liveSelection : null);
 
         if (selectedRange) {
-          // Texto selecionado: aplica a formatacao somente no trecho e restaura
-          // o estado anterior da digitacao/toolbar logo depois.
-          const previousTypingDefaults = this.getTypingTextDefaults();
+          // O trecho recebe a formatação, mas a fonte do controle não muda.
+          // A barra fica com o valor escolhido até o botão de restaurar.
           const changed = WordexRichText.applyInlineCommand(editable, command, value);
           if (changed) this.syncActiveEditableAfterTextCommand(editable);
-          this.setTypingTextDefaults(previousTypingDefaults, { updateControls: true });
           this.updateTextCommandButtonsVisibility();
           return;
         }
 
-        // Sem selecao: o valor selecionado no combo deve permanecer selecionado
-        // e virar o default dos proximos caracteres. Nao sincroniza aqui, para
-        // nao remover o marcador invisivel que segura o novo Run.
+        // Sem seleção: o valor escolhido passa a ser o do controle e dos próximos caracteres.
         const nextTypingDefaults = this.setTypingTextDefaults(this.getCurrentToolbarTextStyles(), { updateControls: false });
         WordexRichText.applyInlineStyle(editable, nextTypingDefaults);
       },
@@ -778,6 +1332,10 @@ applyPageFormat() {
       },
 
 updateToolbarState() {
+        this.syncBorderControls?.();
+        this.syncTextStyleControls?.();
+        this.syncMarginSizeInput?.();
+        this.syncPaddingSizeInput?.();
         this.syncSubparagraphAlignmentControls?.();
         this.updateDataSourceContextSelectors?.();
         this.updateTableMergeToolbarButtons?.();

@@ -19,9 +19,6 @@ function buildFileSources() {
     sources[relativePath] = fs.readFileSync(path.join(projectRoot, relativePath), "utf8");
   }
 
-  const iconPath = "assets/Images/html5.png";
-  sources[iconPath] = "data:image/png;base64," + fs.readFileSync(path.join(projectRoot, iconPath)).toString("base64");
-
   const outputPath = path.join(projectRoot, "js", "file-sources.js");
   fs.writeFileSync(outputPath, "window.WORDEX_FILE_SOURCES = " + JSON.stringify(sources) + ";\n");
   return outputPath;

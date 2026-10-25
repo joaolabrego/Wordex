@@ -334,6 +334,26 @@ Object.assign(wordex, {
     return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(value);
   },
 
+  parseChartNumber(value) {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value ?? "").trim().replace(/[^\d,.-]/g, "");
+    if (!text) return 0;
+
+    let normalized = text;
+    if (text.includes(",") && text.includes(".")) {
+      normalized = text.lastIndexOf(",") > text.lastIndexOf(".")
+        ? text.replace(/\./g, "").replace(",", ".")
+        : text.replace(/,/g, "");
+    } else if (text.includes(",")) {
+      normalized = text.replace(",", ".");
+    } else if (/^-?\d{1,3}(\.\d{3})+$/.test(text)) {
+      normalized = text.replace(/\./g, "");
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  },
+
   getChartPreviewData(chart) {
     const binding = chart?.dataBinding;
     // JSON-backed charts must be visible as soon as they are configured, also
@@ -368,11 +388,7 @@ Object.assign(wordex, {
     const series = (chart.series || []).filter(item => item.dataFieldPath).map(item => ({
       ...item,
       values: items.map(row => {
-        const value = resolveField(row, item.dataFieldPath);
-        if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-        const text = String(value ?? "").trim();
-        const parsed = Number(text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text);
-        return Number.isFinite(parsed) ? parsed : 0;
+        return this.parseChartNumber(resolveField(row, item.dataFieldPath));
       })
     }));
 

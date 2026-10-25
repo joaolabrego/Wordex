@@ -138,7 +138,10 @@ function createListObject(options = {}) {
         width: 170,
         height: 70,
         html: "Caixa de texto",
-        border: createEmptyBorder()
+        border: createEmptyBorder(),
+        margin: createEmptyBoxEdges(),
+        padding: createEmptyBoxEdges(),
+        textStyle: null
       };
     }
 

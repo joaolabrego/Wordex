@@ -579,6 +579,16 @@ body.wordex-generated-report .wordex-paginable-table td {
   page-break-inside: avoid;
 }
 
+.wordex-table-slice,
+.wordex-table-slice .paragraph,
+.wordex-table-slice .subparagraph,
+.wordex-table-slice .object-area,
+.wordex-table-slice .main-object {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
 body.wordex-generated-report .pagex-body {
   background: transparent;
 }
@@ -1071,12 +1081,8 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         return bottom - bodyRect.top;
       }
 
-      function overflows(body) {
+      function overflowsVertically(body) {
         void body.offsetHeight;
-
-        if (body.scrollWidth > body.clientWidth + 1) {
-          return true;
-        }
 
         var maxHeight = parseFloat(body.style.maxHeight);
         if (!isFinite(maxHeight) || maxHeight <= 0) {
@@ -1087,7 +1093,17 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return true;
         }
 
-        if (getBodyVisualBottom(body) > maxHeight + 0.5) {
+        return getBodyVisualBottom(body) > maxHeight + 0.5;
+      }
+
+      function overflows(body) {
+        void body.offsetHeight;
+
+        if (body.scrollWidth > body.clientWidth + 1) {
+          return true;
+        }
+
+        if (overflowsVertically(body)) {
           return true;
         }
 
@@ -1096,6 +1112,13 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         }
 
         return false;
+      }
+
+      function tableProbeFits(current, probe) {
+        appendBlockClone(current, probe);
+        var fits = !overflowsVertically(current.body);
+        probe.remove();
+        return fits;
       }
 
       function getChartSvgViewBox(svg) {
@@ -1621,35 +1644,168 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         block.style.outline = "1px dashed #c00";
       }
 
+      function tableRowKind(row) {
+        return row ? String(row.getAttribute("data-row-kind") || "") : "";
+      }
+
+      function getTablePaginationPlan(rows) {
+        var headerCount = 0;
+        var hasKinds = false;
+        var index = 0;
+
+        for (index = 0; index < rows.length; index++) {
+          if (tableRowKind(rows[index])) hasKinds = true;
+        }
+
+        if (hasKinds) {
+          while (headerCount < rows.length) {
+            var headerKind = tableRowKind(rows[headerCount]);
+            if (headerKind !== "tableHeader" && headerKind !== "columnHeader") break;
+            headerCount++;
+          }
+        } else if (rows.length) {
+          headerCount = 1;
+        }
+
+        var footerCount = 0;
+
+        if (hasKinds) {
+          while (footerCount < rows.length - headerCount && tableRowKind(rows[rows.length - 1 - footerCount]) === "tableFooter") {
+            footerCount++;
+          }
+        } else if (rows.length > headerCount + 1) {
+          footerCount = 1;
+        }
+
+        return {
+          headerCount: headerCount,
+          footerCount: footerCount,
+          firstMiddle: headerCount,
+          lastMiddle: rows.length - footerCount - 1
+        };
+      }
+
+      function rowGroupPath(row) {
+        return row ? String(row.getAttribute("data-row-context-path") || "") : "";
+      }
+
+      function groupRowBreaksPage(rows, rowIndex) {
+        var row = rows[rowIndex];
+        if (!row || tableRowKind(row) !== "groupHeader" || row.getAttribute("data-page-break-before") !== "true") {
+          return false;
+        }
+
+        var path = rowGroupPath(row);
+        for (var index = 0; index < rowIndex; index++) {
+          var previous = rows[index];
+          if (tableRowKind(previous) === "groupHeader" && rowGroupPath(previous) === path) return true;
+        }
+
+        return false;
+      }
+
+      function closeMatchingGroup(open, path) {
+        if (!open.length || !path) return false;
+
+        for (var index = open.length - 1; index >= 0; index--) {
+          if (rowGroupPath(open[index]) === path) {
+            open.splice(index);
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function openGroupHeaderRows(rows, beforeIndex, firstMiddle) {
+        var open = [];
+        var limit = Math.min(beforeIndex, rows.length);
+
+        for (var index = firstMiddle; index < limit; index++) {
+          var kind = tableRowKind(rows[index]);
+          var path = rowGroupPath(rows[index]);
+
+          if (kind === "groupHeader") {
+            closeMatchingGroup(open, path);
+            open.push(rows[index]);
+          } else if (kind === "groupFooter" && open.length) {
+            open.pop();
+          }
+        }
+
+        return open;
+      }
+
+      function groupHeadersToRepeat(rows, chunkStart, firstMiddle) {
+        var open = openGroupHeaderRows(rows, chunkStart, firstMiddle);
+        var index = chunkStart;
+
+        while (index < rows.length && tableRowKind(rows[index]) === "groupHeader") {
+          closeMatchingGroup(open, rowGroupPath(rows[index]));
+          index++;
+        }
+
+        return open;
+      }
+
+      function releaseTableSliceHeight(clone) {
+        clone.classList.add("wordex-table-slice");
+        clone.style.height = "auto";
+        clone.style.minHeight = "0";
+        clone.style.maxHeight = "none";
+        clone.querySelectorAll(".paragraph, .subparagraph, .object-area, .main-object").forEach(function (node) {
+          node.style.height = "auto";
+          node.style.minHeight = "0";
+          node.style.maxHeight = "none";
+          node.style.overflow = "visible";
+        });
+      }
+
       function buildTableBlockSlice(sourceBlock, firstMiddleRowIndex, lastMiddleRowIndex, includeFooter) {
         var clone = sourceBlock.cloneNode(true);
         var sourceTable = sourceBlock.querySelector("table.wordex-table");
         var targetTable = clone.querySelector("table.wordex-table");
 
         if (!sourceTable || !targetTable || sourceTable.rows.length < 2) {
+          releaseTableSliceHeight(clone);
           return clone;
         }
 
         var rows = Array.prototype.slice.call(sourceTable.rows);
+        var plan = getTablePaginationPlan(rows);
+        var colgroup = targetTable.querySelector("colgroup");
+        var tbody = document.createElement("tbody");
 
         targetTable.innerHTML = "";
-        targetTable.appendChild(rows[0].cloneNode(true));
+
+        if (colgroup) {
+          targetTable.appendChild(colgroup.cloneNode(true));
+        }
+
+        for (var headerIndex = 0; headerIndex < plan.headerCount; headerIndex++) {
+          tbody.appendChild(rows[headerIndex].cloneNode(true));
+        }
+
+        if (firstMiddleRowIndex >= plan.firstMiddle && firstMiddleRowIndex <= plan.lastMiddle) {
+          groupHeadersToRepeat(rows, firstMiddleRowIndex, plan.firstMiddle).forEach(function (row) {
+            tbody.appendChild(row.cloneNode(true));
+          });
+        }
 
         for (var index = firstMiddleRowIndex; index <= lastMiddleRowIndex; index++) {
-          if (index > 0 && index < rows.length - 1) {
-            targetTable.appendChild(rows[index].cloneNode(true));
+          if (index >= plan.firstMiddle && index <= plan.lastMiddle) {
+            tbody.appendChild(rows[index].cloneNode(true));
           }
         }
 
         if (includeFooter) {
-          targetTable.appendChild(rows[rows.length - 1].cloneNode(true));
+          for (var footerIndex = rows.length - plan.footerCount; footerIndex < rows.length; footerIndex++) {
+            tbody.appendChild(rows[footerIndex].cloneNode(true));
+          }
         }
 
-        clone.style.minHeight = "";
-        clone.querySelectorAll(".paragraph, .subparagraph").forEach(function (node) {
-          node.style.minHeight = "0";
-        });
-
+        targetTable.appendChild(tbody);
+        releaseTableSliceHeight(clone);
         return clone;
       }
 
@@ -1660,12 +1816,10 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
 
         var headerProbe = buildTableBlockSlice(sourceBlock, firstMiddleRowIndex, firstMiddleRowIndex - 1, false);
 
-        if (appendBlockClone(current, headerProbe)) {
-          headerProbe.remove();
+        if (tableProbeFits(current, headerProbe)) {
           return current;
         }
 
-        headerProbe.remove();
         current = createPage(pages);
         syncPageBodyArea(current.page);
         return current;
@@ -1695,8 +1849,9 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return current;
         }
 
-        var lastMiddleRowIndex = sourceTable.rows.length - 2;
-        var rowIndex = 1;
+        var plan = getTablePaginationPlan(Array.prototype.slice.call(sourceTable.rows));
+        var lastMiddleRowIndex = plan.lastMiddle;
+        var rowIndex = plan.firstMiddle;
 
         if (lastMiddleRowIndex < rowIndex) {
           current = ensureTableChunkFitsCurrentPage(sourceBlock, current, pages, rowIndex);
@@ -1709,22 +1864,31 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return current;
         }
 
+        var tableRows = Array.prototype.slice.call(sourceTable.rows);
+
         while (rowIndex <= lastMiddleRowIndex) {
+          if (groupRowBreaksPage(tableRows, rowIndex) && current.bodyFlow.children.length > 0) {
+            current = createPage(pages);
+            syncPageBodyArea(current.page);
+          }
+
           current = ensureTableChunkFitsCurrentPage(sourceBlock, current, pages, rowIndex);
 
           var chunkStart = rowIndex;
           var chunkEnd = chunkStart - 1;
 
           while (rowIndex <= lastMiddleRowIndex) {
-            var includeFooter = rowIndex >= lastMiddleRowIndex;
-            var probe = buildTableBlockSlice(sourceBlock, chunkStart, rowIndex, includeFooter);
-
-            if (!appendBlockClone(current, probe)) {
-              probe.remove();
+            if (rowIndex > chunkStart && groupRowBreaksPage(tableRows, rowIndex)) {
               break;
             }
 
-            probe.remove();
+            var includeFooter = rowIndex >= lastMiddleRowIndex;
+            var probe = buildTableBlockSlice(sourceBlock, chunkStart, rowIndex, includeFooter);
+
+            if (!tableProbeFits(current, probe)) {
+              break;
+            }
+
             chunkEnd = rowIndex;
             rowIndex++;
 
@@ -1765,6 +1929,12 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
       }
 
       function placeBlockOnPages(sourceBlock, pages, current) {
+        var isTable = Boolean(sourceBlock.querySelector("table.wordex-table"));
+
+        if (isTable && sourceBlock.querySelector("tr[data-row-kind='groupHeader'][data-page-break-before='true']")) {
+          return paginateTableBlockRows(sourceBlock, pages, current);
+        }
+
         var clone = sourceBlock.cloneNode(true);
 
         if (appendBlockClone(current, clone)) {
@@ -1772,6 +1942,11 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         }
 
         clone.remove();
+
+        // A tabela que não cabe inteira começa no parágrafo atual e segue na página seguinte.
+        if (isTable) {
+          return paginateTableBlockRows(sourceBlock, pages, current);
+        }
 
         if (current.bodyFlow.children.length > 0) {
           current = createPage(pages);
@@ -1783,10 +1958,6 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           }
 
           clone.remove();
-        }
-
-        if (sourceBlock.classList.contains("wordex-table-block") && sourceBlock.querySelector("table.wordex-table")) {
-          return paginateTableBlockRows(sourceBlock, pages, current);
         }
 
         clone = sourceBlock.cloneNode(true);
@@ -1882,15 +2053,50 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         pages.forEach(function (page, index) {
           values["@PageNumber"] = String(index + 1);
           values["@PageCount"] = String(pageCount);
-          var walker = document.createTreeWalker(page, NodeFilter.SHOW_TEXT, null);
-          var nodes = [];
-          while (walker.nextNode()) nodes.push(walker.currentNode);
-          nodes.forEach(function (node) {
-            node.nodeValue = node.nodeValue.replace(/\{\{\s*(@[A-Za-z][A-Za-z0-9]*)\s*\}\}/g, function (match, tag) {
-              return Object.prototype.hasOwnProperty.call(values, tag) ? values[tag] : match;
-            });
-          });
+          replaceSystemMacrosInTree(page, values);
         });
+      }
+
+      function replaceSystemMacrosInTree(root, values) {
+        var nodes = [];
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        if (!nodes.length) return;
+
+        var combined = "";
+        var map = [];
+        nodes.forEach(function (node) {
+          var value = String(node.nodeValue || "");
+          for (var i = 0; i < value.length; i += 1) {
+            map.push({ node: node, offset: i });
+            combined += value.charAt(i);
+          }
+        });
+
+        var expression = /\{\{[\s\u200b]*(\@[A-Za-z][A-Za-z0-9]*)[\s\u200b]*\}\}/g;
+        var replacements = [];
+        var match;
+        while ((match = expression.exec(combined))) {
+          var tag = match[1];
+          if (!Object.prototype.hasOwnProperty.call(values, tag)) continue;
+          replacements.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            value: String(values[tag])
+          });
+        }
+
+        for (var index = replacements.length - 1; index >= 0; index -= 1) {
+          var replacement = replacements[index];
+          var start = map[replacement.start];
+          var end = map[replacement.end - 1];
+          if (!start || !end) continue;
+          var range = document.createRange();
+          range.setStart(start.node, start.offset);
+          range.setEnd(end.node, end.offset + 1);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(replacement.value));
+        }
       }
 
       function resolveMappedImageDataUrl(src, map) { return map && map[src] ? map[src] : ""; }

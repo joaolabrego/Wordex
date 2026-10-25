@@ -436,6 +436,16 @@ positionObjectEditOverlay() {
           return;
         }
 
+        if (this.activeEditTargetKind === EDIT_TARGET_KIND.SUBPARAGRAPH) {
+          const owner = this.findSubparagraphOwnerById?.(this.activeSubparagraph);
+          if (!owner || owner.paragraph.subparagraphs.length <= 1) {
+            this.objectEditMode = false;
+            this.activeEditTargetKind = null;
+            this.hideObjectEditOverlay();
+            return;
+          }
+        }
+
         const rect = this.getObjectEditRect();
         if (!rect || rect.width <= 0 || rect.height <= 0) {
           this.hideObjectEditOverlay();
@@ -699,11 +709,13 @@ startSubparagraphResize(event, handleElement, handleName) {
         const subparagraph = owner?.subparagraph;
         const element = document.querySelector(`[data-subparagraph-id="${this.activeSubparagraph}"]`);
         const paragraphElement = document.querySelector(`[data-paragraph-id="${this.activeParagraph}"]`);
+        const subparagraphs = owner?.paragraph?.subparagraphs || [];
 
-        if (!owner || !subparagraph || !element || !paragraphElement) return;
+        if (!owner || !subparagraph || !element || !paragraphElement || subparagraphs.length <= 1) return;
 
         const rect = element.getBoundingClientRect();
-        const paragraphRect = paragraphElement.getBoundingClientRect();
+        const innerWidth = this.paragraphContentWidthForSubparagraphs(paragraphElement, subparagraphs.length);
+        const minimum = 32;
 
         this.dragging = {
           type: "subparagraph-resize",
@@ -713,7 +725,7 @@ startSubparagraphResize(event, handleElement, handleName) {
           startClientY: event.clientY,
           startWidth: Math.round(rect.width),
           startHeight: Math.round(rect.height),
-          maxWidth: Math.max(0, Math.round(paragraphRect.width))
+          maxWidth: Math.max(minimum, innerWidth - minimum * (subparagraphs.length - 1))
         };
 
         handleElement.setPointerCapture?.(event.pointerId);
@@ -750,25 +762,199 @@ calculateSubparagraphResize(dragging, event) {
         };
       },
 
+paragraphContentWidthForSubparagraphs(paragraphElement, count) {
+        if (!paragraphElement) return 0;
+        const style = getComputedStyle(paragraphElement);
+        const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        const gap = parseFloat(style.columnGap || style.gap) || 0;
+        return Math.max(0, paragraphElement.clientWidth - padding - gap * Math.max(0, count - 1));
+      },
+
+isSubparagraphWidthShare(width) {
+        const value = Number(width);
+        return value > 0 && value <= 1;
+      },
+
+subparagraphWidthShare(paragraph, subparagraph) {
+        const subs = paragraph?.subparagraphs || [];
+        if (subs.length <= 1) return null;
+        if (!subs.some(item => this.isSubparagraphWidthShare(item.width))) return null;
+
+        const defined = subs.map(item => this.isSubparagraphWidthShare(item.width) ? Number(item.width) : null);
+        const definedSum = defined.reduce((sum, value) => sum + (value || 0), 0);
+        const missing = defined.filter(value => value == null).length;
+        const eachMissing = missing ? Math.max(0, 1 - definedSum) / missing : 0;
+        const raw = defined.map(value => value == null ? eachMissing : value);
+        const total = raw.reduce((sum, value) => sum + value, 0) || 1;
+        const index = subs.indexOf(subparagraph);
+        if (index < 0) return null;
+        return raw[index] / total;
+      },
+
+applySubparagraphWidthShare(element, share, innerWidth) {
+        if (!element || !(share > 0)) return;
+        let grow = share;
+        // flex-basis 0 recebe o padding e a borda por cima da fração.
+        // O fator de crescimento desconta essa moldura para a caixa final
+        // continuar valendo a fração da largura interna do parágrafo.
+        if (innerWidth > 0) {
+          const style = getComputedStyle(element);
+          const chrome = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+            + (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+          grow = Math.max(0.001, share * innerWidth - chrome);
+        }
+        element.style.flex = `${grow} 1 0px`;
+        element.style.width = "auto";
+        element.style.maxWidth = "none";
+        element.style.minWidth = "0";
+      },
+
+ensureSubparagraphWidthShares(paragraph, paragraphElement) {
+        const subs = paragraph?.subparagraphs || [];
+        if (subs.length <= 1) return;
+        const inner = this.paragraphContentWidthForSubparagraphs(paragraphElement, subs.length);
+        if (!(inner > 0)) return;
+
+        const hasPixels = subs.some(item => Number(item.width) > 1);
+        const hasShare = subs.some(item => this.isSubparagraphWidthShare(item.width));
+        if (!hasPixels && !hasShare) return;
+
+        if (hasPixels) {
+          const pixels = subs.map(item => {
+            const width = Number(item.width);
+            if (width > 1) return width;
+            if (this.isSubparagraphWidthShare(width)) return width * inner;
+            return null;
+          });
+          const fixedSum = pixels.reduce((sum, value) => sum + (value || 0), 0);
+          const flexibleCount = pixels.filter(value => value == null).length;
+          let resolved;
+          if (flexibleCount === 0) {
+            const scale = fixedSum > 0 ? inner / fixedSum : 1;
+            resolved = pixels.map(value => value * scale);
+          } else {
+            const each = Math.max(0, inner - fixedSum) / flexibleCount;
+            resolved = pixels.map(value => value == null ? each : value);
+            const sum = resolved.reduce((total, value) => total + value, 0) || 1;
+            resolved = resolved.map(value => value * inner / sum);
+          }
+          subs.forEach((item, index) => {
+            item.width = resolved[index] / inner;
+          });
+          return;
+        }
+
+        const defined = subs.map(item => this.isSubparagraphWidthShare(item.width) ? Number(item.width) : null);
+        if (defined.every(value => value != null)) {
+          const sum = defined.reduce((total, value) => total + value, 0) || 1;
+          subs.forEach((item, index) => {
+            item.width = defined[index] / sum;
+          });
+          return;
+        }
+
+        const definedSum = defined.reduce((sum, value) => sum + (value || 0), 0);
+        const missing = defined.filter(value => value == null).length;
+        const eachMissing = missing ? Math.max(0, 1 - definedSum) / missing : 0;
+        const raw = defined.map(value => value == null ? eachMissing : value);
+        const total = raw.reduce((sum, value) => sum + value, 0) || 1;
+        subs.forEach((item, index) => {
+          item.width = raw[index] / total;
+        });
+      },
+
+distributeSubparagraphWidths(paragraph, resizedId, requestedWidth) {
+        const subs = paragraph?.subparagraphs || [];
+        if (subs.length <= 1) return;
+
+        const paragraphElement = document.querySelector(`[data-paragraph-id="${paragraph.id}"]`);
+        if (!paragraphElement) return;
+
+        const inner = this.paragraphContentWidthForSubparagraphs(paragraphElement, subs.length);
+        if (!(inner > 0)) return;
+
+        const minimum = 32;
+        const index = subs.findIndex(item => item.id === resizedId);
+        if (index < 0) return;
+
+        const elements = subs.map(item => paragraphElement.querySelector(`:scope > [data-subparagraph-id="${item.id}"]`));
+        const currents = elements.map(item => item?.getBoundingClientRect().width || 0);
+        const max = Math.max(minimum, inner - minimum * (subs.length - 1));
+        const next = Math.ceil(Math.min(max, Math.max(minimum, requestedWidth)));
+        const othersSum = currents.reduce((sum, width, itemIndex) => itemIndex === index ? sum : sum + width, 0);
+
+        elements.forEach((element, itemIndex) => {
+          if (!element) return;
+          if (itemIndex === index) element.style.flex = `0 0 ${next}px`;
+          else element.style.flex = `${Math.max(1, othersSum > 0 ? currents[itemIndex] : 1)} 1 0px`;
+          element.style.width = "auto";
+          element.style.maxWidth = "none";
+          element.style.minWidth = "0";
+        });
+
+        const actual = elements.map(element => element?.getBoundingClientRect().width || 0);
+        const actualSum = actual.reduce((sum, width) => sum + width, 0) || 1;
+        subs.forEach((item, itemIndex) => {
+          item.width = actual[itemIndex] / actualSum;
+        });
+      },
+
+balanceSubparagraphSharesAfterInsert(paragraph) {
+        const subs = paragraph?.subparagraphs || [];
+        if (subs.length <= 1) return;
+        const previous = subs.slice(0, -1);
+        const created = subs[subs.length - 1];
+        if (!previous.some(item => this.isSubparagraphWidthShare(item.width))) return;
+
+        const count = subs.length;
+        const weights = previous.map(item => this.isSubparagraphWidthShare(item.width) ? Number(item.width) : 1);
+        const sum = weights.reduce((total, value) => total + value, 0) || 1;
+        previous.forEach((item, index) => {
+          item.width = weights[index] / sum * ((count - 1) / count);
+        });
+        created.width = 1 / count;
+      },
+
+syncSubparagraphWidthLayout() {
+        document.querySelectorAll(".paragraph[data-paragraph-id]").forEach(paragraphElement => {
+          const paragraph = this.findParagraphById?.(paragraphElement.dataset.paragraphId);
+          if (!paragraph || paragraph === PAGE_BREAK_CHARACTER || !Array.isArray(paragraph.subparagraphs)) return;
+
+          const subs = paragraph.subparagraphs;
+          if (subs.length <= 1) {
+            if (subs[0]) subs[0].width = null;
+            const element = paragraphElement.querySelector(":scope > .subparagraph");
+            if (element) {
+              element.style.flex = "";
+              element.style.width = "";
+              element.style.maxWidth = "";
+              element.style.minWidth = "";
+            }
+            return;
+          }
+
+          this.ensureSubparagraphWidthShares(paragraph, paragraphElement);
+          const inner = this.paragraphContentWidthForSubparagraphs(paragraphElement, subs.length);
+          subs.forEach(sub => {
+            const share = this.subparagraphWidthShare(paragraph, sub);
+            const element = paragraphElement.querySelector(`:scope > [data-subparagraph-id="${sub.id}"]`);
+            if (share == null) return;
+            this.applySubparagraphWidthShare(element, share, inner);
+          });
+        });
+      },
+
 applySubparagraphResize(dragging, event) {
-        const subparagraph = this.findSubparagraphById(dragging.subparagraphId);
+        const owner = this.findSubparagraphOwnerById(dragging.subparagraphId);
+        const subparagraph = owner?.subparagraph;
         const element = document.querySelector(`[data-subparagraph-id="${dragging.subparagraphId}"]`);
-        if (!subparagraph || !element) return;
+        if (!owner || !subparagraph || !element) return;
 
         const size = this.calculateSubparagraphResize(dragging, event);
         const handle = dragging.handle || "se";
 
         if (handle.includes("e") || handle.includes("w")) {
-          subparagraph.width = size.width > 0 ? size.width : null;
-          if (subparagraph.width) {
-            element.style.flex = `0 0 ${subparagraph.width}px`;
-            element.style.width = `${subparagraph.width}px`;
-            element.style.maxWidth = `${subparagraph.width}px`;
-          } else {
-            element.style.removeProperty("flex");
-            element.style.removeProperty("width");
-            element.style.removeProperty("max-width");
-          }
+          this.distributeSubparagraphWidths(owner.paragraph, subparagraph.id, size.width);
         }
 
         if (handle.includes("n") || handle.includes("s")) {
@@ -1413,6 +1599,66 @@ clampHorizontalMove(subparagraphId, requestedX, objectWidth) {
         return Math.min(maxX, Math.max(0, Math.round(requestedX)));
       },
 
+objectExtendsSubparagraphWhenMoved(object) {
+        return !!object && [KINDS.IMAGE, KINDS.TABLE, KINDS.CHART].includes(object.kind);
+      },
+
+maxMovableContentWidth(subparagraphId) {
+        const owner = this.findSubparagraphOwnerById(subparagraphId);
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        const subs = owner?.paragraph?.subparagraphs || [];
+        if (!owner || !element) return 0;
+
+        const style = getComputedStyle(element);
+        const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        const border = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+        if (subs.length <= 1) return Math.max(0, element.clientWidth - padding);
+
+        const paragraphElement = document.querySelector(`[data-paragraph-id="${owner.paragraph.id}"]`);
+        const inner = this.paragraphContentWidthForSubparagraphs(paragraphElement, subs.length);
+        const minimum = 32;
+        const maxBorder = Math.max(minimum, inner - minimum * (subs.length - 1));
+        return Math.max(0, maxBorder - border - padding);
+      },
+
+clampMovableX(subparagraphId, requestedX, objectWidth) {
+        const width = Math.max(0, Number(objectWidth) || 0);
+        const maxX = Math.max(0, this.maxMovableContentWidth(subparagraphId) - width);
+        return Math.min(maxX, Math.max(0, Math.round(requestedX)));
+      },
+
+fitSubparagraphWidthToContents(subparagraphId) {
+        const owner = this.findSubparagraphOwnerById(subparagraphId);
+        const subs = owner?.paragraph?.subparagraphs || [];
+        if (!owner || subs.length <= 1) return;
+
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        if (!element) return;
+
+        const style = getComputedStyle(element);
+        const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+        const paddingLeft = parseFloat(style.paddingLeft) || 0;
+        const border = borderLeft + (parseFloat(style.borderRightWidth) || 0);
+        const padding = paddingLeft + (parseFloat(style.paddingRight) || 0);
+        const origin = element.getBoundingClientRect().left + borderLeft + paddingLeft;
+        let contentRight = 0;
+
+        const object = owner.subparagraph.object;
+        if (object && this.objectExtendsSubparagraphWhenMoved(object)) {
+          const node = element.querySelector(`[data-main-object-id="${object.id}"]`);
+          if (node) contentRight = Math.max(contentRight, node.getBoundingClientRect().right - origin);
+        }
+
+        for (const textbox of owner.subparagraph.textboxes || []) {
+          if (textbox.tableCell) continue;
+          const node = element.querySelector(`:scope > [data-textbox-id="${textbox.id}"]`);
+          if (node) contentRight = Math.max(contentRight, node.getBoundingClientRect().right - origin);
+        }
+
+        if (!(contentRight > 0)) return;
+        this.distributeSubparagraphWidths(owner.paragraph, subparagraphId, contentRight + padding + border);
+      },
+
 measureMainObjectHeight(objectId) {
         const element = document.querySelector(`[data-main-object-id="${objectId}"]`);
         return element ? Math.ceil(element.getBoundingClientRect().height) : 0;
@@ -1422,25 +1668,39 @@ fitSubparagraphHeightToContents(subparagraphId) {
         const subparagraph = this.findSubparagraphById(subparagraphId);
         if (!subparagraph || subparagraph.contentKind !== CONTENT_KIND.OBJECT) return;
 
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        const subTop = element ? element.getBoundingClientRect().top : 0;
         let requiredHeight = 0;
 
+        const includeBottom = node => {
+          if (!node || !element) return false;
+          requiredHeight = Math.max(requiredHeight, node.getBoundingClientRect().bottom - subTop);
+          return true;
+        };
+
         if (subparagraph.object) {
-          const objectY = Math.max(0, Number(subparagraph.object.y) || 0);
-          const objectHeight = this.measureMainObjectHeight(subparagraph.object.id);
-          requiredHeight = Math.max(requiredHeight, objectY + objectHeight);
+          const objectElement = document.querySelector(`[data-main-object-id="${subparagraph.object.id}"]`);
+          if (!includeBottom(objectElement)) {
+            const objectY = Math.max(0, Number(subparagraph.object.y) || 0);
+            const objectHeight = this.measureMainObjectHeight(subparagraph.object.id);
+            requiredHeight = Math.max(requiredHeight, objectY + objectHeight);
+          }
         }
 
-        for (const textbox of subparagraph.textboxes) {
+        for (const textbox of subparagraph.textboxes || []) {
           if (textbox.tableCell) continue;
-          const textboxY = Math.max(0, Number(textbox.y) || 0);
-          const textboxHeight = Math.max(0, Number(textbox.height) || 0);
-          requiredHeight = Math.max(requiredHeight, textboxY + textboxHeight);
+          const textboxElement = document.querySelector(`[data-textbox-id="${textbox.id}"]`);
+          if (!includeBottom(textboxElement)) {
+            const textboxY = Math.max(0, Number(textbox.y) || 0);
+            const textboxHeight = Math.max(0, Number(textbox.height) || 0);
+            requiredHeight = Math.max(requiredHeight, textboxY + textboxHeight);
+          }
         }
 
-        const height = Math.ceil(requiredHeight);
+        const borderBottom = element ? (parseFloat(getComputedStyle(element).borderBottomWidth) || 0) : 0;
+        const height = Math.ceil(requiredHeight + (requiredHeight > 0 ? borderBottom : 0));
         subparagraph.height = height > 0 ? height : null;
 
-        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
         if (element) {
           if (height > 0) element.style.height = `${height}px`;
           else element.style.removeProperty("height");
@@ -1525,6 +1785,20 @@ applySelectedTableBorder(action, styles) {
         const cells = this.getTableBorderTargetCells(table);
         cells.forEach(({ row, col }) => {
           table.cellBorders[row][col] = this.applyBorderToCellBorder(table.cellBorders[row][col], action, styles);
+        });
+        return true;
+      },
+
+applySelectedTableSpacing(property, action, px) {
+        const context = this.getActiveTableForBorder?.();
+        const table = context?.table;
+        if (!table) return false;
+
+        const key = property === "margin" ? "cellMargins" : "cellPaddings";
+        this.ensureTableSpacingState?.(table);
+        const cells = this.getTableBorderTargetCells(table);
+        cells.forEach(({ row, col }) => {
+          table[key][row][col] = applyBoxEdgesAction(table[key][row][col], action, px);
         });
         return true;
       },
@@ -1641,6 +1915,9 @@ onMainObjectPointerDown(event, element) {
         this.clearNativeCaretAndSelection?.();
         this.refreshActiveClasses();
         const cellObjectBounds = owner.table ? this.getTableCellObjectMovementBounds(element) : null;
+        const subparagraphElement = owner.table
+          ? null
+          : document.querySelector(`[data-subparagraph-id="${owner.subparagraph.id}"]`);
         this.dragging = {
           type: "object",
           objectId: object.id,
@@ -1650,13 +1927,17 @@ onMainObjectPointerDown(event, element) {
           tableColIndex: Number.isFinite(Number(owner.colIndex)) ? Number(owner.colIndex) : null,
           movementContainerKind: owner.table ? "table-cell" : "subparagraph",
           availableWidth: cellObjectBounds?.width ?? null,
-          availableHeight: cellObjectBounds?.height ?? null,
+          availableHeight: cellObjectBounds?.height ?? subparagraphElement?.clientHeight ?? null,
           startClientX: event.clientX,
           startClientY: event.clientY,
           startX: Number(object.x) || 0,
           startY: Number(object.y) || 0,
           offsetX: event.clientX - objectRect.left,
-          offsetY: event.clientY - objectRect.top
+          offsetY: event.clientY - objectRect.top,
+          freezeObjectWidth: !owner.table && this.objectExtendsSubparagraphWhenMoved(object) && !(Number(object.width) > 0),
+          frozenObjectWidth: Math.round(element.offsetWidth || objectRect.width || 0),
+          movedLaterally: false,
+          widthPinned: false
         };
 
         element.classList.add("is-dragging-object");
@@ -1879,25 +2160,33 @@ onPointerMove(event) {
           if (!textbox) return;
 
           const requestedX = event.clientX - this.dragging.areaRect.left - this.dragging.offsetX;
+          const requestedY = event.clientY - this.dragging.areaRect.top - this.dragging.offsetY;
           if (this.dragging.movementContainerKind === "table-cell") {
             const maxX = Math.max(0, this.dragging.availableWidth - Math.max(0, Number(textbox.width) || 0));
+            const maxY = Math.max(0, this.dragging.availableHeight - Math.max(0, Number(textbox.height) || 0));
             textbox.x = Math.min(maxX, Math.max(0, Math.round(requestedX)));
-          } else {
-            textbox.x = this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, textbox.width);
-          }
-          const requestedY = event.clientY - this.dragging.areaRect.top - this.dragging.offsetY;
-          const maxY = Math.max(0, this.dragging.availableHeight - Math.max(0, Number(textbox.height) || 0));
-          textbox.y = Math.min(maxY, Math.max(0, Math.round(requestedY)));
-
-          if (this.dragging.movementContainerKind === "table-cell")
+            textbox.y = Math.min(maxY, Math.max(0, Math.round(requestedY)));
             this.updateTableCellTextboxArea(textbox.id);
-          else
-            this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
+          } else {
+            const owner = this.findTextboxOwnerById(textbox.id);
+            const multiple = (owner?.paragraph?.subparagraphs?.length || 0) > 1;
+            const elementWidth = document.querySelector(`[data-textbox-id="${textbox.id}"]`)?.offsetWidth || textbox.width;
+            if (multiple && Math.round(requestedX) !== textbox.x) this.dragging.movedLaterally = true;
+            textbox.x = multiple && this.dragging.movedLaterally
+              ? this.clampMovableX(this.dragging.subparagraphId, requestedX, elementWidth)
+              : this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, elementWidth);
+            textbox.y = Math.max(0, Math.round(requestedY));
+          }
 
           const element = document.querySelector(`[data-textbox-id="${textbox.id}"]`);
           if (element) {
             element.style.left = `${textbox.x}px`;
             element.style.top = `${textbox.y}px`;
+          }
+
+          if (this.dragging.movementContainerKind !== "table-cell") {
+            if (this.dragging.movedLaterally) this.fitSubparagraphWidthToContents(this.dragging.subparagraphId);
+            this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
           }
 
           // Se a caixa está em modo de edição, a moldura externa precisa
@@ -1930,13 +2219,35 @@ onPointerMove(event) {
               const maxY = Math.max(0, availableHeight - objectHeight);
               object.x = Math.min(maxX, Math.max(0, Math.round(requestedX)));
               object.y = Math.min(maxY, Math.max(0, Math.round(requestedY)));
-            } else {
-              object.x = this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, objectWidth);
+            } else if (this.objectExtendsSubparagraphWhenMoved(object)) {
+              const multiple = (owner.paragraph?.subparagraphs?.length || 0) > 1;
+              if (multiple && Math.round(requestedX) !== (Number(this.dragging.startX) || 0)) this.dragging.movedLaterally = true;
+              if (multiple && this.dragging.movedLaterally) {
+                if (this.dragging.freezeObjectWidth) {
+                  object.width = this.dragging.frozenObjectWidth;
+                  this.dragging.widthPinned = true;
+                }
+                if (Number(object.width) > 0) {
+                  element.style.width = `${Math.round(object.width)}px`;
+                  element.style.maxWidth = "none";
+                }
+                const usedWidth = Number(object.width) > 0 ? Number(object.width) : objectWidth;
+                object.x = this.clampMovableX(this.dragging.subparagraphId, requestedX, usedWidth);
+              } else {
+                object.x = this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, objectWidth);
+              }
               object.y = Math.max(0, Math.round(requestedY));
-              this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
+            } else {
+              const maxY = Math.max(0, (Number(this.dragging.availableHeight) || 0) - objectHeight);
+              object.x = this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, objectWidth);
+              object.y = Math.min(maxY, Math.max(0, Math.round(requestedY)));
             }
 
             element.style.transform = `translate(${object.x}px, ${object.y}px)`;
+            if (this.dragging.movementContainerKind !== "table-cell" && this.objectExtendsSubparagraphWhenMoved(object)) {
+              if (this.dragging.movedLaterally) this.fitSubparagraphWidthToContents(this.dragging.subparagraphId);
+              this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
+            }
             this.positionObjectEditOverlay();
           }
 
@@ -1976,6 +2287,16 @@ onPointerUp(event) {
         if (movedType === "table-part-resize") {
           this.renderStatePanel("Parte da tabela redimensionada.");
           return;
+        }
+
+        if (movedType === "object" && dragging.widthPinned && !dragging.movedLaterally) {
+          const pinned = this.findObjectOwnerById(dragging.objectId)?.object;
+          if (pinned) delete pinned.width;
+          const pinnedElement = document.querySelector(`[data-main-object-id="${dragging.objectId}"]`);
+          if (pinnedElement) {
+            pinnedElement.style.width = "";
+            pinnedElement.style.maxWidth = "";
+          }
         }
 
         const message = movedType === "object" ? "Objeto reposicionado." : "Caixa de texto reposicionada.";
