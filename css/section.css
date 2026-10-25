@@ -6,6 +6,15 @@
       overflow: visible;
     }
 
+    /* Body ocupa a linha 1fr da página; a borda da seção precisa
+       acompanhar a célula para o vão Body→Footer = Header→Body. */
+    .section-frame[data-section-frame-kind="Body"] {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+    }
+
     .section {
       position: relative;
       width: 100%;
@@ -18,6 +27,7 @@
     }
 
     .section[data-section-kind="Body"] {
+      flex: 1 1 auto;
       min-height: 190mm;
     }
 
