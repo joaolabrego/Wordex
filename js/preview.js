@@ -77,7 +77,17 @@ Object.assign(wordex, {
     build.borders.push(JSON.parse(JSON.stringify(table.cellBorders?.[rowIndex] || [])));
     build.alignments.push(alignments);
     build.objects.push(JSON.parse(JSON.stringify(table.cellObjects?.[rowIndex] || Array.from({ length: table.cols }, () => null))));
-    build.colspans.push(JSON.parse(JSON.stringify(table.cellColspans?.[rowIndex] || [])));
+    const spans = Array.from({ length: table.cols }, (_, col) => {
+      const span = Math.max(1, Number(table.cellColspans?.[rowIndex]?.[col]) || 1);
+      return Math.min(span, Math.max(1, table.cols - col));
+    });
+    // Header de grupo/tabela: uma célula só. Células "" extras após colspan
+    // fazem o browser criar colunas fantasma e desalinharem Nome/Preço.
+    if (context?.kind === "groupHeader" || context?.kind === "tableHeader" || context?.mergeAcrossColumns) {
+      spans[0] = table.cols;
+      for (let col = 1; col < table.cols; col += 1) spans[col] = 1;
+    }
+    build.colspans.push(spans);
     build.visibility.push(true);
   },
 
@@ -133,7 +143,14 @@ Object.assign(wordex, {
       const key = `${kind}|${this.normalizeDataPreviewPath(path)}`;
       (rowsByKindAndPath.get(key) || []).forEach(row => {
         const context = table.rowContexts?.[row] || null;
-        const rowSource = this.getDataPreviewSourceForRowContext(context, occurrence, fallbackSource);
+        const rowSource = this.getDataPreviewSourceForRowContext(
+          context,
+          occurrence,
+          fallbackSource
+        );
+        // Sem item de totals casado, não emite footer vazio (evita “linha fantasma”
+        // antes do subtotal do grupo pai).
+        if (kind === "groupFooter" && this.isEmptyDataPreviewTotalsSource?.(rowSource)) return;
         this.appendDataPreviewRow(build, table, row, rowSource);
       });
     };
@@ -143,7 +160,8 @@ Object.assign(wordex, {
 
     const groupsRootFirst = this.getDataPreviewGroupsRootFirst(table, detailPath);
 
-    const emitGroups = (level, groupOccurrences) => {
+    // Quebras hierárquicas: nível N quebra pela combinação das chaves 1..N.
+    const emitGroups = (level, groupOccurrences, ancestorKeyParts = []) => {
       if (level >= groupsRootFirst.length) {
         groupOccurrences.forEach(occurrence => appendKindRows("detail", occurrence.detailItem, occurrence));
         return;
@@ -151,10 +169,18 @@ Object.assign(wordex, {
 
       const groupDefinition = groupsRootFirst[level];
       const path = groupDefinition.path;
-      const groups = this.groupDataPreviewOccurrencesByPath(groupOccurrences, path, groupDefinition.fieldMacro);
+      const groups = this.groupDataPreviewOccurrencesByPath(
+        groupOccurrences,
+        path,
+        groupDefinition.fieldMacro,
+        groupDefinition.fieldSourcePath,
+        ancestorKeyParts
+      );
       groups.forEach(group => {
+        if (!group.occurrences.length) return;
+        const nextAncestorKeys = ancestorKeyParts.concat(group.keyPart);
         appendKindPathRows("groupHeader", path, group.occurrences[0], group.item);
-        emitGroups(level + 1, group.occurrences);
+        emitGroups(level + 1, group.occurrences, nextAncestorKeys);
         appendKindPathRows("groupFooter", path, group.occurrences[0], group.item);
       });
     };
@@ -169,10 +195,15 @@ Object.assign(wordex, {
     const configuredGroups = table.dataBinding?.groups;
     if (Array.isArray(configuredGroups)) {
       return configuredGroups
-        .map(group => ({
-          path: this.normalizeDataPreviewPath(group?.path),
-          fieldMacro: String(group?.fieldMacro || "").trim()
-        }))
+        .map(group => {
+          const fieldSourcePath = String(group?.fieldSourcePath || "").trim();
+          return {
+            path: this.normalizeDataPreviewPath(group?.path),
+            fieldMacro: String(group?.fieldMacro || "").trim(),
+            fieldSourcePath: fieldSourcePath ? this.normalizeDataPreviewPath(fieldSourcePath) : "",
+            footerPath: String(group?.footerPath || "").trim()
+          };
+        })
         .filter(group => group.path && group.path !== "$" && group.path !== detailPath)
         .reverse();
     }
@@ -235,19 +266,38 @@ Object.assign(wordex, {
     return occurrences;
   },
 
-  groupDataPreviewOccurrencesByPath(occurrences, path, fieldMacro = "") {
+  encodeDataPreviewGroupKeyPart(part) {
+    if (part && typeof part === "object") {
+      if (!this._dataPreviewGroupObjectIds) this._dataPreviewGroupObjectIds = new WeakMap();
+      if (!this._dataPreviewGroupObjectIds.has(part)) {
+        this._dataPreviewGroupObjectSeq = (this._dataPreviewGroupObjectSeq || 0) + 1;
+        this._dataPreviewGroupObjectIds.set(part, `obj:${this._dataPreviewGroupObjectSeq}`);
+      }
+      return this._dataPreviewGroupObjectIds.get(part);
+    }
+    return `val:${JSON.stringify(part)}`;
+  },
+
+  groupDataPreviewOccurrencesByPath(occurrences, path, fieldMacro = "", fieldSourcePath = "", ancestorKeyParts = []) {
     const groups = [];
     const keyToGroup = new Map();
+    const sourcePath = String(fieldSourcePath || "").trim();
+    const resolvePath = this.normalizeDataPreviewPath(sourcePath || path);
+    const ancestors = Array.isArray(ancestorKeyParts) ? ancestorKeyParts : [];
     occurrences.forEach(occurrence => {
-      const item = occurrence.contexts?.[path] || null;
+      const item = occurrence.contexts?.[resolvePath] || null;
       const value = fieldMacro
         ? this.resolveDataPreviewMacro(item, fieldMacro)
         : item;
-      const key = fieldMacro
+      const keyPart = fieldMacro
         ? `${typeof value}:${JSON.stringify(value)}`
-        : item && typeof item === "object" ? item : JSON.stringify(item);
+        : (item && typeof item === "object" ? item : JSON.stringify(item));
+      // Chave cumulativa: grupo N = chaves dos grupos 1..N.
+      const key = ancestors.length
+        ? [...ancestors, keyPart].map(part => this.encodeDataPreviewGroupKeyPart(part)).join("\u0001")
+        : keyPart;
       if (!keyToGroup.has(key)) {
-        const group = { item, occurrences: [] };
+        const group = { item, keyPart, occurrences: [] };
         keyToGroup.set(key, group);
         groups.push(group);
       }
@@ -265,15 +315,131 @@ Object.assign(wordex, {
     if (kind === "columnHeader") return fallbackSource;
 
     const contextPath = this.normalizeDataPreviewPath(context.contextPath || context.detailPath || "$");
-    if (kind === "groupHeader") return occurrence.contexts?.[contextPath] || fallbackSource;
+    if (kind === "groupHeader") {
+      const fieldPath = this.normalizeDataPreviewPath(context.fieldContextPath || contextPath);
+      return occurrence.contexts?.[fieldPath]
+        || occurrence.contexts?.[contextPath]
+        || fallbackSource;
+    }
 
     if (kind === "groupFooter" || kind === "tableFooter") {
-      const footerPath = this.normalizeDataPreviewPath(context.footerPath || context.fieldContextPath || context.contextPath || "$");
-      return this.getDataPreviewSourceFromOccurrencePath(footerPath, occurrence) || fallbackSource;
+      const rawFooterPath = String(context.footerPath || "").trim();
+      // Totais vêm do JSON (Kind totals); não há mais agregação local (__detail__).
+      if (!rawFooterPath || rawFooterPath === "__detail__") return fallbackSource;
+      const footerPath = this.normalizeDataPreviewPath(rawFooterPath);
+      if (kind === "groupFooter") {
+        const matchFields = Array.isArray(context.footerMatchFields) && context.footerMatchFields.length
+          ? context.footerMatchFields
+          : (this.getTotalsMatchFieldNames?.(footerPath) || []);
+        return this.findMatchingTotalsItem(footerPath, occurrence?.detailItem, matchFields, occurrence);
+      }
+      return this.findMatchingTotalsItem(footerPath, occurrence?.detailItem, [], occurrence)
+        || this.getDataPreviewSourceFromOccurrencePath(footerPath, occurrence)
+        || fallbackSource;
     }
 
     const fieldPath = this.normalizeDataPreviewPath(context.fieldContextPath || context.contextPath || "$");
     return this.getDataPreviewSourceFromOccurrencePath(fieldPath, occurrence) || fallbackSource;
+  },
+
+  isEmptyDataPreviewTotalsSource(source) {
+    if (source == null) return true;
+    if (typeof source !== "object" || Array.isArray(source)) return false;
+    return Object.keys(source).length === 0;
+  },
+
+  normalizeTotalsMatchValue(value) {
+    if (value == null) return "";
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+      return String(value).trim();
+    if (this.isPlainObject?.(value) && "Value" in value)
+      return this.normalizeTotalsMatchValue(value.Value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  },
+
+  // Subtotais ficam na collection pai (ex.: Clientes.TotaisProdutos): resolve só no pai do occurrence.
+  // Nunca achata todos os clientes — senão CategoriaNome casa o primeiro "Eletrônico" de outro pai.
+  getDataPreviewTotalsItemsForFooter(footerPath, occurrence = null) {
+    const cleanPath = this.normalizeDataPreviewPath(footerPath);
+    if (!cleanPath || cleanPath === "$") return this.getDataPreviewCollectionItems(cleanPath);
+
+    if (occurrence) {
+      const scoped = this.getDataPreviewTotalsItemsFromOccurrence(cleanPath, occurrence);
+      // Array (mesmo vazio) = resolveu no pai; null = sem contexto → não vaza totais de outros pais.
+      if (scoped) return scoped;
+      return [];
+    }
+
+    return this.getDataPreviewCollectionItems(cleanPath);
+  },
+
+  getDataPreviewTotalsItemsFromOccurrence(footerPath, occurrence) {
+    const cleanPath = this.normalizeDataPreviewPath(footerPath);
+    const parts = cleanPath.replace(/^\$\.?/, "").split(".").filter(Boolean);
+    if (!parts.length || !occurrence?.contexts) return null;
+
+    const contextPaths = Object.keys(occurrence.contexts)
+      .filter(path => {
+        const normalized = this.normalizeDataPreviewPath(path);
+        return normalized === "$"
+          || cleanPath === normalized
+          || cleanPath.startsWith(`${normalized}.`);
+      })
+      .sort((a, b) => b.length - a.length);
+
+    for (const contextPath of contextPaths) {
+      const normalizedContext = this.normalizeDataPreviewPath(contextPath);
+      const contextParts = normalizedContext === "$"
+        ? []
+        : normalizedContext.replace(/^\$\.?/, "").split(".").filter(Boolean);
+      const suffixParts = parts.slice(contextParts.length);
+      let current = occurrence.contexts[contextPath];
+      let resolved = true;
+      for (const part of suffixParts) {
+        current = this.getDataPreviewChildNode(current, part);
+        if (current == null) {
+          resolved = false;
+          break;
+        }
+      }
+      if (resolved && current != null) return this.extractDataPreviewItems(current);
+    }
+
+    return null;
+  },
+
+  findMatchingTotalsItem(footerPath, detailItem, matchFields = [], occurrence = null) {
+    const items = this.getDataPreviewTotalsItemsForFooter(footerPath, occurrence);
+    if (!items.length) return null;
+
+    let fields = Array.isArray(matchFields)
+      ? matchFields.map(field => String(field || "").trim()).filter(Boolean)
+      : [];
+    // Sem chaves explícitas: usa as colunas-chave presentes no próprio totals.
+    if (!fields.length)
+      fields = this.getTotalsMatchFieldNames?.(footerPath) || [];
+    if (!fields.length) return items[0] || null;
+
+    // Só compara chaves que existam no item de totais (as mesmas do grupo).
+    const usableFields = fields.filter(field => items.some(item =>
+      item != null && Object.prototype.hasOwnProperty.call(item, field)
+    ));
+    // Totais do pai sem chave (ex.: TotaisProdutos do cliente): usa o item do contexto.
+    if (!usableFields.length) return items[0] || null;
+
+    return items.find(item => usableFields.every(field => {
+      const expected = this.normalizeTotalsMatchValue(
+        this.resolveDataPreviewMacro(detailItem, field)
+      );
+      const actual = this.normalizeTotalsMatchValue(
+        this.resolveDataPreviewMacro(item, field)
+      );
+      return expected !== "" && expected === actual;
+    })) || null;
   },
 
   getDataPreviewSourceFromOccurrencePath(path, occurrence) {
@@ -349,16 +515,14 @@ Object.assign(wordex, {
   },
 
   unwrapDataPreviewNode(node) {
-    if (this.isObjectNode?.(node)) return node.Value;
     if (this.isPlainObject?.(node) && "Value" in node && !("Items" in node)) return node.Value;
     return node;
   },
 
   getDataPreviewChildNode(item, key) {
     if (!item || !key) return null;
-    const object = this.isObjectNode?.(item) ? item.Value : item;
-    if (!this.isPlainObject?.(object)) return null;
-    return object[key];
+    if (!this.isPlainObject?.(item)) return null;
+    return item[key];
   },
 
   getDataPreviewMacroNode(sourceItem, macro) {
@@ -379,12 +543,23 @@ Object.assign(wordex, {
     return clean || "$";
   },
 
-  replaceDataPreviewMacros(html, sourceItem) {
+  replaceDataPreviewMacros(html, sourceItem, options = {}) {
     const source = String(html ?? "");
-    return source.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, macro) => {
-      const value = this.resolveDataPreviewMacro(sourceItem, macro);
+    const preservePageMacros = Boolean(options.preservePageMacros);
+    return source.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, macro) => {
+      const clean = String(macro || "").trim();
+      // Página final resolve @PageNumber/@PageCount após o pagex.
+      if (preservePageMacros && (clean === "@PageNumber" || clean === "@PageCount")) return match;
+      const value = this.resolveDataPreviewMacro(sourceItem, clean);
       return escapeHtml(value == null ? "" : String(value));
     });
+  },
+
+  // Texto livre (header/body/footer/textbox): macros de dados no root do JSON.
+  applyFreeTextDataPreviewMacros(html) {
+    if (!this.previewMode || !this.dataSource) return String(html ?? "");
+    const sourceItem = this.getDataPreviewSampleForPath("$");
+    return this.replaceDataPreviewMacros(html, sourceItem, { preservePageMacros: true });
   },
 
   resolveDataPreviewMacro(sourceItem, macro) {

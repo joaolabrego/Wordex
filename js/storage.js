@@ -16,6 +16,7 @@ loadEmbeddedTemplate() {
           document.title = String(this.document.title || "Wordex");
           this.rebuildCountersFromDocument();
           this.migrateTextHtmlToRuns?.();
+          this.sanitizeLoadedTableRowHeights?.(this.document);
           window.WORDEX_STANDALONE = true;
           return true;
         } catch (error) {

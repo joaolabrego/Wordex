@@ -13,13 +13,19 @@ Object.assign(wordex, {
       let rendererUrl;
       let revokeRendererUrl = false;
 
-      if (window.WORDEX_STANDALONE && window.WORDEX_PAGED_TEMPLATE) {
+      if (window.WORDEX_PAGED_TEMPLATE) {
         rendererUrl = URL.createObjectURL(new Blob(
           [this.buildEmbeddedPagedTemplateHtml()],
           { type: "text/html;charset=utf-8" }
         ));
         revokeRendererUrl = true;
+      } else if (window.WORDEX_STANDALONE) {
+        // HTML salvo sem o renderizador embutido — não há wordex-paged.html ao lado.
+        throw new Error(
+          "O renderizador paginado não está incorporado neste arquivo. Regenere o HTML salvo a partir do editor do projeto."
+        );
       } else {
+        // Editor do projeto: usa wordex-paged.html na mesma pasta (http ou file://).
         rendererUrl = new URL("wordex-paged.html", window.location.href).href;
       }
 

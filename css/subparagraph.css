@@ -42,7 +42,9 @@
     .main-object.is-dragging-object,
     .main-object.is-dragging-object *,
     .textbox.is-dragging-object,
-    .textbox.is-dragging-object * {
+    .textbox.is-dragging-object *,
+    .wordex-inline-line.is-dragging-object,
+    .wordex-inline-line.is-dragging-object * {
       cursor: grabbing !important;
     }
 
@@ -75,6 +77,20 @@
       padding: 0;
       background: #f9fbff;
       white-space: normal;
+    }
+
+    .object-subparagraph-text {
+      position: relative;
+      z-index: 1;
+      box-sizing: border-box;
+      min-height: 1.25em;
+      padding: 5px;
+      outline: none;
+      overflow: visible;
+      line-height: 1.25;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      cursor: text;
     }
 
 

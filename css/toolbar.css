@@ -251,6 +251,15 @@
       margin: 0 auto;
     }
 
+    .icon-button img {
+      display: block;
+      width: 19px;
+      height: 19px;
+      margin: 0 auto;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
     .object-type-select {
       min-height: 29px;
       border: 1px solid #aab7c7;

@@ -252,6 +252,33 @@ body.wordex-generated-report .document > .region::before {
   margin: 8px auto;
 }
 
+.wordex-inline-line {
+  display: inline;
+  white-space: pre;
+}
+
+/* Caixa flutuante sobre gráfico/tabela/imagem: mantém left/top do editor. */
+.textbox:not(.textbox-inline) {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  border: 1px solid #b36b00;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .88);
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .12);
+}
+
+.textbox:not(.textbox-inline) .textbox-content {
+  box-sizing: border-box;
+  padding: 4px;
+  outline: none;
+  font: inherit;
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .textbox-inline {
   position: relative;
   display: flex;
@@ -298,7 +325,8 @@ body.wordex-generated-report .document > .region::before {
   display: flex;
   align-items: flex-start;
   width: 100%;
-  height: 100%;
+  min-height: 0;
+  height: auto;
   overflow: visible;
 }
 
@@ -1014,7 +1042,8 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return;
         }
 
-        var mainObjects = block.querySelectorAll(".dynamic-image-box, .wordex-chart-box, .wordex-textbox");
+        // Caixas flutuantes (.textbox) não são o objeto principal — não entram no cálculo.
+        var mainObjects = block.querySelectorAll(".dynamic-image-box, .wordex-chart-box, .wordex-textbox, .main-object");
 
         if (mainObjects.length !== 1) {
           return;
@@ -1068,7 +1097,7 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         var rects = [block.getBoundingClientRect()];
 
         collectNodePaintRects(block.querySelectorAll(
-          ".dynamic-image-box, .wordex-chart-box, .wordex-textbox, table.wordex-table, [data-align='free']"
+          ".dynamic-image-box, .wordex-chart-box, .wordex-textbox, .textbox:not(.textbox-inline), table.wordex-table, [data-align='free']"
         ), rects);
 
         var top = Math.min.apply(null, rects.map(function (rect) { return rect.top; }));
@@ -1142,10 +1171,7 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
       function overflows(body) {
         void body.offsetHeight;
 
-        if (body.scrollWidth > body.clientWidth + 1) {
-          return true;
-        }
-
+        // Overflow horizontal (ex.: caixa absoluta na borda) não deve criar página em branco.
         if (overflowsVertically(body)) {
           return true;
         }
@@ -1155,6 +1181,30 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         }
 
         return false;
+      }
+
+      function isVisuallyEmptyBlock(block) {
+        if (!block) return true;
+        if (block.getAttribute("data-page-break-character") === "12") return false;
+        var text = String(block.textContent || "").replace(/\u200B/g, "").trim();
+        if (text) return false;
+        if (block.querySelector(".main-object, .wordex-chart-box, .dynamic-image-box, table.wordex-table, .textbox, .textbox-inline, img"))
+          return false;
+        return true;
+      }
+
+      function pruneLeadingEmptyPages(pages) {
+        if (!pages) return;
+        while (pages.children.length > 1) {
+          var first = pages.children[0];
+          var flow = first.querySelector(".body-flow");
+          var blocks = flow ? Array.prototype.slice.call(flow.children) : [];
+          if (!blocks.length || blocks.every(isVisuallyEmptyBlock)) {
+            first.remove();
+            continue;
+          }
+          break;
+        }
       }
 
       function tableProbeFits(current, probe) {
@@ -1771,8 +1821,8 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           if (kind === "groupHeader") {
             closeMatchingGroup(open, path);
             open.push(rows[index]);
-          } else if (kind === "groupFooter" && open.length) {
-            open.pop();
+          } else if (kind === "groupFooter") {
+            closeMatchingGroup(open, path);
           }
         }
 
@@ -1789,6 +1839,42 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
         }
 
         return open;
+      }
+
+      function trimTrailingOrphanGroupHeaders(rows, chunkStart, chunkEnd) {
+        var end = chunkEnd;
+        while (end >= chunkStart && tableRowKind(rows[end]) === "groupHeader") {
+          end--;
+        }
+        return end;
+      }
+
+      // Unidade indivisível: groupHeader + sub-headers consecutivos + 1º detail.
+      function groupHeaderKeepUnitEnd(rows, headerIndex, lastMiddle) {
+        if (!rows[headerIndex] || tableRowKind(rows[headerIndex]) !== "groupHeader") {
+          return headerIndex;
+        }
+
+        var end = headerIndex;
+        var index = headerIndex;
+
+        while (index <= lastMiddle && tableRowKind(rows[index]) === "groupHeader") {
+          end = index;
+          index++;
+        }
+
+        if (index <= lastMiddle && tableRowKind(rows[index]) === "detail") {
+          return index;
+        }
+
+        return end;
+      }
+
+      function chunkHasDetailRows(rows, firstMiddle, lastMiddle) {
+        for (var index = firstMiddle; index <= lastMiddle; index++) {
+          if (tableRowKind(rows[index]) === "detail") return true;
+        }
+        return false;
       }
 
       function releaseTableSliceHeight(clone) {
@@ -1829,7 +1915,13 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           tbody.appendChild(rows[headerIndex].cloneNode(true));
         }
 
-        if (firstMiddleRowIndex >= plan.firstMiddle && firstMiddleRowIndex <= plan.lastMiddle) {
+        // Só repete cabeçalhos de grupo se o pedaço tiver pelo menos 1 detalhe.
+        // Fatia só com footer (0 detalhes) não reapresenta o grupo.
+        if (
+          firstMiddleRowIndex >= plan.firstMiddle &&
+          firstMiddleRowIndex <= plan.lastMiddle &&
+          chunkHasDetailRows(rows, firstMiddleRowIndex, lastMiddleRowIndex)
+        ) {
           groupHeadersToRepeat(rows, firstMiddleRowIndex, plan.firstMiddle).forEach(function (row) {
             tbody.appendChild(row.cloneNode(true));
           });
@@ -1925,6 +2017,26 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
               break;
             }
 
+            // Header + sub-headers + 1 detalhe entram juntos; se não couber, salta de página.
+            if (tableRowKind(tableRows[rowIndex]) === "groupHeader") {
+              var keepEnd = groupHeaderKeepUnitEnd(tableRows, rowIndex, lastMiddleRowIndex);
+              var keepProbe = buildTableBlockSlice(
+                sourceBlock,
+                chunkStart,
+                keepEnd,
+                keepEnd >= lastMiddleRowIndex
+              );
+              if (!tableProbeFits(current, keepProbe)) {
+                break;
+              }
+              chunkEnd = keepEnd;
+              rowIndex = keepEnd + 1;
+              if (keepEnd >= lastMiddleRowIndex) {
+                break;
+              }
+              continue;
+            }
+
             var includeFooter = rowIndex >= lastMiddleRowIndex;
             var probe = buildTableBlockSlice(sourceBlock, chunkStart, rowIndex, includeFooter);
 
@@ -1940,10 +2052,15 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
             }
           }
 
+          chunkEnd = trimTrailingOrphanGroupHeaders(tableRows, chunkStart, chunkEnd);
+          // Headers removidos do fim do chunk precisam ser reprocessados na próxima página.
+          rowIndex = chunkEnd + 1;
+
           if (chunkEnd < chunkStart) {
             if (current.bodyFlow.children.length > 0) {
               current = createPage(pages);
               syncPageBodyArea(current.page);
+              continue;
             }
 
             var includeFooterForced = rowIndex >= lastMiddleRowIndex;
@@ -1978,6 +2095,11 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return paginateTableBlockRows(sourceBlock, pages, current);
         }
 
+        // Blocos vazios não ocupam página sozinhos (evitam página 1 em branco).
+        if (isVisuallyEmptyBlock(sourceBlock)) {
+          return current;
+        }
+
         var clone = sourceBlock.cloneNode(true);
 
         if (appendBlockClone(current, clone)) {
@@ -1991,7 +2113,16 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           return paginateTableBlockRows(sourceBlock, pages, current);
         }
 
-        if (current.bodyFlow.children.length > 0) {
+        // Se a página só tem blocos vazios, limpa e tenta de novo na mesma página.
+        var existing = Array.prototype.slice.call(current.bodyFlow.children);
+        if (existing.length > 0 && existing.every(isVisuallyEmptyBlock)) {
+          existing.forEach(function (node) { node.remove(); });
+          clone = sourceBlock.cloneNode(true);
+          if (appendBlockClone(current, clone)) {
+            return current;
+          }
+          clone.remove();
+        } else if (existing.length > 0) {
           current = createPage(pages);
           syncPageBodyArea(current.page);
           clone = sourceBlock.cloneNode(true);
@@ -2037,6 +2168,7 @@ body.wordex-generated-report .wordex-chart-value-label.is-vertical-stacked {
           }
           current = placeBlockOnPages(block, pages, current);
         });
+        pruneLeadingEmptyPages(pages);
         compactAllPageBodyAreas(pages);
       }
 

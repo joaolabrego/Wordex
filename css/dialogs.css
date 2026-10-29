@@ -252,10 +252,6 @@
       box-sizing: border-box;
     }
 
-    .wordex-table-footer-field-line select[data-table-parent-footer-aggregate] {
-      min-width: 78px;
-    }
-
     .wordex-table-group-option {
       display: flex;
       align-items: center;
@@ -269,6 +265,54 @@
     .wordex-table-group-option input[type="checkbox"] {
       min-height: 0;
       margin: 0;
+    }
+
+    .wordex-table-extra-groups-actions {
+      display: grid;
+      gap: 4px;
+      margin: 2px 0 8px;
+    }
+
+    .wordex-table-extra-groups-hint {
+      font-size: 11px;
+      color: #6a6a6a;
+    }
+
+    .wordex-table-extra-group-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .wordex-table-extra-group-title-row input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .wordex-table-extra-group-add,
+    .wordex-table-extra-group-remove {
+      min-height: 26px;
+      padding: 2px 10px;
+      border: 1px solid #bdcbdc;
+      border-radius: 4px;
+      background: #fff;
+      color: #315f94;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .wordex-table-extra-group-remove {
+      flex: 0 0 auto;
+      width: 28px;
+      padding: 0;
+      font-size: 16px;
+      color: #a33;
+    }
+
+    .wordex-table-extra-group-add:hover,
+    .wordex-table-extra-group-remove:hover {
+      background: #f3f7fc;
     }
 
     .wordex-list-option {
@@ -297,7 +341,7 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       gap: 2px;
-      max-height: 150px;
+      max-height: 220px;
       overflow: auto;
       padding: 7px;
       border: 1px solid #d5dfeb;
@@ -307,10 +351,25 @@
 
     .wordex-table-detail-field-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
       gap: 8px;
-      min-height: 25px;
+      min-height: 28px;
+    }
+
+    .wordex-table-detail-field-row select[data-table-detail-field-aggregate] {
+      min-width: 86px;
+      min-height: 24px;
+      padding: 2px 6px;
+      border: 1px solid #bfcbd9;
+      border-radius: 4px;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .wordex-table-detail-field-row select[data-table-detail-field-aggregate]:disabled {
+      color: #aab3bf;
+      background: #f2f4f7;
     }
 
     .wordex-table-detail-field-list label {

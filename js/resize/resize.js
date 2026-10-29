@@ -123,10 +123,264 @@ enterTextboxEditMode(textboxId) {
         this.hideMarginDialog();
         this.clearNativeCaretAndSelection?.();
         this.refreshActiveClasses?.();
-        this.renderStatePanel("Caixa de texto em modo de edição. Arraste uma alça para redimensionar.");
+        this.renderStatePanel("Caixa de texto em modo de edição. Arraste para mover ou use as alças para redimensionar.");
         this.updateToolbarState?.();
         this.updateJsonOutput();
         this.positionObjectEditOverlay();
+      },
+
+isTextboxInEditMode(textboxId) {
+        return Boolean(
+          this.objectEditMode &&
+          this.activeEditTargetKind === KINDS.TEXTBOX &&
+          this.activeTextbox &&
+          this.activeTextbox === textboxId
+        );
+      },
+
+getOffsetRelativeToSubparagraph(element, subparagraphElement) {
+        const parent = subparagraphElement || element?.closest?.(".subparagraph[data-subparagraph-id]");
+        if (!element || !parent) return { x: 0, y: 0 };
+        const parentRect = parent.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(parent);
+        const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+        const borderTop = parseFloat(style.borderTopWidth) || 0;
+        return {
+          x: Math.round(rect.left - parentRect.left - borderLeft),
+          y: Math.round(rect.top - parentRect.top - borderTop)
+        };
+      },
+
+clearInlineTextboxFreeMoveStyles(element) {
+        if (!element) return;
+        element.removeAttribute("data-free-move");
+        element.style.removeProperty("position");
+        element.style.removeProperty("left");
+        element.style.removeProperty("top");
+        element.style.removeProperty("float");
+        element.style.removeProperty("clear");
+        element.style.removeProperty("z-index");
+        element.style.removeProperty("transform");
+      },
+
+alignmentFromSubparagraphMidpoint(subparagraphId, clientX) {
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        if (!element) return "right";
+        const rect = element.getBoundingClientRect();
+        if (!(rect.width > 0)) return "right";
+        return clientX < rect.left + rect.width / 2 ? "left" : "right";
+      },
+
+getCaretRangeAtPointInEditable(editable, clientX, clientY, ignoreElement = null) {
+        if (!editable) return null;
+        let range = null;
+        if (typeof document.caretRangeFromPoint === "function") {
+          range = document.caretRangeFromPoint(clientX, clientY);
+        } else if (typeof document.caretPositionFromPoint === "function") {
+          const pos = document.caretPositionFromPoint(clientX, clientY);
+          if (pos?.offsetNode != null) {
+            range = document.createRange();
+            range.setStart(pos.offsetNode, pos.offset);
+            range.collapse(true);
+          }
+        }
+        if (!range || !editable.contains(range.startContainer)) return null;
+        const node = range.startContainer;
+        const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        const blocked = el?.closest?.("[data-textbox-id], [data-inline-textbox], [data-inline-list-id], [data-inline-line-id]");
+        // Não usa caret dentro da própria caixa (nem de outras ilhas).
+        if (blocked) return null;
+        return range;
+      },
+
+subparagraphAllowsInlineTextWrap(subparagraph) {
+        // SP com objeto principal (gráfico/tabela/imagem): caixas flutuantes
+        // ficam absolutas sobre o objeto — não viram inline no texto abaixo.
+        return !(subparagraph?.contentKind === CONTENT_KIND.OBJECT && subparagraph?.object);
+      },
+
+ensureTextboxIsInlineForWrap(owner, textbox, textboxElement) {
+        if (!owner || !textbox || owner.tableCell) return false;
+        const { subparagraph } = owner;
+        if (!this.subparagraphAllowsInlineTextWrap(subparagraph)) return false;
+        if (owner.inline) return true;
+
+        subparagraph.textboxes = (Array.isArray(subparagraph.textboxes) ? subparagraph.textboxes : [])
+          .filter(item => item.id !== textbox.id);
+        subparagraph.inlineTextboxes ||= [];
+        if (!subparagraph.inlineTextboxes.some(item => item.id === textbox.id))
+          subparagraph.inlineTextboxes.push(textbox);
+
+        textbox.inline = true;
+        delete textbox.tableCell;
+        if (textboxElement) {
+          textboxElement.dataset.inlineTextbox = "true";
+          textboxElement.classList.add("textbox-inline");
+        }
+        return true;
+      },
+
+applyInlineTextboxWrapAtPoint(textbox, element, subparagraphId, clientX, clientY, lockedAlignment = null) {
+        if (!textbox || !element) return false;
+        const editable = element.closest?.("[data-text-subparagraph-id]") ||
+          document.querySelector(`[data-text-subparagraph-id="${CSS.escape(subparagraphId)}"][contenteditable="true"]`);
+        const sp = document.querySelector(`[data-subparagraph-id="${CSS.escape(subparagraphId)}"]`) ||
+          element.closest?.(".subparagraph[data-subparagraph-id]");
+        if (!editable || !sp) return false;
+
+        // Mantém o alinhamento atual (esquerda/centro/direita); o arrasto só reposiciona na vertical.
+        const alignment = ["left", "center", "right"].includes(lockedAlignment)
+          ? lockedAlignment
+          : ["left", "center", "right"].includes(textbox.alignment)
+            ? textbox.alignment
+            : this.alignmentFromSubparagraphMidpoint(subparagraphId, clientX);
+        textbox.alignment = alignment;
+        textbox.freeMove = false;
+        textbox.x = 0;
+        textbox.y = 0;
+        element.dataset.alignment = alignment;
+        this.clearInlineTextboxFreeMoveStyles(element);
+
+        const maxWidth = Math.max(32, sp.clientWidth - 16);
+        if ((Number(textbox.width) || 0) > maxWidth) {
+          textbox.width = maxWidth;
+          element.style.width = `${maxWidth}px`;
+        }
+
+        const spRect = sp.getBoundingClientRect();
+        const probeX = alignment === "left"
+          ? spRect.left + 10
+          : alignment === "right"
+            ? spRect.right - 10
+            : spRect.left + spRect.width / 2;
+
+        const editableStyle = getComputedStyle(editable);
+        const paddingTop = parseFloat(editableStyle.paddingTop) || 0;
+        const fontSize = parseFloat(editableStyle.fontSize) || 12;
+        const lineHeight = Number.parseFloat(editableStyle.lineHeight) || fontSize * 1.25;
+        const contentTop = editable.getBoundingClientRect().top + paddingTop;
+        // Perto do topo → início do conteúdo; texto antes do float vira linha cheia acima.
+        const nearTop = clientY <= contentTop + lineHeight;
+
+        // Remove do DOM no probe: senão o float continua a ocupar espaço e o caret
+        // nunca cai no início real da primeira linha.
+        element.remove();
+
+        if (nearTop) {
+          editable.insertBefore(element, editable.firstChild);
+        } else {
+          const range = this.getCaretRangeAtPointInEditable(editable, probeX, clientY, element) ||
+            this.getCaretRangeAtPointInEditable(editable, spRect.left + spRect.width / 2, clientY, element);
+          if (range) range.insertNode(element);
+          else editable.appendChild(element);
+        }
+        return true;
+      },
+
+commitInlineTextboxWrap(dragging, event) {
+        const owner = this.findTextboxOwnerById(dragging.textboxId);
+        if (!owner || owner.tableCell) return false;
+        if (!this.subparagraphAllowsInlineTextWrap(owner.subparagraph)) return false;
+
+        const textbox = owner.textbox;
+        const clientX = Number.isFinite(event?.clientX) ? event.clientX : dragging.lastClientX;
+        const clientY = Number.isFinite(event?.clientY) ? event.clientY : dragging.lastClientY;
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
+
+        if (!this.ensureTextboxIsInlineForWrap(owner, textbox)) return false;
+
+        const editable = document.querySelector(
+          `[data-text-subparagraph-id="${CSS.escape(owner.subparagraph.id)}"][contenteditable="true"]`
+        );
+        if (!editable) return false;
+
+        let element = editable.querySelector(`[data-textbox-id="${textbox.id}"]`);
+        if (!element) {
+          const holder = document.createElement("div");
+          holder.innerHTML = this.renderInlineTextbox?.(textbox, true) || "";
+          element = holder.firstElementChild;
+        }
+        if (!element) return false;
+
+        const lockedAlignment = dragging.lockedAlignment || textbox.alignment;
+        this.applyInlineTextboxWrapAtPoint(textbox, element, owner.subparagraph.id, clientX, clientY, lockedAlignment);
+
+        const anchor = document.createElement("span");
+        anchor.className = "textbox-anchor";
+        anchor.dataset.inlineTextboxAnchor = textbox.id;
+        anchor.contentEditable = "false";
+        element.replaceWith(anchor);
+
+        this.onSubparagraphInput?.({ currentTarget: editable }, editable);
+        this.activeSection = owner.section.id;
+        this.activeParagraph = owner.paragraph.id;
+        this.activeSubparagraph = owner.subparagraph.id;
+        this.activeTextbox = textbox.id;
+        this.activeObject = null;
+        return true;
+      },
+
+startTextboxDrag(event, owner, textbox, textboxElement, areaElement, movementContainerKind) {
+        this.activeSection = owner.section.id;
+        this.activeParagraph = owner.paragraph.id;
+        this.activeSubparagraph = owner.subparagraph.id;
+        this.activeTextbox = textbox.id;
+        this.activeObject = null;
+        this.clearNativeCaretAndSelection?.();
+        this.refreshActiveClasses?.();
+        this.updateToolbarState?.();
+
+        textbox.x = Number(textbox.x) || 0;
+        textbox.y = Number(textbox.y) || 0;
+
+        const canWrap = movementContainerKind !== "table-cell" &&
+          this.subparagraphAllowsInlineTextWrap(owner.subparagraph);
+
+        if (canWrap && this.ensureTextboxIsInlineForWrap(owner, textbox, textboxElement)) {
+          textbox.freeMove = false;
+          textbox.x = 0;
+          textbox.y = 0;
+          this.clearInlineTextboxFreeMoveStyles(textboxElement);
+          const lockedAlignment = ["left", "center", "right"].includes(textbox.alignment)
+            ? textbox.alignment
+            : this.alignmentFromSubparagraphMidpoint(owner.subparagraph.id, event.clientX);
+          // Não reposiciona no pointerdown — um clique simples não pode avançar a caixa.
+          this.dragging = {
+            type: "inline-textbox-position",
+            textboxId: textbox.id,
+            subparagraphId: owner.subparagraph.id,
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            lastClientX: event.clientX,
+            lastClientY: event.clientY,
+            startX: 0,
+            startY: 0,
+            moved: false,
+            movedLaterally: false,
+            wrapInText: true,
+            lockedAlignment
+          };
+        } else {
+          this.dragging = {
+            type: "textbox",
+            textboxId: textbox.id,
+            subparagraphId: owner.subparagraph.id,
+            movementContainerKind,
+            availableWidth: areaElement.clientWidth,
+            availableHeight: areaElement.clientHeight,
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            startX: textbox.x,
+            startY: textbox.y,
+            movedLaterally: false
+          };
+        }
+
+        textboxElement.classList.add("is-dragging-object");
+        textboxElement.setPointerCapture?.(event.pointerId);
+        this.renderStatePanel("Arrastando caixa de texto.");
+        this.updateJsonOutput();
       },
 
 getTableCellFocusInfoFromElement(element) {
@@ -211,11 +465,23 @@ freezeTableRenderedSizeForEditMode(table) {
         const contentWidth = Math.max(0, tableElement.getBoundingClientRect().width);
         const contentHeight = Math.max(0, tableElement.getBoundingClientRect().height);
 
-        table.colWidths = this.getRenderedTableColumnWidths(table.id, 0, table.cols, contentWidth)
-          .map(width => Math.max(0, Math.round(Number(width) || 0)));
+        // Mede a partir de uma linha sem colspan (senão a largura fica enviesada).
+        const measureRow = Array.isArray(table.cellColspans)
+          ? table.cellColspans.findIndex(row => Array.isArray(row) && row.every(span => Number(span || 1) <= 1))
+          : 0;
+        table.colWidths = this.getRenderedTableColumnWidths(
+          table.id,
+          measureRow >= 0 ? measureRow : 0,
+          table.cols,
+          contentWidth
+        ).map(width => Math.max(0, Math.round(Number(width) || 0)));
 
         table.rowHeights = this.getRenderedTableRowHeights(table.id, table.rows, contentHeight)
-          .map(height => Math.max(0, Math.round(Number(height) || 0)));
+          .map(height => {
+            const value = Math.round(Number(height) || 0);
+            // Não congelar 0: isso esmaga a linha de títulos até o próximo clique.
+            return value > 0 ? value : null;
+          });
 
         objectElement.style.width = `${table.width}px`;
         objectElement.style.height = `${table.height}px`;
@@ -1410,11 +1676,13 @@ applyTableInternalRowHeightResize(table, dragging, requestedHeight) {
 
         const remainingHeight = Math.max(0, fixedTotalHeight - selectedHeight);
         const otherRowHeights = this.distributeHeightWithMinimum(otherBaseHeights, otherMinHeights, remainingHeight);
-        const rowHeights = new Array(rowCount).fill(0);
+        const rowHeights = new Array(rowCount).fill(null);
         rowHeights[selectedRowIndex] = selectedHeight;
 
         otherRowIndexes.forEach((rowIndex, index) => {
-          rowHeights[rowIndex] = otherRowHeights[index] || 0;
+          const value = Math.round(Number(otherRowHeights[index]) || 0);
+          // Nunca persistir 0: no próximo open a linha de títulos some até o clique.
+          rowHeights[rowIndex] = value > 0 ? value : null;
         });
 
         table.rowHeights = rowHeights;
@@ -1486,17 +1754,22 @@ applyTableInternalColumnWidthResize(table, dragging, requestedWidth) {
 applyTableColumnWidthToDom(tableId, colIndex, width) {
         const roundedWidth = Math.round(width);
 
+        // Largura só no <col>: width em <td> (ainda mais com colspan) cria
+        // coluna fantasma / desalinhamento entre linhas.
         const colElement = document.querySelector(`[data-table-col="${tableId}"][data-col="${colIndex}"]`);
         if (colElement) colElement.style.width = `${roundedWidth}px`;
 
         this.getTableColumnCells(tableId, colIndex).forEach(cell => {
-          cell.style.width = `${roundedWidth}px`;
+          cell.style.removeProperty("width");
         });
       },
 
 applyTableRowHeightToDom(tableId, rowIndex, height) {
         const rowElement = this.getTableRowElement(tableId, rowIndex);
-        if (rowElement) rowElement.style.height = `${Math.round(height)}px`;
+        if (!rowElement) return;
+        const value = Math.round(Number(height) || 0);
+        if (value > 0) rowElement.style.height = `${value}px`;
+        else rowElement.style.removeProperty("height");
       },
 
 applyMainTableResize(table, dragging, size) {
@@ -1530,7 +1803,11 @@ applyMainTableResize(table, dragging, size) {
           const baseRowHeights = Array.isArray(dragging.startTableRowHeights) && dragging.startTableRowHeights.length === table.rows
             ? dragging.startTableRowHeights
             : this.getRenderedTableRowHeights(table.id, table.rows, targetContentHeight);
-          const rowHeights = this.distributeHeightProportionally(baseRowHeights, targetContentHeight);
+          const rowHeights = this.distributeHeightProportionally(baseRowHeights, targetContentHeight)
+            .map(height => {
+              const value = Math.round(Number(height) || 0);
+              return value > 0 ? value : null;
+            });
 
           table.rowHeights = rowHeights;
           this.applyTableRowHeightsToDom(table.id, rowHeights);
@@ -1627,36 +1904,71 @@ clampMovableX(subparagraphId, requestedX, objectWidth) {
         return Math.min(maxX, Math.max(0, Math.round(requestedX)));
       },
 
-fitSubparagraphWidthToContents(subparagraphId) {
-        const owner = this.findSubparagraphOwnerById(subparagraphId);
-        const subs = owner?.paragraph?.subparagraphs || [];
-        if (!owner || subs.length <= 1) return;
-
-        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
-        if (!element) return;
+measureSubparagraphContentRight(element, subparagraph) {
+        if (!element || !subparagraph) return 0;
 
         const style = getComputedStyle(element);
         const borderLeft = parseFloat(style.borderLeftWidth) || 0;
         const paddingLeft = parseFloat(style.paddingLeft) || 0;
-        const border = borderLeft + (parseFloat(style.borderRightWidth) || 0);
-        const padding = paddingLeft + (parseFloat(style.paddingRight) || 0);
         const origin = element.getBoundingClientRect().left + borderLeft + paddingLeft;
         let contentRight = 0;
 
-        const object = owner.subparagraph.object;
-        if (object && this.objectExtendsSubparagraphWhenMoved(object)) {
-          const node = element.querySelector(`[data-main-object-id="${object.id}"]`);
-          if (node) contentRight = Math.max(contentRight, node.getBoundingClientRect().right - origin);
+        const includeRight = node => {
+          if (!node) return;
+          contentRight = Math.max(contentRight, node.getBoundingClientRect().right - origin);
+        };
+
+        if (subparagraph.object && this.objectExtendsSubparagraphWhenMoved(subparagraph.object)) {
+          includeRight(element.querySelector(`[data-main-object-id="${subparagraph.object.id}"]`));
         }
 
-        for (const textbox of owner.subparagraph.textboxes || []) {
+        for (const textbox of subparagraph.textboxes || []) {
           if (textbox.tableCell) continue;
-          const node = element.querySelector(`:scope > [data-textbox-id="${textbox.id}"]`);
-          if (node) contentRight = Math.max(contentRight, node.getBoundingClientRect().right - origin);
+          includeRight(element.querySelector(`[data-textbox-id="${textbox.id}"]`));
         }
 
+        for (const textbox of subparagraph.inlineTextboxes || []) {
+          includeRight(element.querySelector(`[data-textbox-id="${textbox.id}"]`));
+        }
+
+        for (const line of subparagraph.inlineLines || []) {
+          includeRight(element.querySelector(`[data-inline-line-id="${line.id}"]`));
+        }
+
+        return contentRight;
+      },
+
+fitSubparagraphWidthToContents(subparagraphId) {
+        const owner = this.findSubparagraphOwnerById(subparagraphId);
+        const subs = owner?.paragraph?.subparagraphs || [];
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        if (!owner || !element) return;
+
+        const style = getComputedStyle(element);
+        const border = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+        const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        const contentRight = this.measureSubparagraphContentRight(element, owner.subparagraph);
         if (!(contentRight > 0)) return;
-        this.distributeSubparagraphWidths(owner.paragraph, subparagraphId, contentRight + padding + border);
+
+        let needed = Math.ceil(contentRight + padding + border);
+        const paragraphElement = document.querySelector(`[data-paragraph-id="${owner.paragraph.id}"]`);
+
+        if (subs.length <= 1) {
+          // Um único SP: pode crescer só até a largura útil do parágrafo — nunca além.
+          if (paragraphElement) {
+            const maxOuter = Math.ceil(this.paragraphContentWidthForSubparagraphs(paragraphElement, 1));
+            if (maxOuter > 0) needed = Math.min(needed, maxOuter);
+          }
+          const current = Math.ceil(element.getBoundingClientRect().width);
+          if (needed <= current) return;
+          element.style.width = `${needed}px`;
+          element.style.minWidth = `${needed}px`;
+          element.style.maxWidth = "none";
+          element.style.flex = `0 0 ${needed}px`;
+          return;
+        }
+
+        this.distributeSubparagraphWidths(owner.paragraph, subparagraphId, needed);
       },
 
 measureMainObjectHeight(objectId) {
@@ -1666,30 +1978,85 @@ measureMainObjectHeight(objectId) {
 
 fitSubparagraphHeightToContents(subparagraphId) {
         const subparagraph = this.findSubparagraphById(subparagraphId);
-        if (!subparagraph || subparagraph.contentKind !== CONTENT_KIND.OBJECT) return;
+        if (!subparagraph) return;
+
+        const hasMainObject = Boolean(subparagraph.object);
+        const hasOverlayTextboxes = (subparagraph.textboxes || []).some(textbox => !textbox.tableCell);
+        const hasOffsetInlineTextboxes = (subparagraph.inlineTextboxes || []).some(textbox =>
+          (Number(textbox.y) || 0) !== 0 || (Number(textbox.x) || 0) !== 0
+        );
+        const hasOffsetInlineLines = (subparagraph.inlineLines || []).some(line =>
+          (Number(line.y) || 0) !== 0 || (Number(line.x) || 0) !== 0
+        );
+        const shouldFit = subparagraph.contentKind === CONTENT_KIND.OBJECT
+          || hasMainObject
+          || hasOverlayTextboxes
+          || hasOffsetInlineTextboxes
+          || hasOffsetInlineLines;
+        if (!shouldFit) return;
 
         const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
-        const subTop = element ? element.getBoundingClientRect().top : 0;
+        if (!element) return;
+
+        const subTop = element.getBoundingClientRect().top;
         let requiredHeight = 0;
 
         const includeBottom = node => {
-          if (!node || !element) return false;
+          if (!node) return false;
           requiredHeight = Math.max(requiredHeight, node.getBoundingClientRect().bottom - subTop);
           return true;
         };
 
         if (subparagraph.object) {
           const objectElement = document.querySelector(`[data-main-object-id="${subparagraph.object.id}"]`);
-          if (!includeBottom(objectElement)) {
+          if (subparagraph.object.kind === KINDS.TABLE && objectElement) {
+            // Mede a altura natural da tabela e expande o objeto se precisar.
+            const prevHeight = objectElement.style.height;
+            const prevMinHeight = objectElement.style.minHeight;
+            const prevMaxHeight = objectElement.style.maxHeight;
+            objectElement.style.height = "auto";
+            objectElement.style.minHeight = "0";
+            objectElement.style.maxHeight = "none";
+            const naturalHeight = Math.ceil(objectElement.getBoundingClientRect().height);
+            objectElement.style.height = prevHeight;
+            objectElement.style.minHeight = prevMinHeight;
+            objectElement.style.maxHeight = prevMaxHeight;
+
+            const objectY = Math.max(0, Number(subparagraph.object.y) || 0);
+            requiredHeight = Math.max(requiredHeight, objectY + naturalHeight);
+
+            const currentHeight = Number(subparagraph.object.height);
+            if (naturalHeight > 0 && (!Number.isFinite(currentHeight) || currentHeight < naturalHeight)) {
+              subparagraph.object.height = naturalHeight;
+              objectElement.style.height = `${naturalHeight}px`;
+            }
+          } else if (!includeBottom(objectElement)) {
             const objectY = Math.max(0, Number(subparagraph.object.y) || 0);
             const objectHeight = this.measureMainObjectHeight(subparagraph.object.id);
             requiredHeight = Math.max(requiredHeight, objectY + objectHeight);
           }
         }
 
+        const textLayerSelector = `[data-text-subparagraph-id="${CSS.escape(subparagraphId)}"]`;
+        const textLayer = element.matches(textLayerSelector)
+          ? element
+          : element.querySelector(textLayerSelector);
+        if (textLayer) {
+          // Se a camada de texto é o próprio SP (ou herda height/min-height),
+          // scrollHeight reflete a altura forçada e a caixa sobe sem o SP encolher.
+          // Mede o conteúdo com altura automática e restaura em seguida.
+          const prevHeight = textLayer.style.height;
+          const prevMinHeight = textLayer.style.minHeight;
+          textLayer.style.height = "auto";
+          textLayer.style.minHeight = "0";
+          requiredHeight = Math.max(requiredHeight, textLayer.scrollHeight);
+          textLayer.style.height = prevHeight;
+          textLayer.style.minHeight = prevMinHeight;
+        }
+
         for (const textbox of subparagraph.textboxes || []) {
           if (textbox.tableCell) continue;
-          const textboxElement = document.querySelector(`[data-textbox-id="${textbox.id}"]`);
+          const textboxElement = element.querySelector(`[data-textbox-id="${textbox.id}"]`);
           if (!includeBottom(textboxElement)) {
             const textboxY = Math.max(0, Number(textbox.y) || 0);
             const textboxHeight = Math.max(0, Number(textbox.height) || 0);
@@ -1697,13 +2064,33 @@ fitSubparagraphHeightToContents(subparagraphId) {
           }
         }
 
-        const borderBottom = element ? (parseFloat(getComputedStyle(element).borderBottomWidth) || 0) : 0;
+        for (const textbox of subparagraph.inlineTextboxes || []) {
+          const textboxElement = element.querySelector(`[data-textbox-id="${textbox.id}"]`);
+          if (!includeBottom(textboxElement)) {
+            const textboxY = Math.max(0, Number(textbox.y) || 0);
+            const textboxHeight = Math.max(0, Number(textbox.height) || 0);
+            requiredHeight = Math.max(requiredHeight, textboxY + textboxHeight);
+          }
+        }
+
+        for (const line of subparagraph.inlineLines || []) {
+          const lineElement = element.querySelector(`[data-inline-line-id="${line.id}"]`);
+          if (!includeBottom(lineElement)) {
+            const lineY = Math.max(0, Number(line.y) || 0);
+            requiredHeight = Math.max(requiredHeight, lineY + 18);
+          }
+        }
+
+        const borderBottom = parseFloat(getComputedStyle(element).borderBottomWidth) || 0;
         const height = Math.ceil(requiredHeight + (requiredHeight > 0 ? borderBottom : 0));
         subparagraph.height = height > 0 ? height : null;
 
-        if (element) {
-          if (height > 0) element.style.height = `${height}px`;
-          else element.style.removeProperty("height");
+        if (height > 0) {
+          element.style.height = `${height}px`;
+          element.style.minHeight = `${height}px`;
+        } else {
+          element.style.removeProperty("height");
+          element.style.removeProperty("min-height");
         }
       },
 
@@ -1946,6 +2333,65 @@ onMainObjectPointerDown(event, element) {
         this.updateJsonOutput();
       },
 
+onInlineLinePointerDown(event, lineElement) {
+        if (event.button !== 0) return;
+        // Ctrl/Meta reserva o clique para o modo de redimensionamento.
+        if (event.ctrlKey || event.metaKey) return;
+
+        const owner = this.findObjectOwnerById(lineElement.dataset.inlineLineId);
+        if (!owner?.object || owner.object.kind !== KINDS.LINE) return;
+        if (!this.isSectionEnabled(owner.section)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        this.activateSubparagraphOwner?.(owner, { activeObject: owner.object.id });
+        this.activeTextbox = null;
+        this.activeEditTargetKind = null;
+        this.objectEditMode = false;
+        this.hideObjectEditOverlay?.();
+        this.clearNativeCaretAndSelection?.();
+        this.refreshActiveClasses?.();
+        this.updateToolbarState?.();
+        this.updateJsonOutput?.();
+
+        const line = owner.object;
+        line.x = Number(line.x) || 0;
+        line.y = Number(line.y) || 0;
+
+        this.dragging = {
+          type: "inline-line-position",
+          lineId: line.id,
+          subparagraphId: owner.subparagraph.id,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startX: line.x,
+          startY: line.y,
+          moved: false
+        };
+
+        lineElement.classList.add("is-dragging-object");
+        lineElement.setPointerCapture?.(event.pointerId);
+        this.renderStatePanel("Arrastando linha.");
+      },
+
+applyInlineObjectTranslate(dragging, event, object, element, options = {}) {
+        if (!object || !element) return false;
+        const deltaX = event.clientX - dragging.startClientX;
+        const deltaY = event.clientY - dragging.startClientY;
+        if (Math.hypot(deltaX, deltaY) > 2) dragging.moved = true;
+        let x = Math.round((Number(dragging.startX) || 0) + deltaX);
+        let y = Math.round((Number(dragging.startY) || 0) + deltaY);
+        if (Number.isFinite(Number(options.minX))) x = Math.max(Number(options.minX), x);
+        if (Number.isFinite(Number(options.minY))) y = Math.max(Number(options.minY), y);
+        if (Number.isFinite(Number(options.maxX))) x = Math.min(Number(options.maxX), x);
+        if (Number.isFinite(Number(options.maxY))) y = Math.min(Number(options.maxY), y);
+        object.x = x;
+        object.y = y;
+        element.style.transform = `translate(${object.x}px, ${object.y}px)`;
+        return true;
+      },
+
 onTextboxPointerDown(event, textboxElement) {
         const owner = this.findTextboxOwnerById(textboxElement.dataset.textboxId);
         const textbox = owner?.textbox;
@@ -1963,49 +2409,39 @@ onTextboxPointerDown(event, textboxElement) {
           return;
         }
 
-        if (owner.inline) {
-          this.activeSection = owner.section.id;
-          this.activeParagraph = owner.paragraph.id;
-          this.activeSubparagraph = owner.subparagraph.id;
-          this.activeTextbox = textbox.id;
-          this.activeObject = null;
-          this.activeEditTargetKind = null;
-          this.objectEditMode = false;
-          this.hideObjectEditOverlay?.();
-          this.refreshActiveClasses?.();
-          this.updateToolbarState?.();
-          this.updateJsonOutput?.();
+        // No modo de edição (Ctrl+clique), qualquer ponto da caixa arrasta — como a tabela.
+        if (this.isTextboxInEditMode(textbox.id)) {
+          if (event.target.closest(".wordex-object-edit-handle")) return;
+          event.preventDefault();
+          event.stopPropagation();
+          this.startTextboxDrag(event, owner, textbox, textboxElement, areaElement, movementContainerKind);
           return;
         }
 
-        if (event.target.closest("[contenteditable='true']")) return;
+        // Fora do modo de edição: digitar no conteúdo; arrastar pela moldura.
+        if (event.target.closest("[contenteditable='true']")) {
+          if (owner.inline) {
+            this.activeSection = owner.section.id;
+            this.activeParagraph = owner.paragraph.id;
+            this.activeSubparagraph = owner.subparagraph.id;
+            this.activeTextbox = textbox.id;
+            this.activeObject = null;
+            this.activeEditTargetKind = null;
+            this.objectEditMode = false;
+            this.hideObjectEditOverlay?.();
+            this.refreshActiveClasses?.();
+            this.updateToolbarState?.();
+            this.updateJsonOutput?.();
+          }
+          return;
+        }
 
         event.preventDefault();
         event.stopPropagation();
-
-        const textboxRect = textboxElement.getBoundingClientRect();
-        const areaRect = areaElement.getBoundingClientRect();
-
-        this.activeSection = owner.section.id;
-        this.activeParagraph = owner.paragraph.id;
-        this.activeSubparagraph = owner.subparagraph.id;
-        this.activeTextbox = textbox.id;
-        this.dragging = {
-          type: "textbox",
-          textboxId: textbox.id,
-          subparagraphId: owner.subparagraph.id,
-          movementContainerKind,
-          availableWidth: areaElement.clientWidth,
-          availableHeight: areaElement.clientHeight,
-          areaRect,
-          offsetX: event.clientX - textboxRect.left,
-          offsetY: event.clientY - textboxRect.top
-        };
-
-        textboxElement.classList.add("is-dragging-object");
-        textboxElement.setPointerCapture?.(event.pointerId);
-        this.renderStatePanel("Arrastando caixa de texto.");
-        this.updateJsonOutput();
+        this.activeEditTargetKind = null;
+        this.objectEditMode = false;
+        this.hideObjectEditOverlay?.();
+        this.startTextboxDrag(event, owner, textbox, textboxElement, areaElement, movementContainerKind);
       },
 
 applySubparagraphMove(dragging, event) {
@@ -2027,6 +2463,49 @@ applySubparagraphMove(dragging, event) {
 
 onPointerMove(event) {
         if (!this.dragging) return;
+
+        if (this.dragging.type === "inline-line-position") {
+          const owner = this.findObjectOwnerById(this.dragging.lineId);
+          const line = owner?.object;
+          const element = line
+            ? document.querySelector(`[data-inline-line-id="${line.id}"]`)
+            : null;
+          this.applyInlineObjectTranslate(this.dragging, event, line, element);
+          this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
+          this.positionObjectEditOverlay();
+          this.updateJsonOutput();
+          return;
+        }
+
+        if (this.dragging.type === "inline-textbox-position") {
+          const textbox = this.findTextboxById(this.dragging.textboxId);
+          const element = textbox
+            ? document.querySelector(`[data-textbox-id="${textbox.id}"]`)
+            : null;
+          if (!textbox || !element) return;
+
+          const deltaX = event.clientX - this.dragging.startClientX;
+          const deltaY = event.clientY - this.dragging.startClientY;
+          this.dragging.lastClientX = event.clientX;
+          this.dragging.lastClientY = event.clientY;
+          if (Math.hypot(deltaX, deltaY) <= 2) return;
+
+          this.dragging.moved = true;
+          // Mantém esquerda/centro/direita; só reposiciona na vertical após movimento real.
+          this.applyInlineTextboxWrapAtPoint(
+            textbox,
+            element,
+            this.dragging.subparagraphId,
+            event.clientX,
+            event.clientY,
+            this.dragging.lockedAlignment || textbox.alignment
+          );
+
+          this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
+          this.positionObjectEditOverlay();
+          this.updateJsonOutput();
+          return;
+        }
 
         if (this.dragging.type === "subparagraph-move") {
           this.applySubparagraphMove(this.dragging, event);
@@ -2110,8 +2589,9 @@ onPointerMove(event) {
             const textbox = owner?.textbox;
             if (!textbox) return;
 
-            textbox.x = owner.inline ? 0 : size.x;
-            textbox.y = owner.inline ? 0 : size.y;
+            textbox.x = owner.inline ? 0 : Math.max(0, Number(size.x) || 0);
+            // Mantém a caixa dentro do subparágrafo (não sobe acima do topo).
+            textbox.y = owner.inline ? 0 : Math.max(0, Number(size.y) || 0);
             textbox.width = size.width;
             textbox.height = size.height;
 
@@ -2159,8 +2639,8 @@ onPointerMove(event) {
           const textbox = this.findTextboxById(this.dragging.textboxId);
           if (!textbox) return;
 
-          const requestedX = event.clientX - this.dragging.areaRect.left - this.dragging.offsetX;
-          const requestedY = event.clientY - this.dragging.areaRect.top - this.dragging.offsetY;
+          const requestedX = (Number(this.dragging.startX) || 0) + event.clientX - this.dragging.startClientX;
+          const requestedY = (Number(this.dragging.startY) || 0) + event.clientY - this.dragging.startClientY;
           if (this.dragging.movementContainerKind === "table-cell") {
             const maxX = Math.max(0, this.dragging.availableWidth - Math.max(0, Number(textbox.width) || 0));
             const maxY = Math.max(0, this.dragging.availableHeight - Math.max(0, Number(textbox.height) || 0));
@@ -2168,13 +2648,17 @@ onPointerMove(event) {
             textbox.y = Math.min(maxY, Math.max(0, Math.round(requestedY)));
             this.updateTableCellTextboxArea(textbox.id);
           } else {
-            const owner = this.findTextboxOwnerById(textbox.id);
+            const usedWidth = Math.max(0, Number(textbox.width) || 0);
+            const owner = this.findSubparagraphOwnerById(this.dragging.subparagraphId);
             const multiple = (owner?.paragraph?.subparagraphs?.length || 0) > 1;
-            const elementWidth = document.querySelector(`[data-textbox-id="${textbox.id}"]`)?.offsetWidth || textbox.width;
-            if (multiple && Math.round(requestedX) !== textbox.x) this.dragging.movedLaterally = true;
-            textbox.x = multiple && this.dragging.movedLaterally
-              ? this.clampMovableX(this.dragging.subparagraphId, requestedX, elementWidth)
-              : this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, elementWidth);
+            if (Math.round(requestedX) !== (Number(this.dragging.startX) || 0))
+              this.dragging.movedLaterally = true;
+            // Lateral: SP pode crescer só dentro do parágrafo; a caixa não ultrapassa a borda.
+            if (multiple && this.dragging.movedLaterally) {
+              textbox.x = this.clampMovableX(this.dragging.subparagraphId, requestedX, usedWidth);
+            } else {
+              textbox.x = this.clampHorizontalMove(this.dragging.subparagraphId, requestedX, usedWidth);
+            }
             textbox.y = Math.max(0, Math.round(requestedY));
           }
 
@@ -2185,7 +2669,8 @@ onPointerMove(event) {
           }
 
           if (this.dragging.movementContainerKind !== "table-cell") {
-            if (this.dragging.movedLaterally) this.fitSubparagraphWidthToContents(this.dragging.subparagraphId);
+            if (this.dragging.movedLaterally)
+              this.fitSubparagraphWidthToContents(this.dragging.subparagraphId);
             this.fitSubparagraphHeightToContents(this.dragging.subparagraphId);
           }
 
@@ -2264,6 +2749,27 @@ onPointerUp(event) {
         this.dragging = null;
         this.positionObjectEditOverlay();
 
+        if (movedType === "inline-line-position") {
+          if (dragging.moved) this.suppressInlineLineClickAfterDrag = true;
+          this.renderStatePanel(dragging.moved ? "Linha reposicionada." : "Linha selecionada.");
+          this.refreshActiveClasses?.();
+          this.updateToolbarState?.();
+          this.updateJsonOutput?.();
+          return;
+        }
+
+        if (movedType === "inline-textbox-position") {
+          if (dragging.moved && this.commitInlineTextboxWrap(dragging, event)) {
+            this.render("Caixa de texto reposicionada com texto ao redor.");
+            return;
+          }
+          this.renderStatePanel(dragging.moved ? "Caixa de texto reposicionada." : "Caixa de texto selecionada.");
+          this.refreshActiveClasses?.();
+          this.updateToolbarState?.();
+          this.updateJsonOutput?.();
+          return;
+        }
+
         if (movedType === "object-resize") {
           this.renderStatePanel(dragging.isInlineListResize
             ? "Lista redimensionada."
@@ -2296,6 +2802,15 @@ onPointerUp(event) {
           if (pinnedElement) {
             pinnedElement.style.width = "";
             pinnedElement.style.maxWidth = "";
+          }
+        }
+
+        if (movedType === "textbox" && dragging.moved && dragging.movementContainerKind !== "table-cell") {
+          dragging.lastClientX = event?.clientX;
+          dragging.lastClientY = event?.clientY;
+          if (this.commitInlineTextboxWrap(dragging, event)) {
+            this.render("Caixa de texto reposicionada com texto ao redor.");
+            return;
           }
         }
 

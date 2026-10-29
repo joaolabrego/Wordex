@@ -18,6 +18,17 @@
       outline-offset: 1px;
     }
 
+    .textbox.is-textbox-edit-mode,
+    .textbox.is-textbox-edit-mode * {
+      cursor: grab !important;
+      user-select: none;
+    }
+
+    .textbox.is-textbox-edit-mode.is-dragging-object,
+    .textbox.is-textbox-edit-mode.is-dragging-object * {
+      cursor: grabbing !important;
+    }
+
     .textbox-content {
       padding: 4px;
       outline: none;
@@ -30,16 +41,21 @@
       touch-action: auto;
     }
 
-    .textbox-inline {
+    .textbox.textbox-inline {
       position: relative;
       display: flex;
       vertical-align: middle;
-      left: auto;
-      top: auto;
+      left: auto !important;
+      top: auto !important;
       box-sizing: border-box;
       max-width: 100%;
-      cursor: text;
-      touch-action: auto;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .textbox-inline.is-dragging-object {
+      cursor: grabbing !important;
+      opacity: 0.7;
     }
 
     .textbox-inline .textbox-content {
@@ -66,8 +82,11 @@
     .textbox-inline[data-alignment="center"] {
       float: none;
       clear: both;
+      display: flex;
       width: fit-content;
+      max-width: 100%;
       margin: 8px auto;
     }
+
 
 

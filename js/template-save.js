@@ -42,6 +42,7 @@ Object.assign(wordex, {
     this.document = state.document;
     this.dataSource = state.dataSource ?? null;
     this.dataSourceFileName = String(state.dataSourceFileName || "");
+    this.sanitizeLoadedTableRowHeights?.(this.document);
     this.savedTemplateFileHandle = null;
     this.objectEditMode = false;
     this.activeEditTargetKind = null;
@@ -73,7 +74,9 @@ Object.assign(wordex, {
 
     this.populateDataSourceSelectors?.();
     const label = fileName ? `Template carregado: ${fileName}` : "Template carregado.";
-    this.render(label, false, { focusActiveEditableSubparagraph: true });
+    // Sem focar contenteditable no load: caret dentro de SP com tabela
+    // pode colapsar a linha de títulos até o próximo clique.
+    this.render(label, false, { preserveTableGeometry: true });
   },
 
   async saveTemplateHtml() {
@@ -81,7 +84,7 @@ Object.assign(wordex, {
     let openedPicker = false;
 
     try {
-      this.syncAllEditableDomToDocument?.();
+      this.syncAllEditableDomToDocument?.({ preserveGeometry: true });
 
       if (this.savedTemplateFileHandle?.createWritable) {
         fileHandle = this.savedTemplateFileHandle;
@@ -91,6 +94,8 @@ Object.assign(wordex, {
         openedPicker = true;
       }
 
+      // O estado geométrico do modelo é a fonte do template. Não reescreva
+      // alturas/posições com medições transitórias do DOM antes de serializar.
       const html = await this.buildStandaloneTemplateHtml();
       const fileName = this.getTemplateHtmlFileName();
 
@@ -109,7 +114,7 @@ Object.assign(wordex, {
         this.downloadTemplateHtml(fileName, html);
       }
 
-      this.renderStatePanel?.(`Template salvo: ${fileName}`);
+      this.notifyTemplateSaved(fileName);
     } catch (error) {
       if (error?.name === "AbortError") return;
 
@@ -117,6 +122,38 @@ Object.assign(wordex, {
       this.renderStatePanel?.(`Erro ao salvar template: ${message}`, true);
       alert(`Erro ao salvar template: ${message}`);
     }
+  },
+
+  notifyTemplateSaved(fileName) {
+    const message = `Template salvo:\n${fileName || "Relatorio.html"}`;
+    this.renderStatePanel?.(`Template salvo: ${fileName || "Relatorio.html"}`);
+    alert(message);
+  },
+
+  sanitizeLoadedTableRowHeights(root) {
+    const visit = node => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach(visit);
+        return;
+      }
+      if (node.kind === KINDS.TABLE && Array.isArray(node.rowHeights)) {
+        node.rowHeights = node.rowHeights.map(height => {
+          const value = Number(height);
+          return Number.isFinite(value) && value > 0 ? value : null;
+        });
+      }
+      if (node.object) visit(node.object);
+      if (Array.isArray(node.subparagraphs)) node.subparagraphs.forEach(visit);
+      if (Array.isArray(node.paragraphs)) node.paragraphs.forEach(visit);
+      if (Array.isArray(node.sections)) node.sections.forEach(visit);
+      if (Array.isArray(node.cellObjects)) {
+        node.cellObjects.forEach(row => {
+          if (Array.isArray(row)) row.forEach(visit);
+        });
+      }
+    };
+    visit(root);
   },
 
   canUseNativeSaveFilePicker() {
@@ -138,7 +175,7 @@ Object.assign(wordex, {
     const handle = await this.pickTemplateHtmlFile(fileName);
     await this.writeTextToFileHandle(handle, html);
     this.savedTemplateFileHandle = handle;
-    this.renderStatePanel?.(`Template salvo: ${fileName}`);
+    this.notifyTemplateSaved(fileName);
   },
 
   async writeTextToFileHandle(handle, text) {

@@ -595,6 +595,7 @@ renderTableDetailFieldOptions(body, detailPath) {
           Array.from(container.querySelectorAll("[data-table-detail-field]:checked"))
             .map(input => input.value)
         );
+        const previousAggregates = this.readTableDetailFieldAggregatesFromDialog(body);
         const fields = this.getScalarFieldsForDataPath(detailPath);
         const preserveSelection = previousPath === detailPath;
         const fieldByMacro = new Map(fields.map(field => [field.macro, field]));
@@ -612,12 +613,23 @@ renderTableDetailFieldOptions(body, detailPath) {
         } else {
           selectedOrder = fields.map(field => field.macro);
         }
+
+        let preferredAggregates = previousAggregates;
+        try {
+          const saved = JSON.parse(container.dataset.fieldAggregates || "{}");
+          if (saved && typeof saved === "object" && !Array.isArray(saved))
+            preferredAggregates = { ...saved, ...previousAggregates };
+        } catch {
+          /* ignore */
+        }
+
         container.dataset.detailPath = detailPath;
         container.dataset.fieldOrder = JSON.stringify(selectedOrder);
         container.className = "wordex-table-detail-fields";
 
         if (!fields.length) {
           container.innerHTML = `<strong>Colunas do detalhe</strong><span class="wordex-table-fields-empty">Nenhum campo simples encontrado.</span>`;
+          container.dataset.fieldAggregates = "{}";
           return;
         }
 
@@ -632,8 +644,20 @@ renderTableDetailFieldOptions(body, detailPath) {
               const checked = selectedOrder.includes(field.macro);
               const orderIndex = selectedOrder.indexOf(field.macro);
               const disabled = !checked;
+              const suffixes = this.getAggregateSuffixesForFieldKind?.(field) || ["Count", "Max", "Min"];
+              const previousValue = preferredAggregates[field.macro] || "";
+              const preferred = previousValue && suffixes.includes(previousValue)
+                ? previousValue
+                : "";
+              const aggregateOptions = [
+                `<option value="">(nenhum)</option>`,
+                ...suffixes.map(suffix => `<option value="${escapeHtml(suffix)}"${suffix === preferred ? " selected" : ""}>${escapeHtml(suffix)}</option>`)
+              ];
               return `<div class="wordex-table-detail-field-row" data-table-detail-field-row>
                 <label><input type="checkbox" data-table-detail-field value="${escapeHtml(field.macro)}"${checked ? " checked" : ""}> <span>${escapeHtml(field.label)}</span></label>
+                <select data-table-detail-field-aggregate data-field-macro="${escapeHtml(field.macro)}" title="Agregação de ${escapeHtml(field.label)}" aria-label="Agregação de ${escapeHtml(field.label)}"${disabled ? " disabled" : ""}>
+                  ${aggregateOptions.join("")}
+                </select>
                 <span class="wordex-table-detail-field-order">
                   <button type="button" data-move-detail-field="-1" data-field-macro="${escapeHtml(field.macro)}" aria-label="Mover ${escapeHtml(field.label)} para cima"${disabled || orderIndex === 0 ? " disabled" : ""}>↑</button>
                   <button type="button" data-move-detail-field="1" data-field-macro="${escapeHtml(field.macro)}" aria-label="Mover ${escapeHtml(field.label)} para baixo"${disabled || orderIndex === selectedOrder.length - 1 ? " disabled" : ""}>↓</button>
@@ -642,12 +666,20 @@ renderTableDetailFieldOptions(body, detailPath) {
             }).join("")}
           </div>
         `;
+        container.dataset.fieldAggregates = JSON.stringify(this.readTableDetailFieldAggregatesFromDialog(body));
+        container.querySelectorAll("[data-table-detail-field-aggregate]").forEach(select => {
+          this.resizeSelectToLargestOption(select);
+          select.addEventListener("change", () => {
+            container.dataset.fieldAggregates = JSON.stringify(this.readTableDetailFieldAggregatesFromDialog(body));
+          });
+        });
         container.querySelectorAll("[data-table-detail-field]").forEach(input => {
           input.addEventListener("change", () => {
             container.dataset.fieldOrder = JSON.stringify(
               Array.from(container.querySelectorAll("[data-table-detail-field]:checked"))
                 .map(checkedInput => checkedInput.value)
             );
+            container.dataset.fieldAggregates = JSON.stringify(this.readTableDetailFieldAggregatesFromDialog(body));
             this.renderTableDetailFieldOptions(body, container.dataset.detailPath);
           });
         });
@@ -662,10 +694,132 @@ renderTableDetailFieldOptions(body, detailPath) {
             if (index < 0 || target < 0 || target >= order.length) return;
             [order[index], order[target]] = [order[target], order[index]];
             container.dataset.fieldOrder = JSON.stringify(order);
+            container.dataset.fieldAggregates = JSON.stringify(this.readTableDetailFieldAggregatesFromDialog(body));
             this.renderTableDetailFieldOptions(body, container.dataset.detailPath);
           });
         });
         body.querySelector("[data-table-fields-error]")?.setAttribute("hidden", "");
+      },
+
+readTableDetailFieldAggregatesFromDialog(body) {
+        const aggregates = {};
+        body?.querySelectorAll("[data-table-detail-field-aggregate]").forEach(select => {
+          const macro = select.getAttribute("data-field-macro") || "";
+          const value = select.value || "";
+          if (macro && value) aggregates[macro] = value;
+        });
+        return aggregates;
+      },
+
+normalizeTableFooterAggregates(value, detailFields = []) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          return { ...value };
+        }
+
+        const legacy = String(value || "").trim();
+        if (!legacy) return {};
+
+        const aggregates = {};
+        (Array.isArray(detailFields) ? detailFields : []).forEach(field => {
+          const macro = field?.macro || field;
+          if (macro) aggregates[macro] = legacy;
+        });
+        return aggregates;
+      },
+
+buildTableFooterSourceSelectHtml({ title, selectAttrs, totals = [], preferredPath = "" }) {
+        const options = [];
+        let selectedSet = false;
+
+        const pushOption = (value, label, selected) => {
+          const isSelected = selected && !selectedSet;
+          if (isSelected) selectedSet = true;
+          options.push(`<option value="${escapeHtml(value)}"${isSelected ? " selected" : ""}>${escapeHtml(label)}</option>`);
+        };
+
+        const preferred = String(preferredPath || "").trim();
+        totals.forEach((item, itemIndex) => {
+          const selected = preferred
+            ? item.path === preferred
+            : itemIndex === 0;
+          pushOption(item.path, item.label, selected);
+        });
+
+        pushOption("", "(não renderizar)", !selectedSet);
+
+        return `<div class="wordex-table-footer-field">
+            <span class="wordex-table-footer-field-label">${title}</span>
+            <div class="wordex-table-footer-field-line">
+              <select ${selectAttrs}>${options.join("")}</select>
+            </div>
+          </div>`;
+      },
+
+pickDefaultTotalsPathForGroupLevel(groupIndex, totalsOptions = []) {
+        const options = Array.isArray(totalsOptions) ? totalsOptions : [];
+        if (!options.length) return "";
+        const textOf = item => String(item.label || item.path || "").toLowerCase();
+        const byName = namePart => options.find(item => textOf(item).includes(String(namePart).toLowerCase()));
+        // Subtotais na collection pai do detalhe (ex.: Clientes.TotaisProdutos / TotaisProdutosCategorias).
+        if (groupIndex <= 0) {
+          const plain = options.find(item => {
+            const text = textOf(item);
+            return text.includes("totais") && !text.includes("categoria") && !text.includes("grafico");
+          });
+          return (plain || options[0])?.path || "";
+        }
+        if (groupIndex === 1) return (byName("Categorias") || options[Math.min(1, options.length - 1)])?.path || "";
+        return options[Math.min(groupIndex, options.length - 1)]?.path || options[0]?.path || "";
+      },
+
+readTableExtraGroupsState(container) {
+        if (!container) return [];
+        try {
+          const parsed = JSON.parse(container.dataset.extraGroups || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      },
+
+writeTableExtraGroupsState(container, extraGroups) {
+        if (!container) return;
+        container.dataset.extraGroups = JSON.stringify(Array.isArray(extraGroups) ? extraGroups : []);
+      },
+
+syncTableExtraGroupsStateFromDom(body) {
+        const container = body?.querySelector("[data-table-parent-chain]");
+        if (!container) return [];
+
+        const extras = this.readTableExtraGroupsState(container).map(group => {
+          const id = String(group.id || "");
+          const fieldSelect = body.querySelector(`[data-table-extra-group-field][data-extra-group-id="${id}"]`);
+          const pageBreak = body.querySelector(`[data-table-extra-group-page-break][data-extra-group-id="${id}"]`);
+          const footerSelect = body.querySelector(`[data-table-extra-footer-source][data-extra-group-id="${id}"]`);
+          const macro = fieldSelect?.value || "";
+          return {
+            id,
+            fieldMacro: macro,
+            fieldLabel: fieldSelect?.selectedOptions?.[0]?.dataset.fieldLabel
+              || fieldSelect?.selectedOptions?.[0]?.textContent
+              || macro
+              || group.fieldLabel
+              || "",
+            pageBreak: Boolean(pageBreak?.checked),
+            footerPath: footerSelect ? (footerSelect.value || "") : (group.footerPath || "")
+          };
+        });
+        this.writeTableExtraGroupsState(container, extras);
+        return extras;
+      },
+
+rerenderTableParentChainOptions(body, detailPath) {
+        const rootFooter = body?.querySelector("[data-table-parent-footer-source][data-parent-path='$']")?.value || "";
+        this.syncTableExtraGroupsStateFromDom(body);
+        this.renderTableParentChainOptions(body, detailPath);
+        const rootSelect = body?.querySelector("[data-table-parent-footer-source][data-parent-path='$']");
+        if (rootSelect && [...rootSelect.options].some(option => option.value === rootFooter))
+          rootSelect.value = rootFooter;
       },
 
 renderTableParentChainOptions(body, detailPath) {
@@ -675,122 +829,159 @@ renderTableParentChainOptions(body, detailPath) {
         const rootFooterContainer = body.querySelector("[data-table-root-footer]");
         const groupFooterContainer = body.querySelector("[data-table-group-footers]");
         const levels = this.getTableParentChainForDetail(detailPath);
+        const previousDetail = container.dataset.detailPath || "";
+        const extraGroups = previousDetail === detailPath
+          ? this.readTableExtraGroupsState(container)
+          : [];
+        container.dataset.detailPath = detailPath;
+        this.writeTableExtraGroupsState(container, extraGroups);
+
+        const detailFields = detailPath && detailPath !== "$"
+          ? this.getScalarFieldsForDataPath(detailPath)
+          : [];
         const rows = [];
         const groupFooterRows = [];
         const rootRows = [];
+        let groupNumber = 0;
 
-        levels.forEach((level, index) => {
-          const totals = Array.isArray(level.totals) ? level.totals : [];
-          const isRoot = level.path === "$";
-          const labelText = isRoot ? "Root" : level.label;
-          const footerTitle = isRoot
-            ? "Total geral (total)"
-            : `Footer do grupo ${escapeHtml(labelText)} (total)`;
-          const footerHtml = totals.length
-            ? `<div class="wordex-table-footer-field">
-                <span class="wordex-table-footer-field-label">${footerTitle}</span>
-                <div class="wordex-table-footer-field-line">
-                  <select data-table-parent-footer-source data-parent-path="${escapeHtml(level.path)}">
-                    ${totals.map((item, itemIndex) => `<option value="${escapeHtml(item.path)}"${itemIndex === 0 ? " selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}
-                    <option value="">(não renderizar)</option>
-                  </select>
-                  <select data-table-parent-footer-aggregate data-parent-path="${escapeHtml(level.path)}" title="Valor exibido no total" aria-label="Valor exibido no total"></select>
-                </div>
-              </div>`
-            : `<div class="wordex-object-form-row wordex-table-parent-no-total">Sem total no grupo ${escapeHtml(labelText)}</div>`;
+        // Total geral: sempre do ROOT (pai de todos). Preferir totais "Gerais".
+        const rootTotals = this.getRootTotalsOptions?.() || [];
+        const parentTotals = this.getDetailParentTotalsOptions?.(detailPath) || [];
+        const geraisTotals = rootTotals.filter(item =>
+          String(item.label || item.path || "").toLowerCase().includes("gerais")
+        );
+        const rootFooterTotals = geraisTotals.length ? geraisTotals : rootTotals;
+        rootRows.push(`
+          <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="$">
+            ${this.buildTableFooterSourceSelectHtml({
+              title: "Total geral (ROOT)",
+              selectAttrs: `data-table-parent-footer-source data-parent-path="$"`,
+              totals: rootFooterTotals,
+              preferredPath: rootFooterTotals[0]?.path || ""
+            })}
+          </div>
+        `);
 
-          if (isRoot) {
-            if (!totals.length) return;
-            rootRows.push(`
-              <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
-                ${footerHtml}
-              </div>
-            `);
-            return;
-          }
-
-          const groupFields = this.getScalarFieldsForDataPath(level.path);
-          const groupFieldSelect = `<div class="wordex-table-group-field">
-              <span class="wordex-table-group-field-label">Campo do grupo ${escapeHtml(labelText)}</span>
-              <div class="wordex-table-group-field-line">
-                <select data-table-group-field data-parent-path="${escapeHtml(level.path)}">
-                  <option value="" selected>(não agrupar)</option>
-                  ${groupFields.map(field => `<option value="${escapeHtml(field.macro)}" data-field-label="${escapeHtml(field.label)}">${escapeHtml(field.label)}</option>`).join("")}
-                </select>
-                <label class="wordex-table-group-option">
-                  <input type="checkbox" data-table-group-page-break data-parent-path="${escapeHtml(level.path)}" disabled>
-                  Saltar página
-                </label>
-              </div>
-            </div>`;
-
+        // Quebras somente pelo detalhe: grupos adicionados pelo usuário.
+        // Subtotais vêm da collection pai do detalhe (ex.: Clientes.TotaisProdutos).
+        extraGroups.forEach((group, groupIndex) => {
+          groupNumber += 1;
+          const id = String(group.id || "");
+          const selectedMacro = group.fieldMacro || "";
+          const displayLabel = selectedMacro || "Detalhe";
+          const preferredFooter = group.footerPath
+            || this.pickDefaultTotalsPathForGroupLevel(groupIndex, parentTotals);
+          const fieldOptions = [
+            `<option value="">(selecione a chave)</option>`,
+            ...detailFields.map(field => `<option value="${escapeHtml(field.macro)}" data-field-label="${escapeHtml(field.label)}"${field.macro === selectedMacro ? " selected" : ""}>${escapeHtml(field.label)}</option>`)
+          ];
           rows.push(`
-            <div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">
-              <label class="wordex-object-form-row">Grupo ${index + 1}
-                <input type="text" value="${escapeHtml(labelText)}" data-table-parent-display readonly>
+            <div class="wordex-object-form-grid wordex-table-parent-level wordex-table-extra-group" data-extra-group-id="${escapeHtml(id)}">
+              <label class="wordex-object-form-row">Grupo ${groupNumber}
+                <span class="wordex-table-extra-group-title-row">
+                  <input type="text" value="${escapeHtml(displayLabel)}" data-table-parent-display readonly>
+                  <button type="button" class="wordex-table-extra-group-remove" data-remove-extra-group="${escapeHtml(id)}" aria-label="Remover grupo" title="Remover grupo">−</button>
+                </span>
               </label>
-              ${groupFieldSelect}
+              <div class="wordex-table-group-field">
+                <span class="wordex-table-group-field-label">Chave do grupo (colunas do detalhe)</span>
+                <div class="wordex-table-group-field-line">
+                  <select data-table-extra-group-field data-extra-group-id="${escapeHtml(id)}">
+                    ${fieldOptions.join("")}
+                  </select>
+                  <label class="wordex-table-group-option">
+                    <input type="checkbox" data-table-extra-group-page-break data-extra-group-id="${escapeHtml(id)}"${group.pageBreak ? " checked" : ""}${selectedMacro ? "" : " disabled"}>
+                    Saltar página
+                  </label>
+                </div>
+              </div>
             </div>
           `);
-          groupFooterRows.push(`<div class="wordex-object-form-grid wordex-table-parent-level" data-parent-path="${escapeHtml(level.path)}">${footerHtml}</div>`);
+          groupFooterRows.push(`
+            <div class="wordex-object-form-grid wordex-table-parent-level" data-extra-group-id="${escapeHtml(id)}">
+              ${this.buildTableFooterSourceSelectHtml({
+                title: `Footer do grupo ${escapeHtml(displayLabel)} (total)`,
+                selectAttrs: `data-table-extra-footer-source data-extra-group-id="${escapeHtml(id)}"`,
+                totals: parentTotals,
+                preferredPath: preferredFooter
+              })}
+            </div>
+          `);
         });
+
+        if (detailPath && detailPath !== "$") {
+          rows.push(`
+            <div class="wordex-table-extra-groups-actions">
+              <button type="button" class="wordex-table-extra-group-add" data-add-extra-group>+ Adicionar grupo</button>
+              <span class="wordex-table-extra-groups-hint">Somente colunas do detalhe. Quebras hierárquicas: o grupo N combina as chaves dos grupos 1…N. Subtotais: collection pai do detalhe. Total geral: sempre do ROOT.</span>
+            </div>
+          `);
+        }
 
         container.innerHTML = rows.join("");
         container.querySelectorAll("select").forEach(select => this.resizeSelectToLargestOption(select));
         if (groupFooterContainer) {
           groupFooterContainer.innerHTML = groupFooterRows.join("");
-          groupFooterContainer.querySelectorAll("select").forEach(select => this.resizeSelectToLargestOption(select));
+          groupFooterContainer.querySelectorAll("select").forEach(select => {
+            const id = select.getAttribute("data-extra-group-id") || "";
+            if (id) {
+              const savedIndex = extraGroups.findIndex(group => String(group.id) === id);
+              const saved = savedIndex >= 0 ? extraGroups[savedIndex] : null;
+              const value = saved?.footerPath
+                || this.pickDefaultTotalsPathForGroupLevel(savedIndex, parentTotals);
+              if ([...select.options].some(option => option.value === value)) select.value = value;
+            }
+            this.resizeSelectToLargestOption(select);
+          });
         }
         if (rootFooterContainer) {
           rootFooterContainer.innerHTML = rootRows.join("");
           rootFooterContainer.querySelectorAll("select").forEach(select => this.resizeSelectToLargestOption(select));
         }
 
-        body.querySelectorAll("[data-table-group-field]").forEach(select => {
-          const path = select.getAttribute("data-parent-path") || "";
-          const checkbox = Array.from(body.querySelectorAll("[data-table-group-page-break]"))
-            .find(input => (input.getAttribute("data-parent-path") || "") === path);
-          if (!checkbox) return;
-
-          const apply = () => {
-            const enabled = Boolean(select.value);
-            checkbox.disabled = !enabled;
-            if (!enabled) checkbox.checked = false;
-          };
-
-          select.addEventListener("change", apply);
-          apply();
+        body.querySelectorAll("[data-table-extra-group-field]").forEach(select => {
+          select.addEventListener("change", () => {
+            const id = select.getAttribute("data-extra-group-id") || "";
+            const checkbox = body.querySelector(`[data-table-extra-group-page-break][data-extra-group-id="${id}"]`);
+            if (checkbox) {
+              checkbox.disabled = !select.value;
+              if (!select.value) checkbox.checked = false;
+            }
+            this.rerenderTableParentChainOptions(body, detailPath);
+          });
         });
 
-        body.querySelectorAll("[data-table-parent-footer-source]").forEach(select => {
-          const refreshAggregates = () => this.refreshTableFooterAggregateOptions(body, select);
-          select.addEventListener("change", refreshAggregates);
-          refreshAggregates();
+        body.querySelectorAll("[data-table-extra-group-page-break], [data-table-extra-footer-source]").forEach(input => {
+          input.addEventListener("change", () => this.syncTableExtraGroupsStateFromDom(body));
         });
-      },
 
-refreshTableFooterAggregateOptions(body, sourceSelect, preferredAggregate = "") {
-        if (!body || !sourceSelect) return;
+        body.querySelector("[data-add-extra-group]")?.addEventListener("click", event => {
+          event.preventDefault();
+          const current = this.syncTableExtraGroupsStateFromDom(body);
+          current.push({
+            id: `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+            fieldMacro: "",
+            fieldLabel: "",
+            pageBreak: false,
+            footerPath: this.pickDefaultTotalsPathForGroupLevel(
+              current.length,
+              this.getDetailParentTotalsOptions?.(detailPath) || []
+            )
+          });
+          this.writeTableExtraGroupsState(container, current);
+          this.rerenderTableParentChainOptions(body, detailPath);
+        });
 
-        const path = sourceSelect.getAttribute("data-parent-path") || "";
-        const aggregateSelect = Array.from(body.querySelectorAll("[data-table-parent-footer-aggregate]"))
-          .find(select => (select.getAttribute("data-parent-path") || "") === path);
-        if (!aggregateSelect) return;
-
-        const footerPath = sourceSelect.value || "";
-        const previous = preferredAggregate || aggregateSelect.value || "";
-        const suffixes = footerPath ? (this.getTotalsAggregateSuffixes?.(footerPath) || []) : [];
-
-        aggregateSelect.innerHTML = suffixes.length
-          ? suffixes.map(suffix => `<option value="${escapeHtml(suffix)}">${escapeHtml(suffix)}</option>`).join("")
-          : `<option value="">(sem valor)</option>`;
-
-        const preferred = previous && suffixes.includes(previous)
-          ? previous
-          : (suffixes.includes("Sum") ? "Sum" : (suffixes[0] || ""));
-        aggregateSelect.value = preferred;
-        aggregateSelect.disabled = !footerPath || !suffixes.length;
-        this.resizeSelectToLargestOption(aggregateSelect);
+        body.querySelectorAll("[data-remove-extra-group]").forEach(button => {
+          button.addEventListener("click", event => {
+            event.preventDefault();
+            const id = button.getAttribute("data-remove-extra-group") || "";
+            const current = this.syncTableExtraGroupsStateFromDom(body)
+              .filter(group => String(group.id) !== id);
+            this.writeTableExtraGroupsState(container, current);
+            this.rerenderTableParentChainOptions(body, detailPath);
+          });
+        });
       },
 
 populateDialogSelect(row, select, items, emptyLabel = "") {
@@ -836,6 +1027,29 @@ applyTableInsertDialogState(body, table) {
           && [...detailSelect.options].some(option => option.value === detailPath);
 
         if (detailSelect && savedPathExists) detailSelect.value = detailPath;
+
+        const groups = Array.isArray(binding?.groups) ? binding.groups : [];
+        const chainContainer = body.querySelector("[data-table-parent-chain]");
+        if (chainContainer && detailPath && detailPath !== "$") {
+          // Todos os grupos são pelo detalhe. Binding closest-first → UI outer→inner.
+          const extras = groups
+            .filter(group => group?.fieldMacro)
+            .map((group, index) => {
+              const path = String(group.path || "");
+              const idMatch = path.match(/::(g[\w-]+)$/);
+              return {
+                id: idMatch?.[1] || `g${index + 1}`,
+                fieldMacro: group.fieldMacro || "",
+                fieldLabel: group.fieldLabel || group.label || group.fieldMacro || "",
+                pageBreak: group.pageBreak === true,
+                footerPath: group.footerPath || ""
+              };
+            })
+            .reverse();
+          chainContainer.dataset.detailPath = detailPath;
+          this.writeTableExtraGroupsState(chainContainer, extras);
+        }
+
         if (detailSelect) this.refreshTableInsertDialog(body);
 
         const rowsInput = body.querySelector("[data-object-table-rows]");
@@ -853,52 +1067,40 @@ applyTableInsertDialogState(body, table) {
 
         const savedFields = Array.isArray(binding.detailFields) ? binding.detailFields.filter(Boolean) : [];
         const fieldsContainer = body.querySelector("[data-table-detail-fields]");
-        if (fieldsContainer && savedFields.length) {
+        const savedAggregates = binding.detailFieldAggregates
+          || binding.tableFooterAggregates
+          || (Array.isArray(binding.parentLevels)
+            ? binding.parentLevels.map(level => level?.footerAggregates).find(item => item && typeof item === "object")
+            : null)
+          || this.normalizeTableFooterAggregates(
+            binding.tableFooterAggregate
+              || (Array.isArray(binding.parentLevels)
+                ? binding.parentLevels.map(level => level?.footerAggregate).find(Boolean)
+                : ""),
+            savedFields
+          );
+        if (fieldsContainer) {
           fieldsContainer.dataset.detailPath = detailSelect.value;
-          fieldsContainer.dataset.fieldOrder = JSON.stringify(savedFields);
-          fieldsContainer.querySelectorAll("[data-table-detail-field]").forEach(input => {
-            input.checked = savedFields.includes(input.value);
-          });
+          if (savedFields.length) fieldsContainer.dataset.fieldOrder = JSON.stringify(savedFields);
+          fieldsContainer.dataset.fieldAggregates = JSON.stringify(
+            this.normalizeTableFooterAggregates(savedAggregates || {}, savedFields)
+          );
+          if (savedFields.length) {
+            fieldsContainer.querySelectorAll("[data-table-detail-field]").forEach(input => {
+              input.checked = savedFields.includes(input.value);
+            });
+          }
           this.renderTableDetailFieldOptions(body, detailSelect.value);
         }
 
-        const groups = Array.isArray(binding.groups) ? binding.groups : [];
-        body.querySelectorAll("[data-table-group-field]").forEach(select => {
-          const path = select.getAttribute("data-parent-path") || "";
-          const group = groups.find(item => item?.path === path);
-          const macro = group?.fieldMacro || "";
-          if ([...select.options].some(option => option.value === macro)) select.value = macro;
-          select.dispatchEvent(new Event("change"));
-          const checkbox = Array.from(body.querySelectorAll("[data-table-group-page-break]"))
-            .find(input => (input.getAttribute("data-parent-path") || "") === path);
-          if (checkbox && select.value) checkbox.checked = group?.pageBreak === true;
-        });
-
-        const footerByPath = new Map(
-          (Array.isArray(binding.parentLevels) ? binding.parentLevels : [])
-            .filter(level => level?.path)
-            .map(level => [level.path, {
-              footerPath: level.footerPath || "",
-              footerAggregate: level.footerAggregate || ""
-            }])
-        );
-        if (Object.prototype.hasOwnProperty.call(binding, "tableFooterPath")) {
-          footerByPath.set("$", {
-            footerPath: binding.tableFooterPath || "",
-            footerAggregate: binding.tableFooterAggregate || footerByPath.get("$")?.footerAggregate || ""
-          });
-        }
-        body.querySelectorAll("[data-table-parent-footer-source]").forEach(select => {
-          const path = select.getAttribute("data-parent-path") || "";
-          if (!footerByPath.has(path)) {
-            this.refreshTableFooterAggregateOptions(body, select);
-            return;
-          }
-          const saved = footerByPath.get(path);
-          const value = saved.footerPath || "";
-          if ([...select.options].some(option => option.value === value)) select.value = value;
-          this.refreshTableFooterAggregateOptions(body, select, saved.footerAggregate || "");
-        });
+        const rootFooterPath = Object.prototype.hasOwnProperty.call(binding, "tableFooterPath")
+          ? (binding.tableFooterPath || "")
+          : (Array.isArray(binding.parentLevels)
+            ? (binding.parentLevels.find(level => level?.path === "$")?.footerPath || "")
+            : "");
+        const rootFooterSelect = body.querySelector("[data-table-parent-footer-source][data-parent-path='$']");
+        if (rootFooterSelect && [...rootFooterSelect.options].some(option => option.value === rootFooterPath))
+          rootFooterSelect.value = rootFooterPath;
       },
 
 createTableObjectFromDialog(body) {
@@ -925,57 +1127,39 @@ createTableObjectFromDialog(body) {
           ? selectedFields
           : [{ label: "Campo", macro: "Campo" }];
 
-        const selectedFooterByParentPath = new Map(
-          Array.from(body.querySelectorAll("[data-table-parent-footer-source]")).map(select => [
-            select.getAttribute("data-parent-path") || "",
-            select.value || ""
-          ])
+        const rootFooterPath = body.querySelector("[data-table-parent-footer-source][data-parent-path='$']")?.value || "";
+        const selectedAggregates = this.readTableDetailFieldAggregatesFromDialog(body);
+        const detailFieldAggregates = Object.fromEntries(
+          selectedDetailFieldOrder
+            .filter(macro => selectedAggregates[macro])
+            .map(macro => [macro, selectedAggregates[macro]])
         );
-        const selectedFooterAggregateByParentPath = new Map(
-          Array.from(body.querySelectorAll("[data-table-parent-footer-aggregate]")).map(select => [
-            select.getAttribute("data-parent-path") || "",
-            select.value || ""
-          ])
-        );
-        const pageBreakByParentPath = new Map(
-          Array.from(body.querySelectorAll("[data-table-group-page-break]")).map(input => [
-            input.getAttribute("data-parent-path") || "",
-            Boolean(input.checked)
-          ])
-        );
-        const selectedGroupFieldByParentPath = new Map(
-          Array.from(body.querySelectorAll("[data-table-group-field]")).map(select => [
-            select.getAttribute("data-parent-path") || "",
-            select.value
-              ? {
-                  macro: select.value,
-                  label: select.selectedOptions[0]?.dataset.fieldLabel || select.selectedOptions[0]?.textContent || select.value
-                }
-              : null
-          ])
-        );
+        // Grupos somente pelo detalhe, na ordem da UI (outer → inner).
+        const selectedDetailGroups = this.syncTableExtraGroupsStateFromDom(body)
+          .filter(group => group.fieldMacro)
+          .map(group => ({
+            path: `${detailPath}::${group.id}`,
+            label: group.fieldLabel || group.fieldMacro,
+            fieldMacro: group.fieldMacro,
+            fieldLabel: group.fieldLabel || group.fieldMacro,
+            fieldSourcePath: detailPath,
+            pageBreak: group.pageBreak === true,
+            footerPath: group.footerPath || ""
+          }));
 
         const chainClosestFirst = this.getTableParentChainForDetail(detailPath);
         const parentLevels = chainClosestFirst.map(level => ({
           path: level.path,
           label: level.label,
-          footerPath: selectedFooterByParentPath.get(level.path) || "",
-          footerAggregate: selectedFooterAggregateByParentPath.get(level.path) || ""
+          footerPath: level.path === "$" ? rootFooterPath : ""
         }));
 
-        const groupedParentsClosestFirst = parentLevels
-          .filter(item => item.path && item.path !== "$" && selectedGroupFieldByParentPath.get(item.path))
-          .map(item => {
-            const field = selectedGroupFieldByParentPath.get(item.path);
-            return {
-              ...item,
-              fieldMacro: field.macro,
-              fieldLabel: field.label,
-              pageBreak: pageBreakByParentPath.get(item.path) === true
-            };
-          });
-        const groupedParentsRootFirst = [...groupedParentsClosestFirst].reverse();
-        const rootLevel = parentLevels.find(item => item.path === "$") || { path: "$", footerPath: "", footerAggregate: "" };
+        // closest-first (perto do detail): inverter a ordem da UI.
+        // Ex.: ClienteNome > CategoriaId > Detail  =>  closest [CategoriaId, ClienteNome].
+        const groupsClosestFirst = [...selectedDetailGroups].reverse();
+        const groupsRootFirst = [...selectedDetailGroups];
+        const rootLevel = parentLevels.find(item => item.path === "$")
+          || { path: "$", footerPath: rootFooterPath };
 
         /*
           Tabela dinâmica do Wordex:
@@ -994,21 +1178,33 @@ createTableObjectFromDialog(body) {
           rows.push(cells);
         };
 
-        const buildFooterCells = (ownerPath, footerPath, fallbackLabel, footerAggregate = "") => {
+        const buildFooterCells = (ownerPath, footerPath, fallbackLabel, footerAggregates = {}, ownerLabel = "") => {
           if (!footerPath) return blankCells();
+          const ownerKey = String(ownerPath || "").includes("::")
+            ? (ownerLabel || ownerPath.split("::").pop())
+            : ownerPath;
+          const ownerName = ownerPath === "$"
+            ? "GERAL"
+            : String(ownerLabel || this.getDataPathLastName(ownerKey) || ownerKey).toUpperCase();
+          const aggregates = this.normalizeTableFooterAggregates(footerAggregates, safeFields);
+          const defaultLabel = fallbackLabel || (ownerPath === "$" ? "TOTAL GERAL:" : `SUBTOTAL ${ownerName}:`);
           const footerFields = this.getScalarFieldsForDataPath(footerPath);
           const macroByLabel = new Map(footerFields.map(field => [field.label, field.macro]));
-          const ownerName = ownerPath === "$" ? "GERAL" : this.getDataPathLastName(ownerPath).toUpperCase();
-          const preferredSuffix = String(footerAggregate || "").trim();
-          const aggregateSuffixes = preferredSuffix
-            ? [preferredSuffix]
-            : ["Sum", "Avg", "Min", "Max", "Count"];
           return safeFields.map((field, col) => {
-            if (col === 0) return fallbackLabel || (ownerPath === "$" ? "TOTAL GERAL:" : `TOTAL ${ownerName}:`);
-            const macro = macroByLabel.get(field.label)
-              || aggregateSuffixes.map(suffix => macroByLabel.get(`${field.label}${suffix}`)).find(Boolean)
-              || "";
-            return macro ? `{{${macro}}}` : "";
+            const preferredSuffix = String(aggregates[field.macro] || aggregates[field.label] || "").trim();
+            const macro = preferredSuffix
+              ? (macroByLabel.get(`${field.label}${preferredSuffix}`)
+                || macroByLabel.get(field.label)
+                || "")
+              : "";
+            // Coluna 0 guarda o rótulo; se houver agregação nela (ex.: NomeCount),
+            // o valor vai após o texto — senão o Count “come” o SUBTOTAL/TOTAL.
+            if (col === 0) {
+              if (macro) return `${defaultLabel} {{${macro}}}`;
+              return defaultLabel;
+            }
+            if (macro) return `{{${macro}}}`;
+            return "";
           });
         };
 
@@ -1027,10 +1223,16 @@ createTableObjectFromDialog(body) {
         );
 
         // 3) Headers de grupos: somente níveis marcados pelo usuário.
-        groupedParentsRootFirst.forEach(item => {
+        groupsRootFirst.forEach(item => {
           const rowIndex = rows.length;
+          const fieldContextPath = item.fieldSourcePath || item.path;
           pushRow(
-            { kind: "groupHeader", contextPath: item.path, fieldContextPath: item.path, pageBreak: item.pageBreak === true },
+            {
+              kind: "groupHeader",
+              contextPath: item.path,
+              fieldContextPath,
+              pageBreak: item.pageBreak === true
+            },
             safeFields.map((_, col) => col === 0
               ? `${escapeHtml(item.fieldLabel || item.label || this.getDataPathLastName(item.path))}: {{${item.fieldMacro}}}`
               : "")
@@ -1044,17 +1246,28 @@ createTableObjectFromDialog(body) {
           safeFields.map(field => `{{${field.macro}}}`)
         );
 
-        // 5) Footers: somente grupos selecionados com total configurado.
-        groupedParentsClosestFirst.filter(item => item.path !== "$" && item.footerPath).forEach(item => {
+        // 5) Footers: totais do JSON, casados pelas chaves hierárquicas do grupo.
+        groupsClosestFirst.filter(item => item.path !== "$" && item.footerPath).forEach(item => {
+          const rootIndex = groupsRootFirst.findIndex(group => group.path === item.path);
+          const footerMatchFields = (rootIndex >= 0 ? groupsRootFirst.slice(0, rootIndex + 1) : [item])
+            .map(group => group.fieldMacro)
+            .filter(Boolean);
           pushRow(
             {
               kind: "groupFooter",
               contextPath: item.path,
               footerPath: item.footerPath || "",
-              footerAggregate: item.footerAggregate || "",
+              footerAggregates: detailFieldAggregates,
+              footerMatchFields,
               fieldContextPath: item.footerPath || item.path
             },
-            buildFooterCells(item.path, item.footerPath, "", item.footerAggregate || "")
+            buildFooterCells(
+              item.path,
+              item.footerPath,
+              "",
+              detailFieldAggregates,
+              item.fieldLabel || item.label || ""
+            )
           );
         });
 
@@ -1065,10 +1278,10 @@ createTableObjectFromDialog(body) {
               kind: "tableFooter",
               contextPath: "$",
               footerPath: rootLevel.footerPath,
-              footerAggregate: rootLevel.footerAggregate || "",
+              footerAggregates: detailFieldAggregates,
               fieldContextPath: rootLevel.footerPath
             },
-            buildFooterCells("$", rootLevel.footerPath, "TOTAL GERAL:", rootLevel.footerAggregate || "")
+            buildFooterCells("$", rootLevel.footerPath, "TOTAL GERAL:", detailFieldAggregates)
           );
         }
 
@@ -1129,17 +1342,26 @@ createTableObjectFromDialog(body) {
           detailPath,
           detailFields: safeFields.map(field => field.macro),
           parentLevels,
-          groupPaths: groupedParentsClosestFirst.map(item => item.path),
-          groups: groupedParentsClosestFirst.map(item => ({
-            path: item.path,
-            label: item.label || this.getDataPathLastName(item.path),
-            fieldMacro: item.fieldMacro,
-            fieldLabel: item.fieldLabel,
-            pageBreak: item.pageBreak === true
-          })),
+          groupPaths: groupsClosestFirst.map(item => item.path),
+          groups: groupsClosestFirst.map(item => {
+            const rootIndex = groupsRootFirst.findIndex(group => group.path === item.path);
+            const footerMatchFields = (rootIndex >= 0 ? groupsRootFirst.slice(0, rootIndex + 1) : [item])
+              .map(group => group.fieldMacro)
+              .filter(Boolean);
+            return {
+              path: item.path,
+              label: item.label || this.getDataPathLastName(item.path),
+              fieldMacro: item.fieldMacro,
+              fieldLabel: item.fieldLabel,
+              fieldSourcePath: item.fieldSourcePath || "",
+              footerPath: item.footerPath || "",
+              footerMatchFields,
+              pageBreak: item.pageBreak === true
+            };
+          }),
           tableHeaderPath: "$",
           tableFooterPath: rootLevel.footerPath || "",
-          tableFooterAggregate: rootLevel.footerAggregate || ""
+          detailFieldAggregates
         };
         table.rowContexts = contexts;
         table.cells = rows;
@@ -1293,21 +1515,34 @@ confirmObjectDialog() {
           const table = this.createTableObjectFromDialog(body);
           const target = this.pendingTableTarget;
           if (target) {
+            const structureChanged = Number(target.rows) !== Number(table.rows)
+              || Number(target.cols) !== Number(table.cols);
             const preserved = {
               id: target.id,
               x: target.x,
               y: target.y,
-              width: target.width,
-              height: target.height
+              width: target.width
             };
+            // Com mudança de estrutura, solta altura/larguras antigas para a grade caber inteira.
+            if (!structureChanged && target.height != null) preserved.height = target.height;
+            if (!structureChanged && Array.isArray(target.colWidths) && target.colWidths.length)
+              preserved.colWidths = target.colWidths;
             Object.keys(target).forEach(key => {
               if (!Object.prototype.hasOwnProperty.call(table, key) && !Object.prototype.hasOwnProperty.call(preserved, key))
                 delete target[key];
             });
             Object.assign(target, table, preserved);
+            if (structureChanged) {
+              delete target.height;
+              target.colWidths = [];
+            }
             this.activeObject = target.id;
             this.hideObjectDialog();
-            this.render("Tabela atualizada.");
+            const owner = this.findObjectOwnerById?.(target.id);
+            if (owner?.subparagraph) owner.subparagraph.height = null;
+            this.render("Tabela atualizada.", false, {
+              fitSubparagraphId: owner?.subparagraph?.id || null
+            });
             return;
           }
           this.hideObjectDialog();

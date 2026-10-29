@@ -71,6 +71,7 @@ dragging: null,
 suppressNextDocumentClick: false,
 
 suppressSubparagraphClickAfterDrag: false,
+suppressInlineLineClickAfterDrag: false,
 
 init() {
         const loadedTemplate = this.loadEmbeddedTemplate?.() === true;
@@ -93,7 +94,11 @@ init() {
         this.updateDataSourceContextSelectors?.();
         this.migrateTextHtmlToRuns?.();
         this.bindGlobalPointerEvents();
-        this.render("", false, { focusActiveEditableSubparagraph: true });
+        this.render("", false, {
+          // Template embutido: não focar SP com tabela (evita colapso no load).
+          focusActiveEditableSubparagraph: !loadedTemplate,
+          preserveTableGeometry: loadedTemplate
+        });
       },
 
 bindGlobalPointerEvents() {

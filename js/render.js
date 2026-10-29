@@ -28,7 +28,9 @@ render(message = "", isError = false, options = {}) {
           element.addEventListener("beforeinput", event => this.onEditableBeforeInput(event, element));
           element.addEventListener("keydown", event => this.onEditableSubparagraphKeydown?.(event, element));
           element.addEventListener("input", event => this.onSubparagraphInput(event, element));
-          element.addEventListener("blur", event => this.onSubparagraphInput(event, element));
+          // blur pode ocorrer justamente quando o usuário clica em Salvar.
+          // Sincroniza o texto, mas não recalcula a geometria persistida.
+          element.addEventListener("blur", event => this.onSubparagraphInput(event, element, { preserveGeometry: true }));
         });
 
         page.querySelectorAll("[data-table-cell]").forEach(element => {
@@ -149,6 +151,7 @@ render(message = "", isError = false, options = {}) {
         });
 
         page.querySelectorAll("[data-inline-line-id]").forEach(element => {
+          element.addEventListener("pointerdown", event => this.onInlineLinePointerDown?.(event, element));
           element.addEventListener("click", event => this.onInlineLineClick(event, element));
         });
 
@@ -160,6 +163,11 @@ render(message = "", isError = false, options = {}) {
         page.querySelectorAll("[data-textbox-content]").forEach(element => {
           element.addEventListener("beforeinput", event => this.onEditableBeforeInput(event, element));
           element.addEventListener("input", event => this.onTextboxInput(event, element));
+          element.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+            // Garante ajuste da altura após quebra de linha (Enter / Shift+Enter).
+            requestAnimationFrame(() => this.onTextboxInput?.(event, element));
+          });
         });
 
         this.syncSubparagraphWidthLayout?.();
@@ -177,12 +185,104 @@ render(message = "", isError = false, options = {}) {
         if (options.focusFirstTableCell) {
           this.focusFirstTableCell(options.focusFirstTableCell);
         }
+
+        const fitIds = new Set();
+        if (options.fitSubparagraphId) fitIds.add(options.fitSubparagraphId);
+
+        // Tabela cortada pelo SP/objeto: expande só quando o conteúdo ultrapassa a caixa.
+        page.querySelectorAll('.main-object[data-object-kind="Table"]').forEach(objectElement => {
+          const owner = this.findObjectOwnerById?.(objectElement.dataset.mainObjectId);
+          const subparagraphId = owner?.subparagraph?.id;
+          if (!subparagraphId) return;
+          const subElement = document.querySelector(`[data-subparagraph-id="${CSS.escape(subparagraphId)}"]`);
+          const tableElement = objectElement.querySelector(".wordex-table");
+          if (!subElement || !tableElement) return;
+
+          const prevHeight = objectElement.style.height;
+          objectElement.style.height = "auto";
+          const naturalBottom = Math.max(
+            objectElement.getBoundingClientRect().bottom,
+            tableElement.getBoundingClientRect().bottom
+          );
+          objectElement.style.height = prevHeight;
+
+          const clippedByObject = Number.isFinite(Number(owner.object?.height))
+            && naturalBottom > objectElement.getBoundingClientRect().bottom + 1;
+          const clippedBySub = naturalBottom > subElement.getBoundingClientRect().bottom + 1;
+          if (clippedByObject || clippedBySub) fitIds.add(subparagraphId);
+        });
+
+        if (fitIds.size && !options.preserveTableGeometry) {
+          window.requestAnimationFrame(() => {
+            fitIds.forEach(id => this.fitSubparagraphHeightToContents?.(id));
+          });
+        }
+
+        // Sempre alinha o DOM ao modelo (só <col> %, sem width em <td>).
+        // Com preserveTableGeometry não reescreve colWidths no modelo.
+        const normalizeColumns = () => this.normalizeUnsetTableColumnWidths?.({
+          preserveModel: Boolean(options.preserveTableGeometry)
+        });
+        window.requestAnimationFrame(() => {
+          normalizeColumns();
+          window.requestAnimationFrame(normalizeColumns);
+        });
+      },
+
+normalizeUnsetTableColumnWidths(options = {}) {
+        const preserveModel = Boolean(options.preserveModel);
+        document.querySelectorAll(".wordex-table[data-table-id]").forEach(tableElement => {
+          const tableId = tableElement.dataset.tableId;
+          const owner = this.findObjectOwnerById?.(tableId);
+          const table = owner?.object;
+          if (!table || table.kind !== KINDS.TABLE || !(table.cols > 0)) return;
+
+          this.ensureTableSizeState?.(table);
+          tableElement.style.tableLayout = "fixed";
+          tableElement.style.width = "100%";
+          tableElement.querySelectorAll(`[data-table-cell="${tableId}"]`).forEach(cell => {
+            cell.style.removeProperty("width");
+          });
+
+          const explicitWidths = Array.from({ length: table.cols }, (_, col) => Number(table.colWidths?.[col]));
+          const hasExplicit = explicitWidths.length === table.cols
+            && explicitWidths.every(width => Number.isFinite(width) && width > 0);
+          const explicitSum = hasExplicit
+            ? explicitWidths.reduce((sum, width) => sum + width, 0)
+            : 0;
+
+          // Preserva proporções salvas/editadas. Só equaliza quando ainda não há larguras.
+          if (hasExplicit && explicitSum > 0) {
+            tableElement.querySelectorAll(`[data-table-col="${tableId}"]`).forEach(colElement => {
+              const col = Number(colElement.dataset.col);
+              const pct = (explicitWidths[col] / explicitSum) * 100;
+              colElement.style.width = `${pct.toFixed(4)}%`;
+            });
+            return;
+          }
+
+          const pct = `${(100 / table.cols).toFixed(4)}%`;
+          tableElement.querySelectorAll(`[data-table-col="${tableId}"]`).forEach(colElement => {
+            colElement.style.width = pct;
+          });
+          if (preserveModel) return;
+
+          const totalWidth = Math.max(0, Math.round(tableElement.getBoundingClientRect().width));
+          if (totalWidth > 0) {
+            const base = Math.floor(totalWidth / table.cols);
+            const remainder = Math.max(0, totalWidth - base * table.cols);
+            table.colWidths = Array.from({ length: table.cols }, (_, col) => base + (col < remainder ? 1 : 0));
+          } else {
+            table.colWidths = [];
+          }
+        });
       },
 
 focusActiveEditableSubparagraph(restoreTextSelection = null, focusOptions = null) {
         const subparagraphId = this.activeSubparagraph;
         const subparagraph = this.findSubparagraphById(subparagraphId);
-        if (!subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return;
+        if (!subparagraph) return;
+        if (subparagraph.contentKind === CONTENT_KIND.OBJECT && subparagraph.object?.kind === KINDS.CHART) return;
 
         const atStart = Boolean(focusOptions?.atStart);
         const savedSelection = restoreTextSelection?.subparagraphId === subparagraphId
@@ -191,8 +291,8 @@ focusActiveEditableSubparagraph(restoreTextSelection = null, focusOptions = null
 
         const applyFocus = () => {
           if (this.activeSubparagraph !== subparagraphId) return;
-          const element = document.querySelector(`[data-text-subparagraph-id="${CSS.escape(subparagraphId)}"]`);
-          if (!element || element.getAttribute("contenteditable") !== "true") return;
+          const element = document.querySelector(`[data-text-subparagraph-id="${CSS.escape(subparagraphId)}"][contenteditable="true"]`);
+          if (!element) return;
 
           element.scrollIntoView?.({ block: "nearest" });
           element.focus({ preventScroll: true });
@@ -333,6 +433,7 @@ renderSubparagraphInlineStyle(paragraph, subparagraph) {
 
         if (Number.isFinite(height) && height > 0) {
           styles.push(`height:${Math.round(height)}px`);
+          styles.push(`min-height:${Math.round(height)}px`);
         }
 
         if (Number.isFinite(y) && y !== 0) {
@@ -374,15 +475,20 @@ renderSubparagraph(section, paragraph, subparagraph) {
         }
 
         const isTextEditable = isEditableSection && subparagraph.contentKind !== CONTENT_KIND.OBJECT;
-        const html = subparagraph.contentKind === CONTENT_KIND.TEXT
+        const rawHtml = subparagraph.contentKind === CONTENT_KIND.TEXT || subparagraph.contentKind === CONTENT_KIND.EMPTY
           ? (subparagraph.textHtml || (window.WordexRuns?.runsToHtml ? window.WordexRuns.runsToHtml(subparagraph.runs || []) : ""))
           : "";
+        const html = this.applyFreeTextDataPreviewMacros?.(rawHtml) ?? rawHtml;
         const renderedHtml = this.renderInlineListAnchors(
           this.renderInlineTextboxAnchors(html, subparagraph, isEditableSection),
           subparagraph
         );
         const renderedWithLines = this.renderInlineLineAnchors(renderedHtml, subparagraph);
-        return `<div ${baseAttributes} data-text-subparagraph-id="${subparagraph.id}" contenteditable="${isTextEditable ? "true" : "false"}" tabindex="0">${renderedWithLines}</div>`;
+        const overlayTextboxes = (Array.isArray(subparagraph.textboxes) ? subparagraph.textboxes : [])
+          .filter(textbox => !textbox.tableCell)
+          .map(textbox => this.renderTextbox(textbox, isEditableSection))
+          .join("");
+        return `<div ${baseAttributes} data-text-subparagraph-id="${subparagraph.id}" contenteditable="${isTextEditable ? "true" : "false"}" tabindex="0">${renderedWithLines}${overlayTextboxes}</div>`;
       },
 
 renderInlineTextboxAnchors(html, subparagraph, isEditableSection = true) {
@@ -417,9 +523,21 @@ renderInlineTextbox(textbox, isEditableSection = true) {
         const borderStyle = renderBorderInlineStyle(textbox.border);
         const marginStyle = renderBoxEdgesInlineStyle("margin", textbox.margin);
         const paddingStyle = renderBoxEdgesInlineStyle("padding", textbox.padding);
+        // freeMove absoluto legado: converte para float (texto rodeia a caixa).
+        if (textbox.freeMove) {
+          textbox.freeMove = false;
+          textbox.x = 0;
+          textbox.y = 0;
+          if (!["left", "center", "right"].includes(textbox.alignment))
+            textbox.alignment = "right";
+        }
         const inlineStyle = [`width:${width}px`, `height:${height}px`, borderStyle, marginStyle, paddingStyle].filter(Boolean).join(";");
         const contentStyle = this.renderTextboxContentStyleAttr(textbox);
-        return `<span class="textbox textbox-inline${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" data-inline-textbox="true" data-alignment="${alignment}" contenteditable="false" style="${inlineStyle}"><span class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textbox.html || ""}</span></span>`;
+        const textboxHtml = this.applyFreeTextDataPreviewMacros?.(textbox.html || "") ?? (textbox.html || "");
+        const resolvedAlignment = ["left", "center", "right"].includes(textbox.alignment)
+          ? textbox.alignment
+          : alignment;
+        return `<span class="textbox textbox-inline${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" data-inline-textbox="true" data-alignment="${resolvedAlignment}" contenteditable="false" style="${inlineStyle}"><span class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textboxHtml}</span></span>`;
       },
 
 ensureInlineListCaretHosts(root) {
@@ -478,7 +596,10 @@ renderInlineLineAnchors(html, subparagraph) {
 
 renderInlineLine(line) {
         const activeClass = line.id === this.activeObject ? " is-active" : "";
-        return `<span class="wordex-inline-line${activeClass}" data-wordex-kind="${KINDS.LINE}" data-inline-line-id="${escapeHtml(line.id)}" contenteditable="false">${escapeHtml(line.text || "______________________________")}</span>`;
+        const x = Math.round(Number(line.x) || 0);
+        const y = Math.round(Number(line.y) || 0);
+        const transform = x || y ? ` style="transform:translate(${x}px, ${y}px)"` : "";
+        return `<span class="wordex-inline-line${activeClass}" data-wordex-kind="${KINDS.LINE}" data-inline-line-id="${escapeHtml(line.id)}" contenteditable="false"${transform}>${escapeHtml(line.text || "______________________________")}</span>`;
       },
 
       renderListContent(list, inline = false, inlineLists = [], numberPath = [], hierarchicalMode = false) {
@@ -548,11 +669,28 @@ renderObjectSubparagraph(section, subparagraph) {
         const objectAlignment = ["left", "center", "right"].includes(subparagraph.object?.horizontalAlign)
           ? subparagraph.object.horizontalAlign
           : "left";
+        const isChart = subparagraph.object?.kind === KINDS.CHART;
+        // Gráfico: sem digitação no SP — só caixas de texto flutuantes.
+        const textEditable = isEditableSection && !isChart;
+        const rawHtml = isChart
+          ? ""
+          : (subparagraph.textHtml ||
+            (window.WordexRuns?.runsToHtml ? window.WordexRuns.runsToHtml(subparagraph.runs || []) : ""));
+        const html = this.applyFreeTextDataPreviewMacros?.(rawHtml) ?? rawHtml;
+        const renderedHtml = this.renderInlineListAnchors(
+          this.renderInlineTextboxAnchors(html, subparagraph, isEditableSection),
+          subparagraph
+        );
+        const renderedWithLines = this.renderInlineLineAnchors(renderedHtml, subparagraph);
+        const textLayer = isChart
+          ? ""
+          : `<div class="object-subparagraph-text" data-text-subparagraph-id="${subparagraph.id}" contenteditable="${textEditable ? "true" : "false"}" tabindex="0">${renderedWithLines}</div>`;
         return `
           <div class="object-area" data-object-align="${objectAlignment}">
             ${this.renderMainObject(subparagraph.object, isEditableSection)}
           </div>
-          ${subparagraph.textboxes
+          ${textLayer}
+          ${(Array.isArray(subparagraph.textboxes) ? subparagraph.textboxes : [])
             .filter(textbox => !textbox.tableCell)
             .map(textbox => this.renderTextbox(textbox, isEditableSection)).join("")}
         `;
@@ -620,6 +758,11 @@ ensureTableSizeState(table) {
         if (!table || table.kind !== KINDS.TABLE) return;
         if (!Array.isArray(table.rowHeights)) table.rowHeights = [];
         if (!Array.isArray(table.colWidths)) table.colWidths = [];
+        // Remove alturas 0/negativas que colapsam a linha de títulos no load.
+        table.rowHeights = table.rowHeights.map(height => {
+          const value = Number(height);
+          return Number.isFinite(value) && value > 0 ? value : null;
+        });
         this.ensureTableRowVisibilityState?.(table);
         this.ensureTableCellTextAlignState?.(table);
       },
@@ -727,11 +870,20 @@ renderTable(table, isEditableSection = true) {
         const tableTextboxes = tableOwner?.subparagraph?.textboxes || [];
 
         const columns = [];
+        const explicitWidths = Array.from({ length: table.cols }, (_, col) => Number(table.colWidths?.[col]));
+        const hasExplicitColWidths = explicitWidths.every(width => Number.isFinite(width) && width > 0);
+        const explicitSum = hasExplicitColWidths
+          ? explicitWidths.reduce((sum, width) => sum + width, 0)
+          : 0;
         for (let col = 0; col < table.cols; col += 1) {
-          const width = Number(table.colWidths[col]);
-          const style = Number.isFinite(width) && width >= 0
-            ? ` style="width:${Math.round(width)}px"`
-            : "";
+          // Só <col> em %. Nunca width em <td> — com colspan isso cria coluna fantasma.
+          let style = "";
+          if (table.cols > 0) {
+            const pct = hasExplicitColWidths && explicitSum > 0
+              ? (explicitWidths[col] / explicitSum) * 100
+              : 100 / table.cols;
+            style = ` style="width:${pct.toFixed(4)}%"`;
+          }
           columns.push(`<col data-table-col="${table.id}" data-col="${col}"${style}>`);
         }
 
@@ -739,12 +891,23 @@ renderTable(table, isEditableSection = true) {
         for (let row = 0; row < table.rows; row += 1) {
           const cells = [];
           const height = Number(table.rowHeights[row]);
-          const rowStyle = Number.isFinite(height) && height >= 0
+          // height:0 colapsa a linha de títulos (só a borda fica visível); o clique
+          // no contenteditable reabre a linha e o browser recalcula as colunas.
+          const rowStyle = Number.isFinite(height) && height > 0
             ? ` style="height:${Math.round(height)}px"`
             : "";
+          const rowContext = table.rowContexts?.[row] || null;
+          const forceFullRowSpan = rowContext?.kind === "groupHeader"
+            || rowContext?.kind === "tableHeader"
+            || rowContext?.mergeAcrossColumns === true;
 
-          for (let col = 0; col < table.cols; col += 1) {
-            if (this.isTableCellCoveredByColspan?.(table, row, col)) continue;
+          for (let col = 0; col < table.cols; ) {
+            if (!forceFullRowSpan && this.isTableCellCoveredByColspan?.(table, row, col)) {
+              col += 1;
+              continue;
+            }
+            if (forceFullRowSpan && col > 0) break;
+
             const value = table.cells[row]?.[col] ?? "";
             const cellObject = table.cellObjects?.[row]?.[col] || null;
             const objectAlignment = table.cellTextAlign?.[row]?.[col];
@@ -767,22 +930,32 @@ renderTable(table, isEditableSection = true) {
               ? `<div class="table-cell-textbox-area" data-table-cell-textbox-area="${table.id}" data-row="${row}" data-col="${col}" style="min-height:${Math.max(0, ...cellTextboxes.map(textbox => (Number(textbox.y) || 0) + (Number(textbox.height) || 0)))}px">${cellHtml}${cellTextboxes.map(textbox => this.renderTextbox(textbox, isEditableSection)).join("")}</div>`
               : cellHtml;
             const cellEditable = isCellEditable && !cellObject;
-            const colspan = this.getTableCellColspan?.(table, row, col) || 1;
+            const colspan = forceFullRowSpan
+              ? table.cols
+              : (this.getTableCellColspan?.(table, row, col) || 1);
             const colspanAttr = colspan > 1 ? ` colspan="${colspan}" data-colspan="${colspan}"` : "";
             const range = this.activeTableCellRangeSelection;
             const isRangeSelected = Boolean(range && range.tableId === table.id && range.rowIndex === row && col >= range.startCol && col <= range.endCol);
             const selectedClass = isRangeSelected ? ' class="wordex-range-selected"' : "";
             const cellInlineStyle = this.renderTableCellInlineStyle(table, row, col);
             cells.push(`<td${selectedClass} contenteditable="${cellEditable ? "true" : "false"}" data-table-cell="${table.id}" data-row="${row}" data-col="${col}"${colspanAttr}${cellInlineStyle}>${cellContent}</td>`);
+            col += Math.max(1, colspan);
           }
 
-          const rowContext = table.rowContexts?.[row] || null;
-          const effectiveRowContextPath = this.getEffectiveTableRowFieldContextPath?.(table, row) || rowContext?.fieldContextPath || rowContext?.contextPath || rowContext?.footerPath || "";
+          // Paginação precisa da identidade do grupo (contextPath ::gN). fieldContextPath
+          // do detalhe é igual em todos os grupos hierárquicos e impediria repetir o pai.
+          const paginationContextPath = ["groupHeader", "groupFooter"].includes(rowContext?.kind)
+            ? (rowContext.contextPath || rowContext.fieldContextPath || rowContext.footerPath || "")
+            : (this.getEffectiveTableRowFieldContextPath?.(table, row)
+              || rowContext?.fieldContextPath
+              || rowContext?.contextPath
+              || rowContext?.footerPath
+              || "");
           const pageBreakAttr = rowContext?.kind === "groupHeader" && rowContext.pageBreak
             ? ` data-page-break-before="true"`
             : "";
           const rowContextAttrs = rowContext
-            ? ` data-row-kind="${escapeHtml(rowContext.kind || "")}" data-row-context-path="${escapeHtml(effectiveRowContextPath)}"${pageBreakAttr}`
+            ? ` data-row-kind="${escapeHtml(rowContext.kind || "")}" data-row-context-path="${escapeHtml(paginationContextPath)}"${pageBreakAttr}`
             : "";
           const rowVisible = table.rowReportVisibility?.[row] !== false && table.rowVisibility?.[row] !== false;
           const rowClass = rowVisible ? "" : ' class="wordex-table-row-hidden"';
@@ -790,7 +963,7 @@ renderTable(table, isEditableSection = true) {
           rows.push(`<tr data-table-row="${table.id}" data-row="${row}"${rowClass}${rowVisibilityAttr}${rowContextAttrs}${rowStyle}>${cells.join("")}</tr>`);
         }
 
-        return `<table class="${tableClass}" data-table-id="${table.id}"><colgroup>${columns.join("")}</colgroup><tbody>${rows.join("")}</tbody></table>`;
+        return `<table class="${tableClass}" data-table-id="${table.id}" style="table-layout:fixed;width:100%"><colgroup>${columns.join("")}</colgroup><tbody>${rows.join("")}</tbody></table>`;
       },
 
 renderTextbox(textbox, isEditableSection = true) {
@@ -800,9 +973,10 @@ renderTextbox(textbox, isEditableSection = true) {
         const paddingStyle = renderBoxEdgesInlineStyle("padding", textbox.padding);
         const boxStyle = [borderStyle, marginStyle, paddingStyle].filter(Boolean).join(";");
         const contentStyle = this.renderTextboxContentStyleAttr(textbox);
+        const textboxHtml = this.applyFreeTextDataPreviewMacros?.(textbox.html || "") ?? (textbox.html || "");
         return `
-          <div class="textbox${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" style="left:${textbox.x}px; top:${textbox.y}px; width:${textbox.width}px; height:${textbox.height}px;${boxStyle ? ` ${boxStyle};` : ""}">
-            <div class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textbox.html}</div>
+          <div class="textbox${activeClass}" data-wordex-kind="${KINDS.TEXTBOX}" data-textbox-id="${textbox.id}" contenteditable="false" style="left:${textbox.x}px; top:${textbox.y}px; width:${textbox.width}px; height:${textbox.height}px;${boxStyle ? ` ${boxStyle};` : ""}">
+            <div class="textbox-content" data-textbox-content="${textbox.id}" contenteditable="${isEditableSection ? "true" : "false"}"${contentStyle}>${textboxHtml}</div>
           </div>
         `;
       },
@@ -846,7 +1020,14 @@ refreshActiveClasses() {
         });
 
         document.querySelectorAll(".textbox[data-textbox-id]").forEach(element => {
-          element.classList.toggle("is-active", element.dataset.textboxId === this.activeTextbox);
+          const isActive = element.dataset.textboxId === this.activeTextbox;
+          const inEditMode = Boolean(
+            isActive &&
+            this.objectEditMode &&
+            this.activeEditTargetKind === KINDS.TEXTBOX
+          );
+          element.classList.toggle("is-active", isActive);
+          element.classList.toggle("is-textbox-edit-mode", inEditMode);
         });
 
         const range = this.activeTableCellRangeSelection;

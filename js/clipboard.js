@@ -455,10 +455,13 @@ Object.assign(wordex, {
 
   pasteInlineLineAtCaret() {
     const lineData = this.internalClipboard?.data;
-    const insertion = this.getTextInsertionCaret?.();
-    if (!lineData || !insertion) return false;
-    const owner = this.findSubparagraphOwnerById?.(insertion.subparagraphId);
-    if (owner?.subparagraph?.contentKind !== CONTENT_KIND.TEXT) return false;
+    if (!lineData) return false;
+
+    const insertion = this.ensureLineInsertionPoint?.();
+    if (!insertion) return false;
+
+    const owner = insertion.owner || this.findSubparagraphOwnerById?.(insertion.subparagraphId);
+    if (!owner || !this.promoteSubparagraphToText?.(owner.subparagraph)) return false;
 
     const line = this.cloneForClipboard(lineData);
     this.renewIdsForPastedObject(line);

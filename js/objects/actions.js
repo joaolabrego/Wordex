@@ -44,7 +44,9 @@ insertObjectIntoActiveSubparagraph(object) {
           ? `${object.kind} inserido em novo subparágrafo, logo após o subparágrafo ativo.`
           : `${object.kind} inserido no subparágrafo ativo.`;
 
-        const renderOptions = object.kind === KINDS.TABLE ? { focusFirstTableCell: object.id } : {};
+        const renderOptions = object.kind === KINDS.TABLE
+          ? { focusFirstTableCell: object.id, fitSubparagraphId: targetSubparagraph.id }
+          : {};
         this.render(message, false, renderOptions);
       },
 
@@ -153,7 +155,7 @@ addSelectedObjectKind() {
 
         if (selectedKind === KINDS.LINE) {
           if (!this.insertInlineLineAtTextCaret())
-            this.render("A linha só pode ser inserida no cursor de um subparágrafo que contenha texto.", true);
+            this.render("Selecione um subparágrafo de texto (ou vazio) para inserir a linha.", true);
           return;
         }
 
@@ -165,19 +167,56 @@ addSelectedObjectKind() {
         this.render("Tipo de objeto não reconhecido.", true);
       },
 
-insertInlineLineAtTextCaret() {
+ensureLineInsertionPoint() {
         const insertion = this.getTextInsertionCaret?.();
+        if (insertion) {
+          const owner = this.findSubparagraphOwnerById(insertion.subparagraphId);
+          if (owner && owner.subparagraph.contentKind !== CONTENT_KIND.OBJECT)
+            return { ...insertion, owner };
+        }
+
+        const owner = this.findSubparagraphOwnerById(this.activeSubparagraph);
+        const subparagraph = owner?.subparagraph;
+        if (!owner || !subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return null;
+
+        const editable = document.querySelector(`[data-text-subparagraph-id="${subparagraph.id}"]`);
+        if (!editable || editable.getAttribute("contenteditable") !== "true") return null;
+
+        editable.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editable);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return { editable, range, subparagraphId: subparagraph.id, owner };
+      },
+
+promoteSubparagraphToText(subparagraph) {
+        if (!subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return false;
+        subparagraph.contentKind = CONTENT_KIND.TEXT;
+        subparagraph.textHtml = subparagraph.textHtml || "";
+        subparagraph.runs = Array.isArray(subparagraph.runs) ? subparagraph.runs : [];
+        subparagraph.inlineLines ||= [];
+        subparagraph.inlineTextboxes ||= [];
+        subparagraph.inlineLists ||= [];
+        return true;
+      },
+
+insertInlineLineAtTextCaret() {
+        const insertion = this.ensureLineInsertionPoint?.();
         if (!insertion) return false;
 
-        const owner = this.findSubparagraphOwnerById(insertion.subparagraphId);
+        const owner = insertion.owner || this.findSubparagraphOwnerById(insertion.subparagraphId);
         const subparagraph = owner?.subparagraph;
-        if (!owner || subparagraph?.contentKind !== CONTENT_KIND.TEXT ||
-            normalizeEditableHtml(subparagraph.textHtml) === "") return false;
+        if (!owner || !this.promoteSubparagraphToText(subparagraph)) return false;
 
         const line = {
           id: nextId("line"),
           kind: KINDS.LINE,
-          text: "______________________________"
+          text: "______________________________",
+          x: 0,
+          y: 0
         };
         subparagraph.inlineLines ||= [];
         subparagraph.inlineLines.push(line);
@@ -496,6 +535,36 @@ pickImageFileAndInsert() {
       },
 
 removeSelectedObject() {
+        // O botão remove o que está selecionado no documento, não o tipo do combobox.
+        if (this.activeTextbox) {
+          this.removeActiveTextbox();
+          return;
+        }
+
+        const selectedObject = this.activeObject ? this.findObjectOwnerById(this.activeObject) : null;
+        if (selectedObject?.inline && selectedObject.object?.kind === KINDS.LIST) {
+          this.removeActiveInlineList();
+          return;
+        }
+        if (selectedObject?.inline && selectedObject.object?.kind === KINDS.LINE) {
+          this.removeActiveInlineLine();
+          return;
+        }
+        if (selectedObject?.object && selectedObject.subparagraph?.contentKind === CONTENT_KIND.OBJECT) {
+          this.removeObjectFromActiveSubparagraph();
+          return;
+        }
+
+        if (this.activeEditTargetKind === EDIT_TARGET_KIND.PARAGRAPH) {
+          this.removeActiveParagraph();
+          return;
+        }
+        if (this.activeEditTargetKind === EDIT_TARGET_KIND.SUBPARAGRAPH) {
+          this.removeActiveSubparagraph();
+          return;
+        }
+
+        // Fallback: combobox só quando não há objeto/alvo selecionado no canvas.
         const selectedKind = document.getElementById("objectKindSelect")?.value;
 
         if (selectedKind === KINDS.PARAGRAPH) {
@@ -513,7 +582,6 @@ removeSelectedObject() {
           return;
         }
 
-
         if (selectedKind === KINDS.WATERMARK) {
           if (!this.document.watermark) {
             this.render("Nenhuma marca d'água para remover.", true);
@@ -523,21 +591,6 @@ removeSelectedObject() {
           this.document.watermark = null;
           this.updateToolbarState();
           this.render("Marca d'água removida.");
-          return;
-        }
-
-        if (this.activeTextbox) {
-          this.removeActiveTextbox();
-          return;
-        }
-
-        const selectedObject = this.activeObject ? this.findObjectOwnerById(this.activeObject) : null;
-        if (selectedObject?.inline && selectedObject.object?.kind === KINDS.LIST) {
-          this.removeActiveInlineList();
-          return;
-        }
-        if (selectedObject?.inline && selectedObject.object?.kind === KINDS.LINE) {
-          this.removeActiveInlineLine();
           return;
         }
 
@@ -618,11 +671,6 @@ addTextboxToActiveObjectSubparagraph() {
         const subparagraph = owner?.subparagraph;
         if (!owner || !subparagraph) return;
 
-        if (subparagraph.contentKind !== CONTENT_KIND.OBJECT || !subparagraph.object) {
-          this.render("Posicione o cursor no texto para inserir a caixa ou selecione um subparágrafo com objeto.", true);
-          return;
-        }
-
         this.activeSection = owner.section.id;
         this.activeParagraph = owner.paragraph.id;
         this.activeSubparagraph = subparagraph.id;
@@ -630,8 +678,9 @@ addTextboxToActiveObjectSubparagraph() {
 
         const textbox = createTextbox();
         const tableCell = this.getActiveTableCellForObjectInsertion?.();
+        const isObjectSp = subparagraph.contentKind === CONTENT_KIND.OBJECT && subparagraph.object;
 
-        if (tableCell) {
+        if (tableCell && isObjectSp) {
           const { owner, table, rowIndex, colIndex } = tableCell;
           const cellElement = this.getTableCellElement?.(table.id, rowIndex, colIndex);
           const cellStyle = cellElement ? getComputedStyle(cellElement) : null;
@@ -657,11 +706,16 @@ addTextboxToActiveObjectSubparagraph() {
             rowIndex,
             colIndex
           };
+        } else if (!isObjectSp) {
+          // Caixa flutuante em SP de texto/vazio: o SP continua editável.
+          if (subparagraph.contentKind === CONTENT_KIND.EMPTY) {
+            subparagraph.contentKind = CONTENT_KIND.TEXT;
+          }
         }
 
         subparagraph.textboxes.push(textbox);
         this.activeTextbox = textbox.id;
-        this.render(tableCell ? "Caixa de texto inserida na célula selecionada." : "Caixa de texto inserida.");
+        this.render(tableCell && isObjectSp ? "Caixa de texto inserida na célula selecionada." : "Caixa de texto inserida.");
       },
 
 removeObjectFromActiveSubparagraph() {

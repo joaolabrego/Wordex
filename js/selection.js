@@ -72,10 +72,12 @@ focusActiveEditableForTextCommand() {
         }
 
         const activeSubparagraph = this.findSubparagraphById(this.activeSubparagraph);
-        if (!activeSubparagraph || activeSubparagraph.contentKind === CONTENT_KIND.OBJECT) return false;
+        if (!activeSubparagraph) return false;
 
-        const subparagraphElement = document.querySelector(`[data-text-subparagraph-id="${this.activeSubparagraph}"]`);
-        if (!subparagraphElement || subparagraphElement.getAttribute("contenteditable") !== "true") return false;
+        const subparagraphElement = document.querySelector(
+          `[data-text-subparagraph-id="${CSS.escape(this.activeSubparagraph)}"][contenteditable="true"]`
+        );
+        if (!subparagraphElement) return false;
         subparagraphElement.focus();
         this.placeCaretAtEnd(subparagraphElement);
         return true;
@@ -470,17 +472,19 @@ onSubparagraphClick(event, element) {
             activeElement?.getAttribute?.("contenteditable") === "true" &&
             activeElement.dataset?.textSubparagraphId === element.dataset.subparagraphId;
 
-          if (!isEditableAlreadyFocused && element.getAttribute("contenteditable") === "true") {
-            element.focus();
-            this.placeCaretAtEnd(element);
+          if (!isEditableAlreadyFocused) {
+            const editable =
+              (element.getAttribute("contenteditable") === "true" && element) ||
+              element.querySelector(`[data-text-subparagraph-id="${CSS.escape(element.dataset.subparagraphId)}"][contenteditable="true"]`);
+            if (editable) {
+              editable.focus();
+              this.placeCaretAtEnd(editable);
+            }
           }
           return;
         }
 
-        const owner = this.findSubparagraphOwnerById(element.dataset.subparagraphId);
-        const shouldFocusText = owner?.subparagraph?.contentKind !== CONTENT_KIND.OBJECT;
-        if (!shouldFocusText) this.clearNativeCaretAndSelection();
-        this.setActive(element.dataset.sectionId, element.dataset.paragraphId, element.dataset.subparagraphId, null, { focusActiveEditableSubparagraph: shouldFocusText });
+        this.setActive(element.dataset.sectionId, element.dataset.paragraphId, element.dataset.subparagraphId, null, { focusActiveEditableSubparagraph: true });
       },
 
 onSubparagraphContextMenu(event, element) {
@@ -510,6 +514,7 @@ onEditableSubparagraphKeydown(event, element) {
             event.preventDefault();
             document.execCommand("insertLineBreak");
             this.syncActiveEditableAfterTextCommand(element);
+            this.fitSubparagraphEditableToContent?.(element);
             this.updateTextCommandButtonsVisibility?.();
             return;
           }
@@ -556,12 +561,16 @@ onEditableBeforeInput(event, element) {
         this.updateTextCommandButtonsVisibility?.();
       },
 
-onSubparagraphInput(event, element) {
+onSubparagraphInput(event, element, options = {}) {
         const owner = this.findSubparagraphOwnerById(element.dataset.textSubparagraphId);
         const subparagraph = owner?.subparagraph;
-        if (!owner || !this.isSectionEnabled(owner.section) || !subparagraph || subparagraph.contentKind === CONTENT_KIND.OBJECT) return;
+        if (!owner || !this.isSectionEnabled(owner.section) || !subparagraph) return;
+        // Gráfico não aceita texto digitado no SP.
+        if (subparagraph.contentKind === CONTENT_KIND.OBJECT && subparagraph.object?.kind === KINDS.CHART) return;
 
         const editableCopy = element.cloneNode(true);
+        // Caixas flutuantes vivem no DOM do SP, mas não fazem parte do textHtml.
+        editableCopy.querySelectorAll(".textbox:not([data-inline-textbox='true'])").forEach(node => node.remove());
         const inlineTextboxes = Array.isArray(subparagraph.inlineTextboxes) ? subparagraph.inlineTextboxes : [];
         const presentTextboxIds = new Set();
         const inlineLists = Array.isArray(subparagraph.inlineLists) ? subparagraph.inlineLists : [];
@@ -651,7 +660,17 @@ onSubparagraphInput(event, element) {
         subparagraph.runs = window.WordexRuns?.htmlToRuns
           ? window.WordexRuns.htmlToRuns(html, textDefaults)
           : [];
-        subparagraph.contentKind = html === "" ? CONTENT_KIND.EMPTY : CONTENT_KIND.TEXT;
+        // SP com objeto principal mantém contentKind OBJECT; o texto coexiste em textHtml.
+        if (!(subparagraph.contentKind === CONTENT_KIND.OBJECT && subparagraph.object)) {
+          const hasFloatingTextboxes = (Array.isArray(subparagraph.textboxes) ? subparagraph.textboxes : [])
+            .some(textbox => !textbox.tableCell);
+          if (html === "" && !hasFloatingTextboxes && !(subparagraph.inlineTextboxes || []).length) {
+            subparagraph.contentKind = CONTENT_KIND.EMPTY;
+          } else {
+            subparagraph.contentKind = CONTENT_KIND.TEXT;
+          }
+        }
+        if (!options.preserveGeometry) this.fitSubparagraphHeightToContents?.(subparagraph.id);
         this.renderStatePanel();
         this.updateJsonOutput();
       },
@@ -679,16 +698,16 @@ onTableCellInput(event, element) {
         this.updateJsonOutput();
       },
 
-syncAllEditableDomToDocument() {
+syncAllEditableDomToDocument(options = {}) {
         const root = document.getElementById("page");
         if (!root) return;
 
         root.querySelectorAll("[data-text-subparagraph-id]").forEach(element => {
-          this.onSubparagraphInput?.({ currentTarget: element }, element);
+          this.onSubparagraphInput?.({ currentTarget: element }, element, options);
         });
 
         root.querySelectorAll("[data-textbox-content]").forEach(element => {
-          this.onTextboxInput?.({ currentTarget: element }, element);
+          this.onTextboxInput?.({ currentTarget: element }, element, options);
         });
 
         root.querySelectorAll("[data-table-cell]").forEach(element => {
@@ -781,6 +800,10 @@ placeCaretAfterInlineList(listElement) {
 onInlineLineClick(event, element) {
         event.preventDefault();
         event.stopPropagation();
+        if (this.suppressInlineLineClickAfterDrag) {
+          this.suppressInlineLineClickAfterDrag = false;
+          return;
+        }
         const owner = this.findObjectOwnerById(element.dataset.inlineLineId);
         if (!owner?.object) return;
         this.activateSubparagraphOwner?.(owner, { activeObject: owner.object.id });
@@ -798,17 +821,64 @@ onInlineLineClick(event, element) {
         this.positionObjectEditOverlay?.();
         this.renderStatePanel?.(event.ctrlKey || event.metaKey
           ? "Linha selecionada para redimensionamento."
-          : "Linha selecionada.");
+          : "Linha selecionada. Arraste para mover.");
         this.updateToolbarState?.();
         this.updateJsonOutput?.();
       },
 
-onTextboxInput(event, element) {
+onTextboxInput(event, element, options = {}) {
         const owner = this.findTextboxOwnerById(element.dataset.textboxContent);
         const textbox = owner?.textbox;
         if (!owner || !this.isSectionEnabled(owner.section) || !textbox) return;
 
         textbox.html = element.innerHTML;
-        this.updateJsonOutput();
+        if (options.preserveGeometry) return;
+        // Após Shift+Enter o layout do conteúdo pode fechar só no próximo frame.
+        const applyFit = () => {
+          this.fitTextboxHeightToContent?.(textbox, element);
+          this.fitSubparagraphHeightToContents?.(owner.subparagraph.id);
+          this.positionObjectEditOverlay?.();
+          this.updateJsonOutput?.();
+        };
+        applyFit();
+        requestAnimationFrame(applyFit);
+      },
+
+fitTextboxHeightToContent(textbox, contentElement) {
+        if (!textbox || !contentElement) return;
+        const box = contentElement.closest?.("[data-textbox-id]") ||
+          document.querySelector(`[data-textbox-id="${textbox.id}"]`);
+        if (!box) return;
+
+        const previousOverflow = box.style.overflow;
+        box.style.height = "auto";
+        box.style.overflow = "hidden";
+        const measured = Math.ceil(box.scrollHeight);
+        box.style.overflow = previousOverflow;
+
+        const minHeight = 40;
+        const nextHeight = Math.max(minHeight, measured);
+        textbox.height = nextHeight;
+        box.style.height = `${nextHeight}px`;
+      },
+
+fitSubparagraphEditableToContent(editable) {
+        const subparagraphId = editable?.dataset?.textSubparagraphId;
+        if (!subparagraphId) return;
+
+        const subparagraph = this.findSubparagraphById(subparagraphId);
+        const element = document.querySelector(`[data-subparagraph-id="${subparagraphId}"]`);
+        if (!subparagraph || !element) return;
+
+        // Primeiro acomoda caixas/objetos absolutos; depois o próprio texto.
+        this.fitSubparagraphHeightToContents?.(subparagraphId);
+
+        const needed = Math.ceil(Math.max(element.scrollHeight, editable.scrollHeight || 0));
+        const current = Number(subparagraph.height) || element.clientHeight || 0;
+        if (needed <= current) return;
+
+        subparagraph.height = needed;
+        element.style.height = `${needed}px`;
+        element.style.minHeight = `${needed}px`;
       },
 });

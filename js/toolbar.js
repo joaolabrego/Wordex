@@ -1362,7 +1362,9 @@ updateToolbarState() {
           [KINDS.IMAGE]: "imagem",
           [KINDS.CHART]: "gráfico",
           [KINDS.TEXTBOX]: "caixa de texto",
-          [KINDS.PAGE_BREAK]: "quebra de página"
+          [KINDS.LINE]: "linha",
+          [KINDS.PAGE_BREAK]: "quebra de página",
+          [KINDS.WATERMARK]: "marca d'água"
         };
         const selectedLabel = elementLabels[selectedKind];
 
@@ -1377,14 +1379,29 @@ updateToolbarState() {
           newObjectButton.setAttribute("aria-label", addTitle);
         }
 
-        if (isWatermarkSelected) {
+        // Título do excluir segue a seleção do canvas; combobox só como fallback.
+        let removeKind = null;
+        if (this.activeTextbox) {
+          removeKind = KINDS.TEXTBOX;
+        } else if (this.activeObject) {
+          const owner = this.findObjectOwnerById?.(this.activeObject);
+          removeKind = owner?.object?.kind || null;
+        } else if (this.activeEditTargetKind === EDIT_TARGET_KIND.PARAGRAPH) {
+          removeKind = KINDS.PARAGRAPH;
+        } else if (this.activeEditTargetKind === EDIT_TARGET_KIND.SUBPARAGRAPH) {
+          removeKind = KINDS.SUBPARAGRAPH;
+        } else {
+          removeKind = selectedKind || null;
+        }
+
+        if (removeKind === KINDS.WATERMARK) {
           removeObjectButton.title = "Remover marca d'água";
           removeObjectButton.setAttribute("aria-label", "Remover marca d'água");
-        } else if (selectedKind === KINDS.PAGE_BREAK) {
+        } else if (removeKind === KINDS.PAGE_BREAK) {
           removeObjectButton.title = "Remover a quebra imediatamente acima do parágrafo";
           removeObjectButton.setAttribute("aria-label", "Remover a quebra imediatamente acima do parágrafo");
-        } else if (selectedLabel) {
-          const removeTitle = `Remover ${selectedLabel}`;
+        } else if (elementLabels[removeKind]) {
+          const removeTitle = `Remover ${elementLabels[removeKind]}`;
           removeObjectButton.title = removeTitle;
           removeObjectButton.setAttribute("aria-label", removeTitle);
         } else {

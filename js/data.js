@@ -144,10 +144,7 @@ Object.assign(wordex, {
 
     Object.entries(sample).forEach(([key, value]) => {
       if (this.isReservedDataPropertyName(key)) return;
-      if (this.isObjectNode(value)) {
-        this.collectObjectFieldNodes(value.Value, `${collectionPath}.${key}`, key, result);
-        return;
-      }
+      if (this.isObjectNode(value)) return;
 
       if (this.isScalarDataNode(value) || this.isCollectionNode(value)) {
         result.push({
@@ -161,29 +158,6 @@ Object.assign(wordex, {
     return result;
   },
 
-  collectObjectFieldNodes(objectValue, basePath, baseLabel, result) {
-    if (!this.isPlainObject(objectValue)) return;
-
-    Object.entries(objectValue).forEach(([key, value]) => {
-      if (this.isReservedDataPropertyName(key)) return;
-      const path = `${basePath}.${key}`;
-      const label = `${baseLabel}.${key}`;
-
-      if (this.isObjectNode(value)) {
-        this.collectObjectFieldNodes(value.Value, path, label, result);
-        return;
-      }
-
-      if (this.isScalarDataNode(value) || this.isCollectionNode(value)) {
-        result.push({
-          path,
-          label: `${label}${this.getDataFieldKindSuffix(value)}`,
-          macro: label
-        });
-      }
-    });
-  },
-
   getDataNodeByPath(path) {
     if (!path || path === "$") return this.dataSource;
 
@@ -194,8 +168,6 @@ Object.assign(wordex, {
       const sample = this.getCollectionSample(node);
       if (this.isPlainObject(sample) && part in sample) {
         node = sample[part];
-      } else if (this.isObjectNode(node) && part in node.Value) {
-        node = node.Value[part];
       } else if (this.isPlainObject(node) && part in node) {
         node = node[part];
       } else {
@@ -227,7 +199,7 @@ Object.assign(wordex, {
   getDataFieldKindSuffix(node) {
     if (this.isCollectionNode(node)) return " [collection]";
     if (this.isGraphNode(node)) return " [graph]";
-    if (this.isObjectNode(node)) return " [object]";
+    if (this.isTotalsNode(node)) return " [totals]";
     return "";
   },
 
@@ -345,11 +317,6 @@ Object.assign(wordex, {
             macro,
             src: value.Value || ""
           });
-          return;
-        }
-
-        if (this.isObjectNode(value)) {
-          visit(value.Value, path, label, macro);
         }
       });
     };
@@ -481,6 +448,24 @@ Object.assign(wordex, {
       .map(([key]) => ({ path: `${collectionPath}.${key}`, label: `${prefix} > ${key} [totals]` }));
   },
 
+  getRootTotalsOptions() {
+    return this.getTotalsOptionsInCollection("$");
+  },
+
+  getDetailParentTotalsOptions(detailPath) {
+    const parentPath = this.getParentCollectionPath(detailPath);
+    if (!parentPath) return [];
+    return this.getTotalsOptionsInCollection(parentPath);
+  },
+
+  getTotalsMatchFieldNames(footerPath) {
+    const fields = this.getScalarFieldsForDataPath(footerPath);
+    const suffixes = ["Sum", "Avg", "Min", "Max", "Count"];
+    return fields
+      .map(field => String(field.label || field.macro || "").trim())
+      .filter(name => name && !suffixes.some(suffix => name.endsWith(suffix)));
+  },
+
   getTotalsAggregateSuffixes(footerPath) {
     const suffixes = ["Sum", "Avg", "Min", "Max", "Count"];
     const fields = this.getScalarFieldsForDataPath(footerPath);
@@ -496,6 +481,30 @@ Object.assign(wordex, {
     return suffixes.filter(suffix => found.has(suffix));
   },
 
+  getTotalsAggregateSuffixesForField(footerPath, fieldLabel) {
+    const suffixes = ["Sum", "Avg", "Min", "Max", "Count"];
+    const label = String(fieldLabel || "").trim();
+    if (!label || !footerPath) return [];
+
+    const fields = this.getScalarFieldsForDataPath(footerPath);
+    if (!fields.length) return [];
+
+    const found = new Set();
+    fields.forEach(field => {
+      const name = String(field.label || field.macro || "");
+      suffixes.forEach(suffix => {
+        if (name === `${label}${suffix}`) found.add(suffix);
+      });
+    });
+    return suffixes.filter(suffix => found.has(suffix));
+  },
+
+  getAggregateSuffixesForFieldKind(field) {
+    if (this.isNumericDataNode?.(field) || this.isNumericDataNode?.({ kind: field?.kind }))
+      return ["Sum", "Count", "Avg", "Max", "Min"];
+    return ["Count", "Max", "Min"];
+  },
+
   isTotalsNode(node) {
     return this.isPlainObject(node) && String(node.Kind || "").toLowerCase() === "totals" && Array.isArray(node.Items);
   },
@@ -508,31 +517,13 @@ Object.assign(wordex, {
     const result = [];
     Object.entries(sample).forEach(([key, value]) => {
       if (this.isReservedDataPropertyName(key)) return;
-      if (this.isObjectNode(value)) {
-        this.collectScalarFieldsFromObject(value.Value, key, path, result);
-        return;
-      }
+      if (this.isObjectNode(value)) return;
 
       if (this.isScalarDataNode(value)) {
         result.push({ path: `${path}.${key}`, label: key, macro: key, kind: this.getScalarDataKind(value) });
       }
     });
     return result;
-  },
-
-  collectScalarFieldsFromObject(objectValue, prefix, basePath, result) {
-    if (!this.isPlainObject(objectValue)) return;
-    Object.entries(objectValue).forEach(([key, value]) => {
-      if (this.isReservedDataPropertyName(key)) return;
-      const label = `${prefix}.${key}`;
-      if (this.isObjectNode(value)) {
-        this.collectScalarFieldsFromObject(value.Value, label, basePath, result);
-        return;
-      }
-      if (this.isScalarDataNode(value)) {
-        result.push({ path: `${basePath}.${label}`, label, macro: label, kind: this.getScalarDataKind(value) });
-      }
-    });
   },
 
   getScalarDataKind(node) {
