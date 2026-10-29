@@ -42,7 +42,6 @@ Object.assign(wordex, {
     this.document = state.document;
     this.dataSource = state.dataSource ?? null;
     this.dataSourceFileName = String(state.dataSourceFileName || "");
-    this.sanitizeLoadedTableRowHeights?.(this.document);
     this.savedTemplateFileHandle = null;
     this.objectEditMode = false;
     this.activeEditTargetKind = null;
@@ -74,8 +73,7 @@ Object.assign(wordex, {
 
     this.populateDataSourceSelectors?.();
     const label = fileName ? `Template carregado: ${fileName}` : "Template carregado.";
-    // Sem focar contenteditable no load: caret dentro de SP com tabela
-    // pode colapsar a linha de títulos até o próximo clique.
+    // Sem foco no load: caret em SP com tabela colapsa a linha de títulos.
     this.render(label, false, { preserveTableGeometry: true });
   },
 
@@ -94,8 +92,7 @@ Object.assign(wordex, {
         openedPicker = true;
       }
 
-      // O estado geométrico do modelo é a fonte do template. Não reescreva
-      // alturas/posições com medições transitórias do DOM antes de serializar.
+      // Geometria vem do modelo — não medir DOM transitório no save.
       const html = await this.buildStandaloneTemplateHtml();
       const fileName = this.getTemplateHtmlFileName();
 
@@ -128,32 +125,6 @@ Object.assign(wordex, {
     const message = `Template salvo:\n${fileName || "Relatorio.html"}`;
     this.renderStatePanel?.(`Template salvo: ${fileName || "Relatorio.html"}`);
     alert(message);
-  },
-
-  sanitizeLoadedTableRowHeights(root) {
-    const visit = node => {
-      if (!node || typeof node !== "object") return;
-      if (Array.isArray(node)) {
-        node.forEach(visit);
-        return;
-      }
-      if (node.kind === KINDS.TABLE && Array.isArray(node.rowHeights)) {
-        node.rowHeights = node.rowHeights.map(height => {
-          const value = Number(height);
-          return Number.isFinite(value) && value > 0 ? value : null;
-        });
-      }
-      if (node.object) visit(node.object);
-      if (Array.isArray(node.subparagraphs)) node.subparagraphs.forEach(visit);
-      if (Array.isArray(node.paragraphs)) node.paragraphs.forEach(visit);
-      if (Array.isArray(node.sections)) node.sections.forEach(visit);
-      if (Array.isArray(node.cellObjects)) {
-        node.cellObjects.forEach(row => {
-          if (Array.isArray(row)) row.forEach(visit);
-        });
-      }
-    };
-    visit(root);
   },
 
   canUseNativeSaveFilePicker() {

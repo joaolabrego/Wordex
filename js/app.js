@@ -95,7 +95,6 @@ init() {
         this.migrateTextHtmlToRuns?.();
         this.bindGlobalPointerEvents();
         this.render("", false, {
-          // Template embutido: não focar SP com tabela (evita colapso no load).
           focusActiveEditableSubparagraph: !loadedTemplate,
           preserveTableGeometry: loadedTemplate
         });

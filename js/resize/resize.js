@@ -479,7 +479,6 @@ freezeTableRenderedSizeForEditMode(table) {
         table.rowHeights = this.getRenderedTableRowHeights(table.id, table.rows, contentHeight)
           .map(height => {
             const value = Math.round(Number(height) || 0);
-            // Não congelar 0: isso esmaga a linha de títulos até o próximo clique.
             return value > 0 ? value : null;
           });
 
@@ -1681,7 +1680,6 @@ applyTableInternalRowHeightResize(table, dragging, requestedHeight) {
 
         otherRowIndexes.forEach((rowIndex, index) => {
           const value = Math.round(Number(otherRowHeights[index]) || 0);
-          // Nunca persistir 0: no próximo open a linha de títulos some até o clique.
           rowHeights[rowIndex] = value > 0 ? value : null;
         });
 
@@ -1754,11 +1752,8 @@ applyTableInternalColumnWidthResize(table, dragging, requestedWidth) {
 applyTableColumnWidthToDom(tableId, colIndex, width) {
         const roundedWidth = Math.round(width);
 
-        // Largura só no <col>: width em <td> (ainda mais com colspan) cria
-        // coluna fantasma / desalinhamento entre linhas.
         const colElement = document.querySelector(`[data-table-col="${tableId}"][data-col="${colIndex}"]`);
         if (colElement) colElement.style.width = `${roundedWidth}px`;
-
         this.getTableColumnCells(tableId, colIndex).forEach(cell => {
           cell.style.removeProperty("width");
         });

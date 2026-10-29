@@ -28,8 +28,7 @@ render(message = "", isError = false, options = {}) {
           element.addEventListener("beforeinput", event => this.onEditableBeforeInput(event, element));
           element.addEventListener("keydown", event => this.onEditableSubparagraphKeydown?.(event, element));
           element.addEventListener("input", event => this.onSubparagraphInput(event, element));
-          // blur pode ocorrer justamente quando o usuário clica em Salvar.
-          // Sincroniza o texto, mas não recalcula a geometria persistida.
+          // Blur (ex.: Salvar): sincroniza texto sem recalcular geometria.
           element.addEventListener("blur", event => this.onSubparagraphInput(event, element, { preserveGeometry: true }));
         });
 
@@ -218,8 +217,7 @@ render(message = "", isError = false, options = {}) {
           });
         }
 
-        // Sempre alinha o DOM ao modelo (só <col> %, sem width em <td>).
-        // Com preserveTableGeometry não reescreve colWidths no modelo.
+        // Aplica col % no DOM; com preserveTableGeometry não reescreve o modelo.
         const normalizeColumns = () => this.normalizeUnsetTableColumnWidths?.({
           preserveModel: Boolean(options.preserveTableGeometry)
         });
@@ -251,7 +249,6 @@ normalizeUnsetTableColumnWidths(options = {}) {
             ? explicitWidths.reduce((sum, width) => sum + width, 0)
             : 0;
 
-          // Preserva proporções salvas/editadas. Só equaliza quando ainda não há larguras.
           if (hasExplicit && explicitSum > 0) {
             tableElement.querySelectorAll(`[data-table-col="${tableId}"]`).forEach(colElement => {
               const col = Number(colElement.dataset.col);
@@ -758,7 +755,6 @@ ensureTableSizeState(table) {
         if (!table || table.kind !== KINDS.TABLE) return;
         if (!Array.isArray(table.rowHeights)) table.rowHeights = [];
         if (!Array.isArray(table.colWidths)) table.colWidths = [];
-        // Remove alturas 0/negativas que colapsam a linha de títulos no load.
         table.rowHeights = table.rowHeights.map(height => {
           const value = Number(height);
           return Number.isFinite(value) && value > 0 ? value : null;
@@ -876,7 +872,7 @@ renderTable(table, isEditableSection = true) {
           ? explicitWidths.reduce((sum, width) => sum + width, 0)
           : 0;
         for (let col = 0; col < table.cols; col += 1) {
-          // Só <col> em %. Nunca width em <td> — com colspan isso cria coluna fantasma.
+          // Largura só no <col> (%); width em <td> + colspan cria coluna fantasma.
           let style = "";
           if (table.cols > 0) {
             const pct = hasExplicitColWidths && explicitSum > 0
@@ -891,8 +887,6 @@ renderTable(table, isEditableSection = true) {
         for (let row = 0; row < table.rows; row += 1) {
           const cells = [];
           const height = Number(table.rowHeights[row]);
-          // height:0 colapsa a linha de títulos (só a borda fica visível); o clique
-          // no contenteditable reabre a linha e o browser recalcula as colunas.
           const rowStyle = Number.isFinite(height) && height > 0
             ? ` style="height:${Math.round(height)}px"`
             : "";

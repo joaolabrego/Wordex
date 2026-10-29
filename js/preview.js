@@ -81,8 +81,6 @@ Object.assign(wordex, {
       const span = Math.max(1, Number(table.cellColspans?.[rowIndex]?.[col]) || 1);
       return Math.min(span, Math.max(1, table.cols - col));
     });
-    // Header de grupo/tabela: uma célula só. Células "" extras após colspan
-    // fazem o browser criar colunas fantasma e desalinharem Nome/Preço.
     if (context?.kind === "groupHeader" || context?.kind === "tableHeader" || context?.mergeAcrossColumns) {
       spans[0] = table.cols;
       for (let col = 1; col < table.cols; col += 1) spans[col] = 1;
